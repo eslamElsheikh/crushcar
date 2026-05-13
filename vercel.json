@@ -1,7 +1,7 @@
 {
   "name": "crushcar",
   "framework": "nextjs",
-  "buildCommand": "npx prisma migrate deploy && npx tsx prisma/seed.ts && npx next build",
+  "buildCommand": "npx prisma db push --force-reset && npx tsx prisma/seed.ts && npx next build",
   "installCommand": "npm install",
   "devCommand": "npm run dev"
 }
