@@ -1,0 +1,97 @@
+// CrushCar Bus Booking Platform - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  phone     String?   @default("")
+  role      String    @default("CUSTOMER") // SUPER_ADMIN | COMPANY_ADMIN | CUSTOMER
+  companyId String?
+  company   Company?  @relation(fields: [companyId], references: [id])
+  createdAt DateTime  @default(now())
+  bookings  Booking[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  subdomain String   @unique
+  plan      String   @default("STARTER") // STARTER | PRO | ENTERPRISE
+  users     User[]
+  buses     Bus[]
+  createdAt DateTime @default(now())
+}
+
+model Bus {
+  id        String      @id @default(cuid())
+  name      String
+  type      String      // MINI_BUS | COACH_BUS | VIP_BUS | DOUBLE_DECKER
+  seatCount Int
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id])
+  layout    BusLayout?
+  trips     Trip[]
+  createdAt DateTime   @default(now())
+}
+
+model BusLayout {
+  id        String  @id @default(cuid())
+  busId     String  @unique
+  bus       Bus     @relation(fields: [busId], references: [id], onDelete: Cascade)
+  rows      Int
+  cols      Int     // max columns (e.g. 4 for 2+aisle+2)
+  aisleAfter Int    @default(2) // aisle position (e.g. 2 = after column 2)
+  colsPerRow String @default("") // JSON: "{"A":3,"B":4,"C":3,"D":4}" - actual seat count per row
+  seats     Seat[]
+}
+
+model Seat {
+  id       String    @id @default(cuid())
+  layoutId String
+  layout   BusLayout @relation(fields: [layoutId], references: [id], onDelete: Cascade)
+  label    String
+  row      Int
+  col      Int
+  type     String    @default("NORMAL") // NORMAL | VIP | DISABLED | HIDDEN
+  price    Float     @default(0)
+}
+
+model Trip {
+  id          String    @id @default(cuid())
+  busId       String
+  bus         Bus       @relation(fields: [busId], references: [id])
+  origin      String
+  destination String
+  departure   DateTime
+  arrival     DateTime
+  price       Float
+  status      String    @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+}
+
+model Booking {
+  id        String    @id @default(cuid())
+  reference String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tripId    String
+  trip      Trip      @relation(fields: [tripId], references: [id])
+  seatLabel String
+  status    String    @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
+  paidAt    DateTime?
+  boarded   Boolean   @default(false)
+  boardedAt DateTime?
+  total     Float
+  createdAt DateTime  @default(now())
+}

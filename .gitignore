@@ -1,0 +1,11 @@
+node_modules/
+.next/
+*.db
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+Thumbs.db
+vercel.json
+*.pem

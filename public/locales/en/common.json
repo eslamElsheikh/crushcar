@@ -1,0 +1,276 @@
+{
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "demo": "Live Demo",
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out"
+  },
+  "hero": {
+    "badge": "🚀 The Future of Bus Booking",
+    "title": "Book Your Seat",
+    "titleAccent": "In Seconds",
+    "subtitle": "Modern realtime seat booking platform for transportation companies. Beautiful seat maps, instant reservations, and powerful analytics.",
+    "cta": "Start Booking Now",
+    "ctaSecondary": "Watch Demo",
+    "stats": {
+      "bookings": "Active Bookings",
+      "cities": "Cities Covered",
+      "companies": "Transport Companies",
+      "seats": "Seats Booked"
+    },
+    "liveLabel": "LIVE"
+  },
+  "features": {
+    "badge": "POWERFUL FEATURES",
+    "title": "Everything you need to run a modern transport business",
+    "subtitle": "Built for transportation companies that demand excellence",
+    "realtime": {
+      "title": "Realtime Seat Booking",
+      "desc": "Watch seats get booked in real-time. Multiple customers can browse simultaneously without conflicts."
+    },
+    "seatBuilder": {
+      "title": "Visual Seat Builder",
+      "desc": "Design custom bus layouts with drag-and-drop. Set VIP, normal, and disabled seats with individual pricing."
+    },
+    "analytics": {
+      "title": "Smart Analytics",
+      "desc": "Track revenue, occupancy rates, and booking trends with beautiful dashboards. Make data-driven decisions."
+    },
+    "multiBus": {
+      "title": "Multi-Bus Fleet",
+      "desc": "Manage unlimited buses with different layouts. Perfect for growing transport companies."
+    },
+    "bulkTrips": {
+      "title": "Bulk Trip Scheduling",
+      "desc": "Create hundreds of trips at once with daily, weekly, or custom intervals. Save hours of work."
+    },
+    "payments": {
+      "title": "Payment Integration",
+      "desc": "Accept payments online with Stripe integration. Support for Egyptian Pound (EGP) transactions."
+    }
+  },
+  "liveBooking": {
+    "badge": "SEE IT IN ACTION",
+    "title": "Watch realtime booking come alive",
+    "subtitle": "Multiple customers browsing, seats getting selected, instant confirmations — all happening in real-time",
+    "legend": {
+      "available": "Available",
+      "selected": "Selected",
+      "booked": "Booked"
+    }
+  },
+  "testimonials": {
+    "badge": "TRUSTED BY TRANSPORT LEADERS",
+    "title": "Companies that trust CrushCar",
+    "items": [
+      {
+        "quote": "CrushCar transformed how we manage our fleet. The seat map is beautiful and customers love it.",
+        "author": "Ahmed Hassan",
+        "role": "CEO, Cairo Express",
+        "company": "Cairo Express"
+      },
+      {
+        "quote": "The realtime booking system eliminated overbooking completely. Our customers are happier than ever.",
+        "author": "Sarah Mahmoud",
+        "role": "Operations Director",
+        "company": "Delta Transport"
+      },
+      {
+        "quote": "Beautiful UI, powerful backend. CrushCar is exactly what the Egyptian transport market needed.",
+        "author": "Omar Farouk",
+        "role": "Founder",
+        "company": "Nile Bus Co."
+      }
+    ]
+  },
+  "pricing": {
+    "badge": "SIMPLE PRICING",
+    "title": "Start free, scale as you grow",
+    "subtitle": "No hidden fees. No surprises. Just honest pricing.",
+    "starter": {
+      "name": "Starter",
+      "price": "Free",
+      "desc": "Perfect for small transport companies getting started",
+      "features": ["Up to 3 buses", "Basic seat layouts", "Trip scheduling", "Email support"]
+    },
+    "pro": {
+      "name": "Professional",
+      "price": "1,500",
+      "priceSuffix": "/month",
+      "desc": "For growing companies that need more power",
+      "features": ["Unlimited buses", "Advanced analytics", "Bulk trip creation", "Priority support", "Custom branding"],
+      "popular": true
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "price": "5,000",
+      "priceSuffix": "/month",
+      "desc": "For large transport networks with custom needs",
+      "features": ["Everything in Pro", "API access", "White-label", "Dedicated support", "SLA guarantee"]
+    },
+    "perMonth": "/mo"
+  },
+  "cta": {
+    "title": "Ready to transform your transport business?",
+    "subtitle": "Join hundreds of transport companies already using CrushCar. Start your free trial today.",
+    "button": "Start for Free — No Credit Card"
+  },
+  "footer": {
+    "tagline": "Modern transport management for the Egyptian market",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "links": {
+      "product": ["Features", "Pricing", "Dashboard", "Changelog"],
+      "company": ["About", "Blog", "Careers", "Contact"],
+      "legal": ["Privacy", "Terms", "Security"]
+    }
+  },
+  "landingHow": {
+    "badge": "HOW IT WORKS",
+    "title": "Three steps to better bookings",
+    "create": "Create your buses",
+    "createDesc": "Add your fleet and design custom seat layouts with our visual builder",
+    "trips": "Schedule trips",
+    "tripsDesc": "Set routes, times, and pricing for each journey. Bulk create hundreds at once.",
+    "book": "Start booking",
+    "bookDesc": "Customers choose seats visually and book instantly with realtime updates"
+  },
+  "seat": {
+    "select": "Select Your Seat",
+    "available": "Available",
+    "selected": "Selected",
+    "reserved": "Reserved",
+    "vipSeat": "VIP",
+    "summary": "Booking Summary",
+    "selectedSeats": "Selected Seats",
+    "clickSeat": "Click a seat to select",
+    "total": "Total",
+    "bookBtn": "Book Now",
+    "selectFirst": "Select a seat to continue",
+    "cancel": "Free cancellation within 1 hour"
+  },
+  "confirmed": {
+    "title": "Booking Confirmed!",
+    "desc": "Your seat has been reserved successfully",
+    "reference": "Reference",
+    "route": "Route",
+    "seat": "Seat",
+    "departure": "Departure",
+    "totalPaid": "Total Paid",
+    "bookAnother": "Book Another Seat"
+  },
+  "search": {
+    "title": "Find a Trip",
+    "desc": "Search for available routes and book your seat",
+    "from": "From",
+    "to": "To",
+    "date": "Date",
+    "searchBtn": "Search",
+    "noTrips": "No trips found",
+    "tryAgain": "Try adjusting your search or check back later",
+    "seatsLeft": "seats left",
+    "fullyBooked": "Fully booked",
+    "chooseSeat": "Choose Seat",
+    "soldOut": "Sold Out",
+    "perSeat": "per seat"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "totalBookings": "Total Bookings",
+    "totalRevenue": "Total Revenue",
+    "activeTrips": "Active Trips",
+    "todayRevenue": "Today's Revenue",
+    "revenueTrend": "Revenue Trend",
+    "last30days": "Last 30 days",
+    "recentBookings": "Recent Bookings",
+    "viewAll": "View all",
+    "manageBuses": "Manage Buses",
+    "manageTrips": "Manage Trips",
+    "viewTrips": "View Trips",
+    "addBuses": "Add buses and design seat layouts",
+    "createTrips": "Create and schedule trips",
+    "seeTrips": "See all available trips"
+  },
+  "trips": {
+    "title": "Trips",
+    "manage": "Manage your routes and schedules",
+    "addTrip": "Add Trip",
+    "bulkCreate": "Bulk Create",
+    "noTrips": "No trips yet",
+    "createFirst": "Create your first trip",
+    "origin": "Origin",
+    "destination": "Destination",
+    "departure": "Departure",
+    "arrival": "Arrival",
+    "price": "Price",
+    "bus": "Bus",
+    "status": "Status"
+  },
+  "buses": {
+    "title": "Buses",
+    "manage": "Manage your fleet",
+    "addBus": "Add Bus",
+    "noBuses": "No buses yet",
+    "addFirst": "Add your first bus",
+    "seatsConfig": "seats configured",
+    "editLayout": "Edit Layout",
+    "designLayout": "Design Layout",
+    "addNew": "Add New Bus",
+    "busName": "Bus Name",
+    "busType": "Bus Type",
+    "cancel": "Cancel",
+    "create": "Create"
+  },
+  "bookings": {
+    "title": "Bookings",
+    "all": "All reservations",
+    "search": "Search bookings...",
+    "noBookings": "No bookings found",
+    "noBookingsDesc": "Bookings will appear here when customers reserve seats",
+    "reference": "Reference",
+    "customer": "Customer",
+    "route": "Route",
+    "seat": "Seat"
+  },
+  "auth": {
+    "welcome": "Welcome back",
+    "signInAccount": "Sign in to your account",
+    "email": "Email",
+    "password": "Password",
+    "noAccount": "Don't have an account?",
+    "createOne": "Create one",
+    "createAccount": "Create account",
+    "joinToday": "Join CrushCar today",
+    "fullName": "Full Name",
+    "iAm": "I am a...",
+    "customer": "Customer (book seats)",
+    "companyAdmin": "Company Admin (manage buses & trips)",
+    "companyIdLabel": "Company ID",
+    "askAdmin": "Ask your admin for this",
+    "alreadyAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "demoAccounts": "Demo accounts",
+    "admin": "Admin",
+    "user": "User"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "guest": "Guest",
+    "currency": "EGP"
+  }
+}
