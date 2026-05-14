@@ -13,6 +13,7 @@ import {
   ScanEye,
   BarChart3,
   Users,
+  ShieldPlus,
   LogOut,
   Menu,
   X,
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/admin/verify', icon: ScanEye, labelKey: 'nav.verify' },
   { href: '/admin/reports', icon: BarChart3, labelKey: 'nav.reports' },
   { href: '/admin/customers', icon: Users, labelKey: 'nav.customers' },
+  { href: '/admin/users', icon: ShieldPlus, labelKey: 'nav.users' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

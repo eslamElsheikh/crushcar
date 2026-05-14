@@ -18,6 +18,7 @@ const translations: Record<string, Record<Language, string>> = {
   'nav.trips': { ar: 'الرحلات', en: 'Trips' },
   'nav.bookings': { ar: 'الحجوزات', en: 'Bookings' },
   'nav.customers': { ar: 'العملاء', en: 'Customers' },
+  'nav.users': { ar: 'إدارة المستخدمين', en: 'User Management' },
   'nav.verify': { ar: 'التحقق من الصعود', en: 'Verify Boarding' },
   'nav.reports': { ar: 'التقارير', en: 'Reports' },
   'nav.signOut': { ar: 'تسجيل الخروج', en: 'Sign Out' },
