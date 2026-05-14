@@ -202,7 +202,7 @@ function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, la
             <div className="hidden lg:flex items-center gap-2">
               {session ? (
                 <div className="relative">
-                  <button onClick={() => setLangOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 text-sm hover:bg-white/5 transition-all duration-200">
+                  <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 text-sm hover:bg-white/5 transition-all duration-200">
                     <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center">
                       <span className="text-blue-400 text-xs font-bold">{session.user?.name?.[0] || 'U'}</span>
                     </div>
