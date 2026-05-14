@@ -28,21 +28,25 @@ export default function AdminBusesPage() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', type: 'COACH_BUS' })
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadBuses()
   }, [])
 
   async function loadBuses() {
-    const res = await fetch('/api/buses')
-    const data = await res.json()
-    setBuses(data)
-    setLoading(false)
+    try {
+      const res = await fetch('/api/buses')
+      const data = await res.json()
+      setBuses(Array.isArray(data) ? data : [])
+    } catch { setBuses([]) }
+    finally { setLoading(false) }
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setError('')
     const res = await fetch('/api/buses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,6 +58,8 @@ export default function AdminBusesPage() {
       setShowModal(false)
       setForm({ name: '', type: 'COACH_BUS' })
       loadBuses()
+    } else {
+      setError(data.error || 'Failed to create bus')
     }
   }
 
@@ -184,6 +190,11 @@ export default function AdminBusesPage() {
                   ))}
                 </select>
               </div>
+              {error && (
+                <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"

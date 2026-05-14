@@ -33,15 +33,17 @@ export async function POST(req: NextRequest) {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { name, type, seatCount, companyId } = await req.json()
+    const body = await req.json()
+    const { name, type, companyId } = body
+    const seatCount = body.seatCount ?? 0
 
-    if (!name || !type || !seatCount) {
+    if (!name || !type) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
     // COMPANY_ADMIN can only create buses for their own company
     if (session.user.role === 'COMPANY_ADMIN') {
-      if (companyId !== session.user.companyId) {
+      if (companyId && companyId !== session.user.companyId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
