@@ -214,6 +214,15 @@ function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, la
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
                         <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.2 }} className={cn('absolute top-full mt-2 z-20 glass rounded-2xl border border-white/10 overflow-hidden w-44', isRTL ? 'left-0' : 'right-0')}>
+                          {(session.user?.role === 'COMPANY_ADMIN' || session.user?.role === 'SUPER_ADMIN') && (
+                            <>
+                              <Link href="/admin" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-blue-400 hover:text-blue-300 hover:bg-white/5 transition-all">
+                                <span className="text-lg">📊</span>
+                                <span>{isRTL ? 'لوحة التحكم' : 'Dashboard'}</span>
+                              </Link>
+                              <div className="border-t border-white/5" />
+                            </>
+                          )}
                           <Link href="/bookings" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-all">
                             <User size={15} />
                             <span>{isRTL ? 'حجوزاتي' : 'My Bookings'}</span>
