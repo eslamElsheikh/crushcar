@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Armchair,
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { useLangStore } from '@/lib/lang'
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/admin', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+  { href: '/admin/seats', icon: Armchair, labelKey: 'nav.seats' },
   { href: '/admin/buses', icon: Bus, labelKey: 'nav.buses' },
   { href: '/admin/trips', icon: Route, labelKey: 'nav.trips' },
   { href: '/admin/bookings', icon: Ticket, labelKey: 'nav.bookings' },

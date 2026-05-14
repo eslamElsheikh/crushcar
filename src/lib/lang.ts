@@ -14,6 +14,7 @@ interface LangState {
 const translations: Record<string, Record<Language, string>> = {
   // Navigation
   'nav.dashboard': { ar: 'لوحة التحكم', en: 'Dashboard' },
+  'nav.seats': { ar: 'خريطة المقاعد', en: 'Seats Map' },
   'nav.buses': { ar: 'الباصات', en: 'Buses' },
   'nav.trips': { ar: 'الرحلات', en: 'Trips' },
   'nav.bookings': { ar: 'الحجوزات', en: 'Bookings' },
