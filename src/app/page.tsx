@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import {
-  Bus, Calendar, CreditCard, ChevronDown, Menu, Play, Star, X,
-  Check, Sparkles,
+  Bus, Calendar, CreditCard, ChevronDown, LogOut, Menu, Play, Star, X,
+  Check, Sparkles, User,
 } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
@@ -91,6 +91,7 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [stats, setStats] = useState<{
     totalBookings: number; totalRevenue: number; activeTrips: number;
     totalBuses: number; recentTrips: any[]
@@ -134,7 +135,7 @@ export default function LandingPage() {
 
   return (
     <div className={cn('min-h-screen bg-background text-foreground overflow-x-hidden', isRTL && 'font-[Cairo]')} dir={isRTL ? 'rtl' : 'ltr'}>
-      <Navbar scrolled={scrolled} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} langOpen={langOpen} setLangOpen={setLangOpen} lang={lang} isRTL={isRTL} session={session} />
+      <Navbar scrolled={scrolled} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} langOpen={langOpen} setLangOpen={setLangOpen} lang={lang} isRTL={isRTL} session={session} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} />
       <HeroSection lang={lang} isRTL={isRTL} stats={stats} />
       <FeaturesSection features={features} lang={lang} isRTL={isRTL} />
       <LiveBookingSection lang={lang} isRTL={isRTL} />
@@ -148,7 +149,7 @@ export default function LandingPage() {
 }
 
 // ─── NAVBAR ───────────────────────────────────────────────────────────────
-function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, lang, isRTL, session }: { scrolled: boolean, mobileOpen: boolean, setMobileOpen: (v: boolean) => void, langOpen: boolean, setLangOpen: (v: boolean) => void, lang: string, isRTL: boolean, session: any }) {
+function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, lang, isRTL, session, userMenuOpen, setUserMenuOpen }: { scrolled: boolean, mobileOpen: boolean, setMobileOpen: (v: boolean) => void, langOpen: boolean, setLangOpen: (v: boolean) => void, lang: string, isRTL: boolean, session: any, userMenuOpen: boolean, setUserMenuOpen: (v: boolean) => void }) {
   const setLang = useLangStore((s) => s.setLang)
   const navLinks = [
     { href: '#features', label: tr(lang, 'nav.features') },
@@ -199,8 +200,44 @@ function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, la
               </AnimatePresence>
             </div>
             <div className="hidden lg:flex items-center gap-2">
-              <Link href="/login" className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-white/5">{tr(lang, 'nav.signIn')}</Link>
-              <Link href="/register" className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105">{tr(lang, 'nav.signUp')}</Link>
+              {session ? (
+                <div className="relative">
+                  <button onClick={() => setLangOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 text-sm hover:bg-white/5 transition-all duration-200">
+                    <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <span className="text-blue-400 text-xs font-bold">{session.user?.name?.[0] || 'U'}</span>
+                    </div>
+                    <span className="text-zinc-300 text-sm">{session.user?.name?.split(' ')[0] || 'User'}</span>
+                    <ChevronDown size={14} className={cn('transition-transform duration-200', userMenuOpen && 'rotate-180')} />
+                  </button>
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
+                        <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.2 }} className={cn('absolute top-full mt-2 z-20 glass rounded-2xl border border-white/10 overflow-hidden w-44', isRTL ? 'left-0' : 'right-0')}>
+                          <Link href="/bookings" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-all">
+                            <User size={15} />
+                            <span>{isRTL ? 'حجوزاتي' : 'My Bookings'}</span>
+                          </Link>
+                          <Link href="/profile" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-all">
+                            <span className="text-lg">⚙️</span>
+                            <span>{isRTL ? 'حسابي' : 'My Account'}</span>
+                          </Link>
+                          <div className="border-t border-white/5" />
+                          <button onClick={() => { signOut({ callbackUrl: '/' }); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-all">
+                            <LogOut size={15} />
+                            <span>{isRTL ? 'خروج' : 'Sign Out'}</span>
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <>
+                  <Link href="/login" className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-white/5">{tr(lang, 'nav.signIn')}</Link>
+                  <Link href="/register" className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105">{tr(lang, 'nav.signUp')}</Link>
+                </>
+              )}
             </div>
             <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden p-2 rounded-lg glass hover:bg-white/5 transition">{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
           </div>
@@ -210,10 +247,27 @@ function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, la
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="lg:hidden overflow-hidden">
               <div className="pb-6 pt-2 flex flex-col gap-1 border-t border-white/5">
                 {navLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="px-4 py-3 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5">{link.label}</Link>)}
-                <div className="flex gap-2 pt-4 px-4">
-                  <Link href="/login" onClick={() => setMobileOpen(false)} className="flex-1 py-2.5 text-center text-sm glass rounded-xl hover:bg-white/5 transition">{tr(lang, 'nav.signIn')}</Link>
-                  <Link href="/register" onClick={() => setMobileOpen(false)} className="flex-1 py-2.5 text-center text-sm bg-blue-500 rounded-xl hover:bg-blue-600 transition text-white font-medium">{tr(lang, 'nav.signUp')}</Link>
-                </div>
+                {session ? (
+                  <div className="flex flex-col gap-1 pt-4 px-4 border-t border-white/5">
+                    <Link href="/bookings" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-white/5">
+                      <User size={16} />
+                      <span>{isRTL ? 'حجوزاتي' : 'My Bookings'}</span>
+                    </Link>
+                    <Link href="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-white/5">
+                      <span className="text-base">⚙️</span>
+                      <span>{isRTL ? 'حسابي' : 'My Account'}</span>
+                    </Link>
+                    <button onClick={() => { signOut({ callbackUrl: '/' }); setMobileOpen(false) }} className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 transition-colors rounded-lg hover:bg-white/5 mt-1">
+                      <LogOut size={16} />
+                      <span>{isRTL ? 'خروج' : 'Sign Out'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 pt-4 px-4">
+                    <Link href="/login" onClick={() => setMobileOpen(false)} className="flex-1 py-2.5 text-center text-sm glass rounded-xl hover:bg-white/5 transition">{tr(lang, 'nav.signIn')}</Link>
+                    <Link href="/register" onClick={() => setMobileOpen(false)} className="flex-1 py-2.5 text-center text-sm bg-blue-500 rounded-xl hover:bg-blue-600 transition text-white font-medium">{tr(lang, 'nav.signUp')}</Link>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
