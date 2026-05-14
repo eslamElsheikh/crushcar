@@ -26,7 +26,7 @@ export default function AdminBusesPage() {
   const [buses, setBuses] = useState<Bus[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ name: '', type: 'COACH_BUS', companyId: '' })
+  const [form, setForm] = useState({ name: '', type: 'COACH_BUS' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -46,13 +46,13 @@ export default function AdminBusesPage() {
     const res = await fetch('/api/buses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, seatCount: 0 }),
+      body: JSON.stringify({ name: form.name, type: form.type, seatCount: 0 }),
     })
     const data = await res.json()
     setSaving(false)
     if (res.ok) {
       setShowModal(false)
-      setForm({ name: '', type: 'COACH_BUS', companyId: '' })
+      setForm({ name: '', type: 'COACH_BUS' })
       loadBuses()
     }
   }
@@ -183,16 +183,6 @@ export default function AdminBusesPage() {
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="text-sm text-zinc-400 mb-2 block">Company ID</label>
-                <input
-                  type="text"
-                  value={form.companyId}
-                  onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 focus:border-blue-500 focus:outline-none transition"
-                  placeholder="Company ID (from companies)"
-                />
               </div>
               <div className="flex gap-3 pt-2">
                 <button
