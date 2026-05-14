@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'CUSTOMER', companyId: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -120,35 +120,6 @@ export default function RegisterPage() {
                 </button>
               </div>
             </div>
-
-            <div>
-              <label className="text-sm text-zinc-400 mb-2 block">{t('auth.iAm')}</label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-                className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:outline-none transition text-white"
-              >
-                <option value="CUSTOMER">{t('auth.customer')}</option>
-                <option value="COMPANY_ADMIN">{t('auth.companyAdmin')}</option>
-              </select>
-            </div>
-
-            {form.role === 'COMPANY_ADMIN' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="overflow-hidden"
-              >
-                <label className="text-sm text-zinc-400 mb-2 block">{t('auth.companyIdLabel')}</label>
-                <input
-                  type="text"
-                  value={form.companyId}
-                  onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                  className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-white placeholder:text-zinc-600"
-                  placeholder={t('auth.askAdmin')}
-                />
-              </motion.div>
-            )}
 
             {error && (
               <motion.div
