@@ -14,6 +14,7 @@ interface Booking {
   id: string
   reference: string
   seatLabel: string
+  passengerName: string
   status: string
   total: number
   paidAt: string | null
@@ -399,6 +400,12 @@ function BookingCard({ booking, index, isRTL, lang, cancelling, onCancel, onCopy
             <span className="font-mono text-white bg-zinc-800 px-2 py-0.5 rounded text-xs font-bold">
               {booking.seatLabel}
             </span>
+            {booking.passengerName && (
+              <span className="flex items-center gap-1.5 text-amber-400/70">
+                <span className="text-xs">👤</span>
+                {booking.passengerName}
+              </span>
+            )}
           </div>
         </div>
 

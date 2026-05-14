@@ -25,32 +25,39 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    const { tripId, userId, seatLabel, ref } = session.metadata || {}
+    const stripeSession = event.data.object as Stripe.Checkout.Session
 
     try {
-      const booking = await prisma.booking.findFirst({
-        where: { reference: ref || '', status: 'PENDING' },
+      // Find all PENDING bookings for this Stripe session
+      const bookings = await prisma.booking.findMany({
+        where: {
+          stripeSessionId: stripeSession.id,
+          status: 'PENDING',
+        },
         include: { user: true, trip: { include: { bus: true } } },
       })
 
-      if (booking) {
-        await prisma.booking.update({
-          where: { id: booking.id },
+      // Update all to PAID
+      await Promise.all(bookings.map((b) =>
+        prisma.booking.update({
+          where: { id: b.id },
           data: { status: 'PAID', paidAt: new Date() },
         })
+      ))
 
-        await sendBookingConfirmationEmail(booking.user.email, {
-          reference: booking.reference,
-          passenger: booking.user.name,
-          origin: booking.trip.origin,
-          destination: booking.trip.destination,
-          departure: booking.trip.departure,
-          seatLabel: booking.seatLabel,
-          total: booking.total,
-          busName: booking.trip.bus.name,
+      // Send confirmation email for each booking
+      await Promise.all(bookings.map((b) =>
+        sendBookingConfirmationEmail(b.user.email, {
+          reference: b.reference,
+          passenger: b.passengerName || b.user.name,
+          origin: b.trip.origin,
+          destination: b.trip.destination,
+          departure: b.trip.departure,
+          seatLabel: b.seatLabel,
+          total: b.total,
+          busName: b.trip.bus.name,
         })
-      }
+      ))
     } catch (err) {
       console.error('Webhook booking update error:', err)
     }

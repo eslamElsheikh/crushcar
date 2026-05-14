@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Clock, MapPin, Loader2, Check, Bus, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Loader2, Check, Bus, Sparkles, X, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate, formatTime } from '@/lib/utils'
 import { useLangStore } from '@/lib/lang'
@@ -58,6 +58,7 @@ export default function TripDetailPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedSeats, setSelectedSeats] = useState<string[]>([])
+  const [passengerNames, setPassengerNames] = useState<Record<string, string>>({})
   const [booking, setBooking] = useState(false)
   const [confirmedBookings, setConfirmedBookings] = useState<any[]>([])
   const [lastToast, setLastToast] = useState<string>('')
@@ -117,12 +118,16 @@ export default function TripDetailPage() {
     }
     setBooking(true)
 
-    // For single seat: use Stripe checkout
-    if (selectedSeats.length === 1) {
+    const seats = selectedSeats.map((seatLabel) => ({
+      seatLabel,
+      passengerName: passengerNames[seatLabel] || session.user?.name || '',
+    }))
+
+    try {
       const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId, seatLabel: selectedSeats[0] }),
+        body: JSON.stringify({ tripId, seats }),
         credentials: 'include',
       })
       const data = await res.json()
@@ -131,54 +136,9 @@ export default function TripDetailPage() {
         return
       } else {
         toast.error(data.error || t('common.error'))
-        setBooking(false)
-        return
       }
-    }
-
-    // For multi-seat: handle one at a time
-    const allBookings: any[] = []
-    for (const seatLabel of selectedSeats) {
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tripId, seatLabel }),
-        credentials: 'include',
-      })
-
-      if (res.status === 401) {
-        toast.error(isRTL ? 'سجل دخول أولاً' : 'Please sign in first')
-        router.push('/login')
-        break
-      }
-
-      const data = await res.json()
-      if (res.ok && data.requiresPayment) {
-        const checkoutRes = await fetch('/api/payments/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tripId, seatLabel }),
-          credentials: 'include',
-        })
-        const checkoutData = await checkoutRes.json()
-        if (checkoutRes.ok && checkoutData.url) {
-          window.location.href = checkoutData.url
-          return
-        }
-      } else if (res.ok) {
-        allBookings.push(data)
-      } else {
-        toast.error(data.error || t('common.error'))
-      }
-    }
-
-    if (allBookings.length > 0) {
-      setConfirmedBookings(allBookings)
-      if (allBookings.length === 1) {
-        toast.success(`✅ ${t('confirmed.title')}`)
-      } else {
-        toast.success(`✅ ${allBookings.length} ${isRTL ? 'حجز بنجاح!' : 'Bookings confirmed!'}`)
-      }
+    } catch {
+      toast.error(t('common.error'))
     }
     setBooking(false)
   }
@@ -510,6 +470,49 @@ export default function TripDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Passenger name inputs */}
+              <AnimatePresence>
+                {selectedSeats.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="border-t border-white/5 pt-4 mb-6"
+                  >
+                    <h4 className="text-xs text-zinc-500 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+                      <User size={12} />
+                      {isRTL ? 'اسم المسافر' : 'Passenger Name'}
+                    </h4>
+                    {selectedSeats.length === 1 ? (
+                      <input
+                        type="text"
+                        value={passengerNames[selectedSeats[0]] ?? session?.user?.name ?? ''}
+                        onChange={(e) => setPassengerNames((p) => ({ ...p, [selectedSeats[0]]: e.target.value }))}
+                        placeholder={session?.user?.name ?? (isRTL ? 'اسم المسافر' : 'Passenger name')}
+                        className="w-full px-4 py-2.5 rounded-xl bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50 transition-colors"
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedSeats.map((label) => (
+                          <div key={label} className="flex items-center gap-3">
+                            <span className="w-10 text-center text-sm font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg py-1.5 flex-shrink-0">
+                              {label}
+                            </span>
+                            <input
+                              type="text"
+                              value={passengerNames[label] ?? ''}
+                              onChange={(e) => setPassengerNames((p) => ({ ...p, [label]: e.target.value }))}
+                              placeholder={isRTL ? `اسم راكب ${label}` : `Passenger for seat ${label}`}
+                              className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50 transition-colors"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Price breakdown */}
               <AnimatePresence>

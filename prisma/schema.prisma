@@ -81,17 +81,19 @@ model Trip {
 }
 
 model Booking {
-  id        String    @id @default(cuid())
-  reference String    @unique
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  tripId    String
-  trip      Trip      @relation(fields: [tripId], references: [id])
-  seatLabel String
-  status    String    @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
-  paidAt    DateTime?
-  boarded   Boolean   @default(false)
-  boardedAt DateTime?
-  total     Float
-  createdAt DateTime  @default(now())
+  id              String    @id @default(cuid())
+  reference       String    @unique
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  tripId          String
+  trip            Trip      @relation(fields: [tripId], references: [id])
+  seatLabel       String
+  passengerName   String    @default("") // name of the actual traveler (may differ from buyer)
+  status          String    @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
+  paidAt          DateTime?
+  boarded         Boolean   @default(false)
+  boardedAt       DateTime?
+  total           Float
+  stripeSessionId String    @default("") // Stripe checkout session ID for grouping
+  createdAt       DateTime  @default(now())
 }

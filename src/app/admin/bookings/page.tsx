@@ -11,6 +11,7 @@ interface Booking {
   id: string
   reference: string
   seatLabel: string
+  passengerName: string
   status: string
   total: number
   paidAt: string | null
@@ -90,6 +91,7 @@ export default function AdminBookingsPage() {
     (b) =>
       b.reference.toLowerCase().includes(search.toLowerCase()) ||
       b.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      b.passengerName?.toLowerCase().includes(search.toLowerCase()) ||
       b.seatLabel.toLowerCase().includes(search.toLowerCase()) ||
       b.trip?.origin?.toLowerCase().includes(search.toLowerCase()) ||
       b.trip?.destination?.toLowerCase().includes(search.toLowerCase())
@@ -171,6 +173,9 @@ export default function AdminBookingsPage() {
                   {foundBooking.trip.destination}
                 </span>
                 <span className="font-mono text-sm text-white bg-zinc-800 px-2 py-0.5 rounded">{foundBooking.seatLabel}</span>
+                {foundBooking.passengerName && (
+                  <span className="text-sm text-amber-400/70 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">{foundBooking.passengerName}</span>
+                )}
                 <span className="text-sm text-zinc-500">{foundBooking.user?.name}</span>
               </div>
               <div className="flex items-center gap-3">
@@ -235,6 +240,7 @@ export default function AdminBookingsPage() {
                   <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'كود الحجز' : 'REF CODE'}</th>
                   <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'العميل' : 'Customer'}</th>
                   <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'الرحلة' : 'Trip'}</th>
+                  <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'المسافر' : 'Passenger'}</th>
                   <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'رقم المقعد' : 'Seat'}</th>
                   <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'رقم الباص' : 'Bus'}</th>
                   <th className={cn('px-5 py-4 font-medium', isRTL ? 'text-right' : 'text-left')}>{isRTL ? 'موعد الرحلة' : 'Departure'}</th>
@@ -275,6 +281,17 @@ export default function AdminBookingsPage() {
                           <span className="text-zinc-600">→</span>
                           <span>{booking.trip?.destination}</span>
                         </div>
+                      </td>
+
+                      {/* Passenger */}
+                      <td className="px-5 py-4">
+                        {booking.passengerName ? (
+                          <span className="text-sm text-amber-400/80 bg-amber-500/5 px-2.5 py-1 rounded-lg border border-amber-500/10">
+                            {booking.passengerName}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-600">—</span>
+                        )}
                       </td>
 
                       {/* Seat */}

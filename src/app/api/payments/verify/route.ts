@@ -13,11 +13,10 @@ export async function POST(req: NextRequest) {
     const { sessionId } = await req.json()
     if (!sessionId) return NextResponse.json({ error: 'Missing session_id' }, { status: 400 })
 
-    // Rate limit: 20 verifies per user per minute
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authSession = await auth()
+    if (!authSession?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const rl = rateLimit(`verify:${session.user.id}`, 20, 60_000)
+    const rl = rateLimit(`verify:${authSession.user.id}`, 20, 60_000)
     if (!rl.allowed) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait.' },
@@ -25,31 +24,44 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Retrieve the Stripe checkout session
     const stripeSession = await stripe.checkout.sessions.retrieve(sessionId)
-    const { ref, tripId, userId, seatLabel } = stripeSession.metadata || {}
 
-    // Check if already paid
-    const existingBooking = await prisma.booking.findFirst({
-      where: { reference: ref || '' },
-      include: { user: true, trip: { include: { bus: true } } },
+    if (stripeSession.payment_status !== 'paid') {
+      return NextResponse.json({ error: 'Payment not completed', status: stripeSession.payment_status })
+    }
+
+    // Find all PENDING bookings for this Stripe session
+    const pendingBookings = await prisma.booking.findMany({
+      where: {
+        stripeSessionId: sessionId,
+        status: 'PENDING',
+      },
+      include: {
+        user: true,
+        trip: { include: { bus: true } },
+      },
     })
 
-    if (!existingBooking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
-    if (existingBooking.status === 'PAID') {
-      return NextResponse.json({ booking: existingBooking, alreadyPaid: true })
+    if (pendingBookings.length === 0) {
+      return NextResponse.json({ error: 'Bookings not found' }, { status: 404 })
     }
 
-    if (stripeSession.payment_status === 'paid') {
-      const updated = await prisma.booking.update({
-        where: { id: existingBooking.id },
-        data: { status: 'PAID', paidAt: new Date() },
-      })
+    // Update all bookings to PAID
+    const updated = await Promise.all(
+      pendingBookings.map((b) =>
+        prisma.booking.update({
+          where: { id: b.id },
+          data: { status: 'PAID', paidAt: new Date() },
+        })
+      )
+    )
 
-      return NextResponse.json({ booking: updated, success: true })
-    }
-
-    return NextResponse.json({ error: 'Payment not completed', status: stripeSession.payment_status })
+    return NextResponse.json({
+      bookings: updated,
+      success: true,
+      alreadyPaid: false,
+      totalPaid: updated.reduce((sum, b) => sum + b.total, 0),
+    })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

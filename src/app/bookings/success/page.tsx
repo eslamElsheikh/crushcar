@@ -17,12 +17,11 @@ function SuccessContent() {
 
   const ref = searchParams.get('ref')
   const sessionId = searchParams.get('session_id')
-  const [booking, setBooking] = useState<any>(null)
+  const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function verifyAndLoad() {
-      // Try payment verification first
       if (sessionId) {
         try {
           const verifyRes = await fetch('/api/payments/verify', {
@@ -32,21 +31,26 @@ function SuccessContent() {
             credentials: 'include',
           })
           const verifyData = await verifyRes.json()
+          // Handle both single booking (old) and multiple bookings (new)
+          if (verifyData.bookings && Array.isArray(verifyData.bookings)) {
+            setBookings(verifyData.bookings)
+            setLoading(false)
+            return
+          }
           if (verifyData.booking) {
-            setBooking(verifyData.booking)
+            setBookings([verifyData.booking])
             setLoading(false)
             return
           }
         } catch {}
       }
 
-      // Fallback: load booking by ref directly
       if (ref) {
         fetch(`/api/bookings?ref=${encodeURIComponent(ref)}`, { credentials: 'include' })
           .then(r => r.json())
           .then(data => {
-            if (data.data?.[0]) setBooking(data.data[0])
-            else if (data[0]) setBooking(data[0])
+            const list = data.data?.[0] ? data.data : (data[0] ? data : [])
+            setBookings(Array.isArray(list) ? list : [])
           })
           .catch(console.error)
           .finally(() => setLoading(false))
@@ -101,57 +105,79 @@ function SuccessContent() {
           <div className="flex items-center justify-center py-8">
             <Loader2 size={24} className="animate-spin text-blue-400" />
           </div>
-        ) : booking ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className={cn(
-              'glass rounded-3xl p-8 mb-8 text-left border border-emerald-500/10 shadow-2xl shadow-emerald-500/10',
-              isRTL && 'text-right'
+        ) : bookings.length > 0 ? (
+          <div className="space-y-6">
+            {bookings.length > 1 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="glass rounded-xl px-4 py-2 border border-emerald-500/10 text-emerald-400 text-sm"
+              >
+                {isRTL ? `تم حجز ${bookings.length} تذاكر بنجاح` : `${bookings.length} tickets booked successfully`}
+              </motion.div>
             )}
-            dir={isRTL ? 'rtl' : 'ltr'}
-          >
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">{isRTL ? 'رقم الحجز' : 'Reference'}</span>
-                <span className="font-mono font-bold text-blue-400">{booking.reference}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">{isRTL ? 'المسار' : 'Route'}</span>
-                <div className="flex items-center gap-2 text-white">
-                  <MapPin size={14} className="text-blue-400" />
-                  {booking.trip?.origin} <span className="text-zinc-600 mx-1">→</span> {booking.trip?.destination}
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">{isRTL ? 'المقعد' : 'Seat'}</span>
-                <span className="font-bold text-white text-lg">{booking.seatLabel}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">{isRTL ? 'المبلغ' : 'Total'}</span>
-                <span className="font-bold text-emerald-400">{booking.total?.toFixed?.(0)} {isRTL ? 'ج.م' : 'EGP'}</span>
-              </div>
-              {booking.trip?.bus?.name && (
-                <div className="flex justify-between items-center">
-                  <span className="text-zinc-500">{isRTL ? 'الباص' : 'Bus'}</span>
-                  <div className="flex items-center gap-2 text-white">
-                    <Bus size={14} className="text-purple-400" />
-                    {booking.trip.bus.name}
+            {bookings.map((booking, i) => (
+              <motion.div
+                key={booking.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.1 }}
+                className={cn(
+                  'glass rounded-3xl p-6 mb-4 text-left border border-emerald-500/10 shadow-2xl shadow-emerald-500/10',
+                  isRTL && 'text-right'
+                )}
+                dir={isRTL ? 'rtl' : 'ltr'}
+              >
+                {bookings.length > 1 && (
+                  <p className="text-xs text-zinc-500 mb-3">{isRTL ? `التذكرة ${i + 1} من ${bookings.length}` : `Ticket ${i + 1} of ${bookings.length}`}</p>
+                )}
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500">{isRTL ? 'رقم الحجز' : 'Reference'}</span>
+                    <span className="font-mono font-bold text-blue-400">{booking.reference}</span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500">{isRTL ? 'اسم المسافر' : 'Passenger'}</span>
+                    <span className="font-semibold text-white">{booking.passengerName || booking.user?.name || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500">{isRTL ? 'المسار' : 'Route'}</span>
+                    <div className="flex items-center gap-2 text-white">
+                      <MapPin size={14} className="text-blue-400" />
+                      {booking.trip?.origin} <span className="text-zinc-600 mx-1">→</span> {booking.trip?.destination}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500">{isRTL ? 'المقعد' : 'Seat'}</span>
+                    <span className="font-bold text-white text-lg">{booking.seatLabel}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500">{isRTL ? 'المبلغ' : 'Total'}</span>
+                    <span className="font-bold text-emerald-400">{booking.total?.toFixed?.(0)} {isRTL ? 'ج.م' : 'EGP'}</span>
+                  </div>
+                  {booking.trip?.bus?.name && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500">{isRTL ? 'الباص' : 'Bus'}</span>
+                      <div className="flex items-center gap-2 text-white">
+                        <Bus size={14} className="text-purple-400" />
+                        {booking.trip.bus.name}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="mt-6 pt-6 border-t border-white/5 flex gap-3">
-              <Link href={`/bookings/${booking.id}`} className="flex-1 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold text-center hover:bg-emerald-500/20 transition">
-                {isRTL ? 'عرض الحجز' : 'View Booking'}
-              </Link>
-              <Link href={`/bookings/${booking.id}/print`} className="flex-1 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold text-center hover:bg-blue-500/20 transition">
-                {isRTL ? 'اطبع التذكرة' : 'Print Ticket'}
-              </Link>
-            </div>
-          </motion.div>
+                <div className="mt-5 pt-5 border-t border-white/5 flex gap-3">
+                  <Link href={`/bookings/${booking.id}`} className="flex-1 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold text-center hover:bg-emerald-500/20 transition">
+                    {isRTL ? 'عرض' : 'View'}
+                  </Link>
+                  <Link href={`/bookings/${booking.id}/print`} className="flex-1 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold text-center hover:bg-blue-500/20 transition">
+                    {isRTL ? 'اطبع' : 'Print'}
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         ) : ref ? (
           <div className="glass rounded-3xl p-8 mb-8 border border-white/10">
             <p className="text-zinc-400 text-sm mb-2">{isRTL ? 'رقم الحجز' : 'Reference'}</p>
