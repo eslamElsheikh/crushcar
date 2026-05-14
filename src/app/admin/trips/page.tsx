@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Route, Plus, Trash2, Edit, MapPin, Clock, Loader2, X, Repeat, Users, Filter } from 'lucide-react'
+import { Route, Plus, Trash2, Edit, MapPin, Clock, Loader2, X, Repeat, Users, Filter, Armchair } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { governoratesList } from '@/lib/governorates'
 import { formatDate, formatTime, cn } from '@/lib/utils'
@@ -200,6 +200,9 @@ export default function AdminTripsPage() {
                 </div>
                 <Link href={`/admin/trips/${trip.id}/edit`} className="p-2 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/5 transition">
                   <Edit size={16} />
+                </Link>
+                <Link href={`/admin/trips/${trip.id}/seats`} className="p-2 rounded-lg text-zinc-500 hover:text-purple-400 hover:bg-purple-500/5 transition" title={lang === 'ar' ? 'المقاعد' : 'Seats'}>
+                  <Armchair size={16} />
                 </Link>
                 <Link href={`/admin/trips/${trip.id}/passengers`} className="p-2 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/5 transition" title={lang === 'ar' ? 'الركاب' : 'Passengers'}>
                   <Users size={16} />

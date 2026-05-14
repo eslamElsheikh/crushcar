@@ -11,6 +11,7 @@ interface Passenger {
   id: string
   reference: string
   seatLabel: string
+  passengerName: string
   status: string
   total: number
   paidAt: string | null
@@ -258,6 +259,11 @@ export default function TripPassengersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-white text-sm">{p.user.name}</p>
+                    {p.passengerName && (
+                      <span className="text-xs text-amber-400/70 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
+                        {p.passengerName}
+                      </span>
+                    )}
                     <span className={cn(
                       'px-2 py-0.5 rounded-full text-xs font-semibold',
                       p.boarded

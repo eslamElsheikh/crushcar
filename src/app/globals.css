@@ -126,6 +126,19 @@
   transform: translateY(-2px);
 }
 
+.seat-boarded {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: rgb(52, 211, 153);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+  cursor: pointer;
+}
+.seat-boarded:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(16, 185, 129, 0.15) 100%);
+  border-color: rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);
+}
+
 .seat-disabled {
   background: rgba(113, 113, 122, 0.08);
   border: 1px dashed rgba(113, 113, 122, 0.2);
