@@ -54,7 +54,7 @@ export default function AdminTripsPage() {
 
   useEffect(() => {
     loadTrips(1)
-    fetch('/api/buses').then((r) => r.json()).then(setBuses)
+    fetch('/api/buses').then((r) => r.json()).then((data) => setBuses(Array.isArray(data) ? data : []))
   }, [])
 
   async function loadTrips(pageNum: number = 1) {
