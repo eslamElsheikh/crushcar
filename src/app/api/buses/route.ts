@@ -41,15 +41,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // COMPANY_ADMIN can only create buses for their own company
+    // Resolve target companyId
+    let targetCompanyId: string | undefined
     if (session.user.role === 'COMPANY_ADMIN') {
-      if (companyId && companyId !== session.user.companyId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+      targetCompanyId = session.user.companyId || undefined
+      if (!targetCompanyId) return NextResponse.json({ error: 'No companyId on session' }, { status: 403 })
+    } else if (session.user.role === 'SUPER_ADMIN') {
+      targetCompanyId = companyId
+      if (!targetCompanyId) return NextResponse.json({ error: 'Missing companyId' }, { status: 400 })
+    } else {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const bus = await prisma.bus.create({
-      data: { name, type, seatCount, companyId: companyId || session.user.companyId },
+      data: { name, type, seatCount, companyId: targetCompanyId },
       include: { company: true },
     })
 
