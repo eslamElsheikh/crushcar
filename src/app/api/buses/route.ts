@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json(buses)
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (err: any) {
+    console.error('[buses POST] error:', err?.message || err, 'code:', err?.code)
+    return NextResponse.json({ error: 'Server error', detail: err?.message }, { status: 500 })
   }
 }
 
@@ -41,16 +41,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // Resolve target companyId
+    // Resolve target companyId — MUST be a non-empty string
     let targetCompanyId: string | undefined
     if (session.user.role === 'COMPANY_ADMIN') {
-      targetCompanyId = session.user.companyId || undefined
-      if (!targetCompanyId) return NextResponse.json({ error: 'No companyId on session' }, { status: 403 })
+      targetCompanyId = session.user.companyId ?? undefined
     } else if (session.user.role === 'SUPER_ADMIN') {
-      targetCompanyId = companyId
-      if (!targetCompanyId) return NextResponse.json({ error: 'Missing companyId' }, { status: 400 })
+      targetCompanyId = companyId ?? undefined
     } else {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    console.error('[buses POST] session:', JSON.stringify({
+      role: session.user.role,
+      companyId: session.user.companyId,
+      target: targetCompanyId,
+      input: { name, type, seatCount, companyId },
+    }))
+
+    if (!targetCompanyId) {
+      return NextResponse.json(
+        { error: 'No companyId — user has no company assigned', detail: `role=${session.user.role} companyId=${session.user.companyId}` },
+        { status: 400 }
+      )
     }
 
     const bus = await prisma.bus.create({
@@ -59,8 +71,8 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(bus)
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (err: any) {
+    console.error('[buses POST] error:', err?.message || err, 'code:', err?.code)
+    return NextResponse.json({ error: 'Server error', detail: err?.message }, { status: 500 })
   }
 }
