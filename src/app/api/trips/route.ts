@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
     const destination = searchParams.get('destination')
     const date = searchParams.get('date')
     const busId = searchParams.get('busId')
+    const status = searchParams.get('status')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
+    const skip = (page - 1) * take
 
     const where: Record<string, unknown> = {}
 
@@ -25,6 +29,7 @@ export async function GET(req: NextRequest) {
     if (origin) where.origin = { contains: origin }
     if (destination) where.destination = { contains: destination }
     if (busId) where.busId = busId
+    if (status) where.status = status
     if (date) {
       const start = new Date(date)
       const end = new Date(date)
@@ -32,16 +37,24 @@ export async function GET(req: NextRequest) {
       where.departure = { gte: start, lt: end }
     }
 
-    const trips = await prisma.trip.findMany({
-      where,
-      include: {
-        bus: { include: { layout: { include: { seats: true } } } },
-        bookings: { where: { status: { in: ['PENDING', 'PAID', 'BOARDED'] } } },
-      },
-      orderBy: { departure: 'asc' },
-    })
+    const [trips, total] = await Promise.all([
+      prisma.trip.findMany({
+        where,
+        include: {
+          bus: { include: { layout: { include: { seats: true } } } },
+          bookings: { where: { status: { in: ['PENDING', 'PAID', 'BOARDED'] } } },
+        },
+        orderBy: { departure: 'asc' },
+        skip,
+        take,
+      }),
+      prisma.trip.count({ where }),
+    ])
 
-    return NextResponse.json(trips)
+    return NextResponse.json({
+      data: trips,
+      pagination: { page, take, total, pages: Math.ceil(total / take) },
+    })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -96,4 +96,13 @@ model Booking {
   total           Float
   stripeSessionId String    @default("") // Stripe checkout session ID for grouping
   createdAt       DateTime  @default(now())
+  reminders       Reminder[]
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sentAt    DateTime @default(now())
+  type      String   @default("24H") // 24H | 2H
 }

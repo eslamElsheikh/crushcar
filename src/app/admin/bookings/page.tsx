@@ -55,23 +55,33 @@ export default function AdminBookingsPage() {
   const [refSearch, setRefSearch] = useState('')
   const [foundBooking, setFoundBooking] = useState<Booking | null>(null)
   const [refError, setRefError] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const t = useLangStore((s) => s.t)
   const lang = useLangStore((s) => s.lang)
   const isRTL = lang === 'ar'
 
-  useEffect(() => {
-    loadBookings()
-  }, [])
+  useEffect(() => { loadBookings(1) }, [])
 
-  async function loadBookings() {
+  async function loadBookings(pageNum: number = 1) {
+    setLoading(true)
     try {
-      const res = await fetch('/api/bookings')
+      const q = search ? `&q=${encodeURIComponent(search)}` : ''
+      const res = await fetch(`/api/bookings?page=${pageNum}&take=20${q}`, { credentials: 'include' })
       const data = await res.json()
       setBookings(Array.isArray(data) ? data : (data.data || []))
-    } catch {
-    } finally {
-      setLoading(false)
-    }
+      if (data.pagination) {
+        setTotal(data.pagination.total)
+        setTotalPages(data.pagination.pages || 1)
+        setPage(data.pagination.page)
+      }
+    } catch {} finally { setLoading(false) }
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    loadBookings(1)
   }
 
   function handleRefSearch(e: React.FormEvent) {
@@ -87,25 +97,15 @@ export default function AdminBookingsPage() {
     }
   }
 
-  const filtered = bookings.filter(
-    (b) =>
-      b.reference.toLowerCase().includes(search.toLowerCase()) ||
-      b.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      b.passengerName?.toLowerCase().includes(search.toLowerCase()) ||
-      b.seatLabel.toLowerCase().includes(search.toLowerCase()) ||
-      b.trip?.origin?.toLowerCase().includes(search.toLowerCase()) ||
-      b.trip?.destination?.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const totalRevenue = filtered.filter(b => b.status === 'PAID').reduce((sum, b) => sum + b.total, 0)
-  const paidCount = filtered.filter(b => b.status === 'PAID').length
+  const totalRevenue = bookings.filter(b => b.status === 'PAID').reduce((sum, b) => sum + b.total, 0)
+  const paidCount = bookings.filter(b => b.status === 'PAID').length
 
   return (
     <div className={cn(isRTL && 'font-[Cairo]')} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Summary Cards */}
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
         {[
-          { label: isRTL ? 'إجمالي الحجز' : 'Total Bookings', value: filtered.length, color: 'blue', icon: <Ticket size={18} /> },
+          { label: isRTL ? 'إجمالي الحجز' : 'Total Bookings', value: total, color: 'blue', icon: <Ticket size={18} /> },
           { label: isRTL ? 'المدفوع' : 'Paid', value: paidCount, color: 'emerald', icon: <CheckCircle size={18} /> },
           { label: isRTL ? 'إجمالي الإيراد' : 'Total Revenue', value: `${Math.round(totalRevenue).toLocaleString()} ${isRTL ? 'ج.م' : 'EGP'}`, color: 'purple', icon: <Clock size={18} /> },
         ].map((card) => (
@@ -206,9 +206,9 @@ export default function AdminBookingsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-display font-bold">{isRTL ? 'سجل الحجز' : 'Bookings'}</h1>
-          <p className="text-zinc-400 mt-1 text-sm">{isRTL ? 'كل الحجوزات والتأكيدات' : 'All reservations and confirmations'}</p>
+          <p className="text-zinc-400 mt-1 text-sm">{isRTL ? `إجمالي ${total} حجز` : `${total} total bookings`}</p>
         </div>
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <Search size={16} className={cn('absolute top-1/2 -translate-y-1/2 text-zinc-500', isRTL ? 'right-3' : 'left-3')} />
           <input
             type="text"
@@ -217,7 +217,7 @@ export default function AdminBookingsPage() {
             className={cn('pl-9 pr-4 py-2.5 rounded-xl glass text-sm focus:outline-none focus:border-blue-500 border border-zinc-800 w-72 transition', isRTL && 'pr-9 pl-4')}
             placeholder={isRTL ? 'ابحث بالكود أو الاسم...' : 'Search by code or name...'}
           />
-        </div>
+        </form>
       </div>
 
       {/* Table */}
@@ -225,7 +225,7 @@ export default function AdminBookingsPage() {
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : bookings.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 glass rounded-xl">
           <Ticket size={48} className="mx-auto text-zinc-700 mb-4" />
           <h3 className="text-lg font-medium mb-2">{isRTL ? 'مفيش حجز لحد كده' : 'No bookings found'}</h3>
@@ -250,7 +250,7 @@ export default function AdminBookingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((booking, i) => {
+                {bookings.map((booking, i) => {
                   const status = statusConfig[booking.status] || statusConfig.PENDING
                   return (
                     <motion.tr
@@ -355,6 +355,34 @@ export default function AdminBookingsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-4 border-t border-zinc-800/30">
+              <p className="text-xs text-zinc-500">
+                {isRTL ? 'صفحة' : 'Page'} {page} {isRTL ? 'من' : 'of'} {totalPages}
+                {' — '}
+                {isRTL ? `${total} حجز` : `${total} bookings`}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => loadBookings(page - 1)}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 rounded-lg text-sm glass border border-zinc-800 hover:bg-zinc-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                >
+                  {isRTL ? '→' : '←'} {isRTL ? 'السابق' : 'Prev'}
+                </button>
+                <span className="px-3 py-1.5 text-sm text-zinc-400 font-mono">{page} / {totalPages}</span>
+                <button
+                  onClick={() => loadBookings(page + 1)}
+                  disabled={page >= totalPages}
+                  className="px-3 py-1.5 rounded-lg text-sm glass border border-zinc-800 hover:bg-zinc-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                >
+                  {isRTL ? 'السابق' : 'Next'} {isRTL ? '←' : '→'}
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
     </div>

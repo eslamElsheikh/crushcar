@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     const tripId = searchParams.get('tripId')
     const companyId = searchParams.get('companyId')
     const ref = searchParams.get('ref')
+    const q = searchParams.get('q')
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
     const skip = (page - 1) * take
@@ -19,6 +20,14 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = {}
     if (tripId) where.tripId = tripId
     if (ref) where.reference = { contains: ref.toUpperCase() }
+    if (q) {
+      where.OR = [
+        { reference: { contains: q.toUpperCase() } },
+        { passengerName: { contains: q } },
+        { user: { name: { contains: q } } },
+        { seatLabel: { contains: q.toUpperCase() } },
+      ]
+    }
     if (session.user.role === 'CUSTOMER') {
       where.userId = session.user.id
     } else if (companyId) {

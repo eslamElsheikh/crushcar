@@ -89,20 +89,7 @@ export default function ReportsPage() {
   }
 
   function exportCSV() {
-    if (!data) return
-    const rows: string[][] = []
-    rows.push([lang === 'ar' ? 'المسار' : 'Route', lang === 'ar' ? 'التاريخ' : 'Date', lang === 'ar' ? 'نسبة الإشغال' : 'Occupancy %', lang === 'ar' ? 'المقاعد' : 'Seats', lang === 'ar' ? 'الإيرادات' : 'Revenue'])
-    data.routeData.slice().sort((a, b) => b.occupancy - a.occupancy).forEach(r => {
-      rows.push([`${r.origin} → ${r.destination}`, new Date(r.departure).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US'), `${r.occupancy}%`, r.bookedSeats + '/' + r.totalSeats, r.revenue.toString()])
-    })
-    const csv = rows.map(r => r.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `crushcar-reports-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    window.open('/api/reports?format=csv', '_blank')
   }
 
   const tabs = [

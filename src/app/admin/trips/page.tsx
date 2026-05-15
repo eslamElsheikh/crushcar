@@ -33,6 +33,9 @@ export default function AdminTripsPage() {
   const [showNewModal, setShowNewModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [tripFilter, setTripFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const t = useLangStore((s) => s.t)
   const lang = useLangStore((s) => s.lang)
 
@@ -50,14 +53,21 @@ export default function AdminTripsPage() {
   })
 
   useEffect(() => {
-    loadTrips()
+    loadTrips(1)
     fetch('/api/buses').then((r) => r.json()).then(setBuses)
   }, [])
 
-  async function loadTrips() {
-    const res = await fetch('/api/trips')
+  async function loadTrips(pageNum: number = 1) {
+    const params = new URLSearchParams({ page: String(pageNum), take: '20' })
+    if (tripFilter === 'upcoming') params.set('status', 'SCHEDULED')
+    else if (tripFilter === 'completed') params.set('status', 'COMPLETED')
+    else if (tripFilter === 'cancelled') params.set('status', 'CANCELLED')
+    const res = await fetch(`/api/trips?${params}`)
     const data = await res.json()
-    setTrips(data)
+    setTrips(data.data || [])
+    setPage(data.pagination?.page || 1)
+    setTotalPages(data.pagination?.pages || 1)
+    setTotal(data.pagination?.total || 0)
     setLoading(false)
   }
 
@@ -157,7 +167,7 @@ export default function AdminTripsPage() {
               { key: 'completed', label: lang === 'ar' ? 'المكتملة' : 'Completed' },
               { key: 'cancelled', label: lang === 'ar' ? 'الملغية' : 'Cancelled' },
             ] as const).map(f => (
-              <button key={f.key} onClick={() => setTripFilter(f.key)}
+              <button key={f.key} onClick={() => { setTripFilter(f.key); setPage(1); loadTrips(1) }}
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all',
                   tripFilter === f.key
@@ -166,7 +176,7 @@ export default function AdminTripsPage() {
                 )}>
                 {f.label}
                 <span className={cn('px-1.5 py-0.5 rounded-full text-xs', tripFilter === f.key ? 'bg-blue-500/20' : 'bg-zinc-800')}>
-                  {f.key === 'all' ? trips.length :
+                  {f.key === 'all' ? total :
                    f.key === 'upcoming' ? trips.filter(t => t.status === 'SCHEDULED' && new Date(t.departure) >= now).length :
                    f.key === 'completed' ? trips.filter(t => t.status === 'COMPLETED').length :
                    trips.filter(t => t.status === 'CANCELLED').length}
@@ -214,6 +224,18 @@ export default function AdminTripsPage() {
             </motion.div>
           ))}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-8">
+              <button onClick={() => loadTrips(page - 1)} disabled={page <= 1} className="flex items-center gap-1.5 px-4 py-2 rounded-lg glass hover:bg-zinc-800/50 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition">
+                ← {lang === 'ar' ? 'السابق' : 'Prev'}
+              </button>
+              <span className="text-sm text-zinc-400">{lang === 'ar' ? 'صفحة' : 'Page'} {page} {lang === 'ar' ? 'من' : 'of'} {totalPages}</span>
+              <button onClick={() => loadTrips(page + 1)} disabled={page >= totalPages} className="flex items-center gap-1.5 px-4 py-2 rounded-lg glass hover:bg-zinc-800/50 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition">
+                {lang === 'ar' ? 'التالي' : 'Next'} →
+              </button>
+            </div>
+          )}
         </>
       )}
 

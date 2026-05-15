@@ -8,6 +8,9 @@ export async function GET(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    const { searchParams } = new URL(req.url)
+    const format = searchParams.get('format')
+
     const companyId = session.user.role === 'SUPER_ADMIN'
       ? undefined
       : session.user.companyId
@@ -94,6 +97,31 @@ export async function GET(req: NextRequest) {
     // Summary stats
     const totalBookings = await prisma.booking.count({ where: { ...where } })
     const cancelledBookings = await prisma.booking.count({ where: { status: 'CANCELLED', ...where } })
+
+    // CSV export
+    if (format === 'csv') {
+      const rows = [
+        ['Route', 'Origin', 'Destination', 'Departure', 'Status', 'Revenue (EGP)', 'Booked Seats', 'Total Seats', 'Occupancy (%)'],
+        ...routeData.map(r => [
+          `${r.origin} → ${r.destination}`,
+          r.origin,
+          r.destination,
+          new Date(r.departure).toLocaleDateString('en-EG'),
+          r.status,
+          r.revenue,
+          r.bookedSeats,
+          r.totalSeats,
+          r.occupancy,
+        ]),
+      ]
+      const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+      return new NextResponse(csv, {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="crushcar-reports-${new Date().toISOString().split('T')[0]}.csv"`,
+        },
+      })
+    }
 
     return NextResponse.json({
       routeData,

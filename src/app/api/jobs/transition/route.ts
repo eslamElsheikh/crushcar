@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 
-// Called by cron or on dashboard load
+// Vercel cron jobs don't carry user sessions — authenticate via secret header
+function isCronAuthorized(req: NextRequest): boolean {
+  const secret = req.headers.get('x-cron-secret')
+  return secret === process.env.CRON_SECRET
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Allow cron calls (via secret) OR authenticated admins
+    const cronAuthorized = isCronAuthorized(req)
+    if (!cronAuthorized) {
+      const session = await auth()
+      if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const now = new Date()
 

@@ -10,34 +10,45 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { search } = Object.fromEntries(new URL(req.url).searchParams)
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get('search') || ''
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
+    const skip = (page - 1) * take
 
-    const users = await prisma.user.findMany({
-      where: {
-        role: 'CUSTOMER',
-        ...(search ? {
-          OR: [
-            { name: { contains: search } },
-            { email: { contains: search } },
-            { phone: { contains: search } },
-          ],
-        } : {}),
-      },
-      include: {
-        bookings: {
-          include: {
-            trip: {
-              include: { bus: { select: { name: true } } },
+    const where = {
+      role: 'CUSTOMER',
+      ...(search ? {
+        OR: [
+          { name: { contains: search } },
+          { email: { contains: search } },
+          { phone: { contains: search } },
+        ],
+      } : {}),
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: {
+          bookings: {
+            include: {
+              trip: {
+                include: { bus: { select: { name: true } } },
+              },
             },
+            orderBy: { createdAt: 'desc' },
           },
-          orderBy: { createdAt: 'desc' },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.user.count({ where }),
+    ])
 
-    return NextResponse.json(
-      users.map((u) => ({
+    return NextResponse.json({
+      data: users.map((u) => ({
         id: u.id,
         name: u.name,
         email: u.email,
@@ -59,8 +70,9 @@ export async function GET(req: NextRequest) {
             bus: b.trip.bus,
           },
         })),
-      }))
-    )
+      })),
+      pagination: { page, take, total, pages: Math.ceil(total / take) },
+    })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
