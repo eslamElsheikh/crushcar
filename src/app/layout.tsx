@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk' })
 
 export const metadata: Metadata = {
-  title: 'CrushCar - احجز مقعدك في ثواني',
-  description: 'منصة حجز مقاعد باصات عصرية للرحلات.',
+  title: 'Safro - سافر أبعد معًا',
+  description: 'رحلات باص مريحة داخل مصر — لك أو لمجموعتك أو لشركتك.',
   icons: {
     icon: '/favicon.ico',
   },
