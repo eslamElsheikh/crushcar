@@ -1,180 +1,133 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Eye, EyeOff, Loader2, Building2 } from 'lucide-react';
+import { useLangStore } from '@/lib/lang';
+import '@/components/v2/theme.css';
+import { V2AuthShell } from '@/components/v2/AuthShell';
+import { V2Field, V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+
+/* V2 register — same POST /api/register flow as V1, new interface. */
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
-  const [showPw, setShowPw] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
+  const router = useRouter();
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
     try {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || t('common.error'))
-        setLoading(false)
-        return
+        setError(data.error || t('common.error'));
+        setLoading(false);
+        return;
       }
 
-      router.push('/login?registered=true')
+      router.push('/login?registered=true');
     } catch {
-      setError(t('common.error'))
-      setLoading(false)
+      setError(t('common.error'));
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-[#030303]">
-      <div className="absolute inset-0">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
-      </div>
+    <V2AuthShell
+      title={t('auth.createAccount')}
+      sub={t('auth.joinToday')}
+      sideTitle={t('v2.heroTitleA') + ' ' + t('v2.heroTitleB')}
+      sideSub={t('v2.heroSubtitle')}
+    >
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <V2Field label={t('auth.fullName')}>
+          <V2Input
+            type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Ahmed Hassan" required autoComplete="name"
+          />
+        </V2Field>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
-        className={cn('w-full max-w-md relative z-10', isRTL && 'font-[Cairo]')}
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <span className="text-white font-bold">CC</span>
-            </div>
-            <span className="font-display font-bold text-xl text-white">CrushCar</span>
-          </Link>
-        </div>
+        <V2Field label={t('auth.email')}>
+          <V2Input
+            type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="you@example.com" required dir="ltr" autoComplete="email"
+          />
+        </V2Field>
 
-        <div className="glass rounded-3xl p-8 border border-white/5 shadow-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-display font-bold text-white mb-2">{t('auth.createAccount')}</h1>
-            <p className="text-zinc-400 text-sm">{t('auth.joinToday')}</p>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <V2Field label={isRTL ? 'رقم الهاتف' : 'Phone Number'}>
+            <V2Input
+              type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder={isRTL ? '01xxxxxxxxx' : '+20 1xx xxx xxxx'} dir="ltr" autoComplete="tel"
+              className="tabular-nums"
+            />
+          </V2Field>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="text-sm text-zinc-400 mb-2 block">{t('auth.fullName')}</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-white placeholder:text-zinc-600"
-                placeholder="Ahmed Hassan"
-                required
+          <V2Field label={t('auth.password')}>
+            <span className="relative block">
+              <V2Input
+                type={showPw ? 'text' : 'password'} value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="6+ characters" minLength={6} required autoComplete="new-password" className="pe-12"
               />
-            </div>
-
-            <div>
-              <label className="text-sm text-zinc-400 mb-2 block">{t('auth.email')}</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-white placeholder:text-zinc-600"
-                placeholder="you@example.com"
-                required
-                dir="ltr"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-zinc-400 mb-2 block">{isRTL ? 'رقم الهاتف' : 'Phone Number'}</label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-white placeholder:text-zinc-600"
-                placeholder={isRTL ? '٠١٠١٢٣٤٥٦٧٨٩' : '+20 101 234 5678'}
-                dir="ltr"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-zinc-400 mb-2 block">{t('auth.password')}</label>
-              <div className="relative">
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-white placeholder:text-zinc-600 pr-12"
-                  placeholder="6+ characters"
-                  minLength={6}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors p-1"
-                >
-                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+              <button
+                type="button" onClick={() => setShowPw(!showPw)}
+                aria-label={showPw ? 'Hide password' : 'Show password'}
+                className="absolute end-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#9AA8BD] hover:text-[#0B1B33]"
               >
-                {error}
-              </motion.div>
-            )}
-
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 text-white font-semibold transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <Sparkles size={16} />
-              )}
-              {t('auth.createAccount')}
-            </motion.button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-zinc-400">
-            {t('auth.alreadyAccount')}{' '}
-            <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">
-              {t('auth.signIn')}
-            </Link>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-white/5 text-center">
-            <p className="text-xs text-zinc-500 mb-2">{isRTL ? 'عندك شركة وعايز تحجز لموظفيك؟' : 'Have a company? Book for your employees'}</p>
-            <Link href="/register/company" className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium">
-              <Sparkles size={14} />
-              {isRTL ? 'سجل شركتك' : 'Register Your Company'}
-            </Link>
-          </div>
+                {showPw ? <EyeOff className="size-5" /> : <Eye size={18} />}
+              </button>
+            </span>
+          </V2Field>
         </div>
-      </motion.div>
-    </div>
-  )
+
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-600"
+          >
+            {error}
+          </motion.p>
+        )}
+
+        <V2Button type="submit" size="lg" disabled={loading} className="w-full">
+          {loading && <Loader2 className="size-5 animate-spin" />}
+          {t('auth.createAccount')}
+        </V2Button>
+      </form>
+
+      <p className="mt-6 text-center text-[14.5px] text-[#5B6B84]">
+        {t('auth.alreadyAccount')}{' '}
+        <Link href="/login" className="font-bold text-[#1D5BD8] hover:underline">
+          {t('auth.signIn')}
+        </Link>
+      </p>
+
+      <Link
+        href="/register/company"
+        className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-[#F6F8FC] px-4 py-3.5 text-[14.5px] font-bold text-[#0B1B33] hover:border-[#1D5BD8]/40"
+      >
+        <Building2 className="size-5 text-[#1D5BD8]" />
+        {isRTL ? 'عندك شركة؟ سجل شركتك' : 'Have a company? Register it'}
+      </Link>
+    </V2AuthShell>
+  );
 }

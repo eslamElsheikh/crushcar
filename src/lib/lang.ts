@@ -218,7 +218,7 @@ const translations: Record<string, Record<Language, string>> = {
   'auth.noAccount': { ar: 'مفيش حساب؟', en: "Don't have an account?" },
   'auth.createOne': { ar: 'أنشئ حساب', en: 'Create one' },
   'auth.createAccount': { ar: 'أنشئ حساب', en: 'Create account' },
-  'auth.joinToday': { ar: 'انضم لـ CrushCar اليوم', en: 'Join CrushCar today' },
+  'auth.joinToday': { ar: 'انضم إلى سفرو اليوم', en: 'Join Safro today' },
   'auth.fullName': { ar: 'الاسم الكامل', en: 'Full Name' },
   'auth.iAm': { ar: 'أنا...', en: 'I am a...' },
   'auth.customer': { ar: 'عميل (أحجز مقاعد)', en: 'Customer (book seats)' },
@@ -572,6 +572,7 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.stops': { ar: 'محطات', en: 'stops' },
   'v2.loginToSearch': { ar: 'سجّل الدخول للبحث', en: 'Log in to search' },
   'v2.loginToSearchDesc': { ar: 'سجّل الدخول لعرض الرحلات المتاحة والحجز.', en: 'Log in to see available trips and book.' },
+  'auth.registeredOk': { ar: 'تم إنشاء حسابك بنجاح. سجّل الدخول للمتابعة.', en: 'Account created successfully. Sign in to continue.' },
 }
 
 export const useLangStore = create<LangState>()(
