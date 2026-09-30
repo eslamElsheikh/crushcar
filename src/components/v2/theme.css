@@ -1,0 +1,203 @@
+/* Safro V2 design system — light theme. Scoped under .v2.
+   Migrated pages render inside <div class="v2"> so the legacy dark
+   theme keeps working on not-yet-migrated pages. Uses logical
+   properties throughout for RTL. */
+
+.v2 {
+  --sp-bg: #ffffff;
+  --sp-muted: #f6f8fc;
+  --sp-navy: #0b1b33;
+  --sp-navy-2: #10233f;
+  --sp-blue: #1d5bd8;
+  --sp-blue-dark: #1447ad;
+  --sp-cta: #0a1e3c;
+  --sp-text-muted: #5b6b84;
+  --sp-border: #e6ebf2;
+  --sp-radius-card: 16px;
+  --sp-radius-input: 12px;
+  --sp-shadow: 0 12px 32px rgba(11, 27, 51, 0.08);
+  --sp-shadow-lg: 0 24px 64px rgba(11, 27, 51, 0.14);
+
+  background: var(--sp-bg);
+  color: var(--sp-navy);
+  font-family: var(--font-inter), 'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  text-align: start;
+  isolation: isolate;
+}
+
+.v2[dir='rtl'] {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', var(--font-inter), system-ui, sans-serif;
+  letter-spacing: 0 !important;
+}
+
+/* Arabic needs more generous line-height to avoid cramped rendering */
+.v2[dir='rtl'] p,
+.v2[dir='rtl'] li,
+.v2[dir='rtl'] a,
+.v2[dir='rtl'] button,
+.v2[dir='rtl'] label,
+.v2[dir='rtl'] input,
+.v2[dir='rtl'] select {
+  line-height: 1.8;
+}
+.v2[dir='rtl'] h1,
+.v2[dir='rtl'] h2,
+.v2[dir='rtl'] h3 {
+  line-height: 1.5;
+}
+
+.v2 * {
+  box-sizing: border-box;
+}
+
+.v2-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+@media (min-width: 768px) {
+  .v2-container { padding-inline: 28px; }
+}
+
+.v2-card {
+  background: #fff;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-card);
+  box-shadow: var(--sp-shadow);
+}
+
+.v2-input {
+  background: #fff;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-input);
+  padding-inline: 16px;
+  padding-block: 0;
+  min-height: 52px;
+  font-size: 15px;
+  color: var(--sp-navy);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+@media (min-width: 1024px) {
+  .v2-input { min-height: 60px; font-size: 15.5px; }
+}
+.v2-input::placeholder { color: #9aa8bd; }
+.v2-input:focus {
+  border-color: var(--sp-blue);
+  box-shadow: 0 0 0 3px rgba(29, 91, 216, 0.12);
+}
+.v2-input[aria-invalid='true'] {
+  border-color: #dc2626;
+}
+.v2-input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.v2-btn-primary {
+  background: var(--sp-blue);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+  box-shadow: 0 8px 20px rgba(29, 91, 216, 0.28);
+}
+.v2-btn-primary:hover { background: var(--sp-blue-dark); transform: translateY(-1px); }
+.v2-btn-primary:disabled { opacity: 0.55; transform: none; cursor: not-allowed; }
+
+.v2-btn-dark {
+  background: var(--sp-cta);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 700;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+.v2-btn-dark:hover { background: #132c55; transform: translateY(-1px); }
+.v2-btn-dark:disabled { opacity: 0.55; transform: none; cursor: not-allowed; }
+
+.v2-btn-ghost {
+  background: #eff4ff;
+  color: var(--sp-blue);
+  border-radius: 12px;
+  font-weight: 700;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, color 0.15s ease-out;
+}
+.v2-btn-ghost:hover { background: var(--sp-blue); color: #fff; }
+
+/* Baseline: interaction feedback animates transform only (≤200ms, ease-out) */
+.v2-hover-lift { transition: transform 0.2s ease-out; }
+.v2-hover-lift:hover { transform: translateY(-4px); }
+
+.v2-img-zoom { overflow: hidden; }
+.v2-img-zoom img { transition: transform 0.2s ease-out; }
+.v2-img-zoom:hover img { transform: scale(1.04); }
+
+.v2-no-scrollbar::-webkit-scrollbar { display: none; }
+.v2-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* RTL: flip directional arrows automatically */
+.v2[dir='rtl'] .v2-flip-rtl { transform: scaleX(-1); }
+
+/* Snap scroll rows on mobile — comfortable card width with peek */
+.v2-snap-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 82%;
+  overflow-x: auto;
+  scroll-snap-type: inline mandatory;
+  gap: 16px;
+  padding-block: 4px 12px;
+  margin-inline: -20px;
+  padding-inline: 20px;
+}
+.v2-snap-row > * { scroll-snap-align: start; }
+@media (min-width: 768px) {
+  .v2-snap-row {
+    grid-auto-flow: row;
+    grid-auto-columns: unset;
+    grid-template-columns: repeat(2, 1fr);
+    overflow: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+@media (min-width: 1024px) {
+  .v2-snap-row { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Structural skeleton shimmer (transform/opacity only) */
+.v2-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #edf1f6;
+  border-radius: 8px;
+}
+.v2-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: v2-shimmer 1.4s ease-out infinite;
+}
+.v2[dir='rtl'] .v2-skeleton::after {
+  transform: translateX(100%);
+  animation-name: v2-shimmer-rtl;
+}
+@keyframes v2-shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes v2-shimmer-rtl {
+  100% { transform: translateX(-100%); }
+}
+
+/* Baseline: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .v2 *,
+  .v2 *::before,
+  .v2 *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

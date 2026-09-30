@@ -1,666 +1,466 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useSession, signOut } from 'next-auth/react'
+import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import {
-  Bus, Calendar, CreditCard, ChevronDown, LogOut, Menu, Play, Star, X,
-  Check, Sparkles, User,
-} from 'lucide-react'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
-import { BackgroundLayers } from '@/components/landing/BackgroundLayers'
-import { ActivityToastContainer } from '@/components/landing/ActivityToast'
-import { PageTransitionWrapper } from '@/components/landing/PageTransitionWrapper'
-import { EnhancedSeat } from '@/components/landing/EnhancedSeat'
-import { useCountUp } from '@/hooks/useCountUp'
+  MapPin, CalendarDays, Users, ArrowLeftRight, Search, Building2, User,
+  Zap, ShieldCheck, Leaf, ArrowRight, Clock, Star, Bus, Armchair,
+  TicketCheck, Check, LayoutDashboard,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useLangStore } from '@/lib/lang';
+import '@/components/v2/theme.css';
+import { V2SiteHeader } from '@/components/v2/SiteHeader';
+import { V2SiteFooter } from '@/components/v2/SiteFooter';
+import { V2SectionHeading } from '@/components/v2/ui';
 
-const dict: Record<string, Record<string, string>> = {
-  'nav.features': { ar: 'المميزات', en: 'Features' },
-  'nav.pricing': { ar: 'الأسعار', en: 'Pricing' },
-  'nav.demo': { ar: 'تجربة مباشرة', en: 'Live Demo' },
-  'nav.stations': { ar: 'المحطات', en: 'Stations' },
-  'nav.faq': { ar: 'الأسئلة الشائعة', en: 'FAQ' },
-  'nav.signIn': { ar: 'تسجيل الدخول', en: 'Sign In' },
-  'nav.signUp': { ar: 'إنشاء حساب', en: 'Sign Up' },
-  'hero.badge': { ar: '🚀 مستقبل حجز الباصات', en: '🚀 The Future of Bus Booking' },
-  'hero.title': { ar: 'احجز مقعدك', en: 'Book Your Seat' },
-  'hero.titleAccent': { ar: 'في ثواني', en: 'In Seconds' },
-  'hero.subtitle': { ar: 'منصة حجز مقاعد حديثة لشركات النقل.', en: 'Modern realtime seat booking platform.' },
-  'hero.cta': { ar: 'ابدأ الحجز الآن', en: 'Start Booking Now' },
-  'hero.ctaSecondary': { ar: 'شاهد العرض', en: 'Watch Demo' },
-  'hero.liveLabel': { ar: 'مباشر', en: 'LIVE' },
-  'hero.stats.bookings': { ar: 'حجز نشط', en: 'Active Bookings' },
-  'hero.stats.cities': { ar: 'مدينة', en: 'Cities' },
-  'hero.stats.companies': { ar: 'شركة', en: 'Companies' },
-  'hero.stats.seats': { ar: 'مقعد', en: 'Seats Booked' },
-  'features.badge': { ar: 'مميزات قوية', en: 'FEATURES' },
-  'features.title': { ar: 'كل اللي تحتاجه لتشغل شركة نقل حديثة', en: 'Everything you need' },
-  'features.subtitle': { ar: 'صُممت لشركات النقل اللي بتطالب بالتميز', en: 'Built for modern transport' },
-  'features.realtime.title': { ar: 'حجز لحظي', en: 'Realtime Seat Booking' },
-  'features.realtime.desc': { ar: 'شوف المقاعد بتتحجز لحظيًا.', en: 'Watch seats get booked in real-time.' },
-  'features.seatBuilder.title': { ar: 'مصمم المقاعد', en: 'Visual Seat Builder' },
-  'features.seatBuilder.desc': { ar: 'صمم تخطيط المقاعد بالسحب.', en: 'Design bus layouts with drag-and-drop.' },
-  'features.analytics.title': { ar: 'تحليلات ذكية', en: 'Smart Analytics' },
-  'features.analytics.desc': { ar: 'تابع الإيرادات بلوحات جميلة.', en: 'Track revenue with beautiful dashboards.' },
-  'features.multiBus.title': { ar: 'أسطول متعدد', en: 'Multi-Bus Fleet' },
-  'features.multiBus.desc': { ar: 'إدارة باصات غير محدودة.', en: 'Manage unlimited buses.' },
-  'features.bulkTrips.title': { ar: 'رحلات متعددة', en: 'Bulk Scheduling' },
-  'features.bulkTrips.desc': { ar: 'أنشئ مئات الرحلات دفعة واحدة.', en: 'Create hundreds of trips at once.' },
-  'features.payments.title': { ar: 'المدفوعات', en: 'Payments' },
-  'features.payments.desc': { ar: 'تكامل مع الدفع أونلاين.', en: 'Accept online payments.' },
-  'liveBooking.badge': { ar: 'شوفه وهو شغال', en: 'SEE IT IN ACTION' },
-  'liveBooking.title': { ar: 'شوف الحجز اللحظي حي', en: 'Watch realtime booking' },
-  'liveBooking.subtitle': { ar: 'عملاء بتصفحوا، مقاعد بتتختار، تأكيدات فورية', en: 'Customers browsing, seats selected, instant confirmations' },
-  'liveBooking.legend.available': { ar: 'متاح', en: 'Available' },
-  'landingHow.badge': { ar: 'إزاي يعمل', en: 'HOW IT WORKS' },
-  'landingHow.title': { ar: 'ثلاث خطوات لحجز أفضل', en: 'Three steps to better bookings' },
-  'landingHow.create': { ar: 'أنشئ باصاتك', en: 'Create your buses' },
-  'landingHow.createDesc': { ar: 'أضف أسطولك وصمم المقاعد', en: 'Add fleet and design layouts' },
-  'landingHow.trips': { ar: 'جدول الرحلات', en: 'Schedule trips' },
-  'landingHow.tripsDesc': { ar: 'حدد المسارات والأوقات', en: 'Set routes and schedules' },
-  'landingHow.book': { ar: 'ابدأ الحجز', en: 'Start booking' },
-  'landingHow.bookDesc': { ar: 'العملاء يحجزوا فورًا', en: 'Customers book instantly' },
-  'testimonials.badge': { ar: 'ثقة شركات النقل', en: 'TRUSTED' },
-  'testimonials.title': { ar: 'شركات بتثق في CrushCar', en: 'Companies trust CrushCar' },
-  'pricing.badge': { ar: 'أسعار بسيطة', en: 'SIMPLE PRICING' },
-  'pricing.title': { ar: 'ابدأ مجانًا واطور', en: 'Start free, scale as you grow' },
-  'pricing.subtitle': { ar: 'بدون رسوم مخفية', en: 'No hidden fees.' },
-  'pricing.starter.name': { ar: 'للبداية', en: 'Starter' },
-  'pricing.starter.price': { ar: 'مجاني', en: 'Free' },
-  'pricing.starter.desc': { ar: 'مثالي للبداية', en: 'For small companies' },
-  'pricing.pro.name': { ar: 'احترافي', en: 'Pro' },
-  'pricing.pro.price': { ar: '١٬٥٠٠', en: '1,500' },
-  'pricing.pro.desc': { ar: 'للشركات اللي بتكبر', en: 'For growing companies' },
-  'pricing.enterprise.name': { ar: 'مؤسسات', en: 'Enterprise' },
-  'pricing.enterprise.price': { ar: '٥٬٠٠٠', en: '5,000' },
-  'pricing.enterprise.desc': { ar: 'لشبكات كبيرة', en: 'For large networks' },
-  'cta.title': { ar: ' جاهز تحول شركة النقل بتاعتك؟', en: 'Ready to transform?' },
-  'cta.subtitle': { ar: 'انضم لمئات الشركات اللي بتستخدم CrushCar', en: 'Join hundreds of companies using CrushCar' },
-  'cta.button': { ar: 'ابدأ مجانًا — بدون بطاقة', en: 'Start Free — No Credit Card' },
-  'footer.tagline': { ar: 'إدارة نقل حديثة للسوق المصري', en: 'Modern transport for Egypt' },
-  'seat.available': { ar: 'متاح', en: 'Available' },
-  'seat.selected': { ar: 'مختار', en: 'Selected' },
-  'seat.reserved': { ar: 'محجوز', en: 'Reserved' },
-  'seat.vipSeat': { ar: 'VIP', en: 'VIP' },
+/* Safro V2 homepage — real backend data only. No mock trips. */
+
+interface Station { id: string; name: string; city: string }
+interface RecentTrip {
+  id: string; origin: string; destination: string;
+  departure: string; arrival: string; price: number; status: string;
+  bus: { id: string; name: string; type: string };
+  totalSeats: number; bookedSeats: number;
+}
+interface Stats {
+  totalBookings: number; totalRevenue: number; activeTrips: number;
+  totalBuses: number; recentTrips: RecentTrip[];
 }
 
-function tr(lang: string, key: string): string {
-  return dict[key]?.[lang] ?? key
+const CITY_IMAGES: Record<string, string> = {
+  cairo: '/v2/cairo.jpg',
+  alexandria: '/v2/alexandria.jpg',
+  hurghada: '/v2/hurghada.jpg',
+  luxor: '/v2/luxor.jpg',
+};
+
+function cityImage(city: string): string {
+  const key = city.toLowerCase();
+  for (const [k, img] of Object.entries(CITY_IMAGES)) {
+    if (key.includes(k)) return img;
+  }
+  return '/v2/city.jpg';
 }
 
-export default function LandingPage() {
-  const { data: session } = useSession()
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
+function durationOf(dep: string, arr: string, lang: string): string {
+  const ms = new Date(arr).getTime() - new Date(dep).getTime();
+  if (isNaN(ms) || ms < 0) return '';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.round((ms % 3600000) / 60000);
+  return lang === 'ar' ? `${h} س ${m} د` : `${h}h ${m}m`;
+}
 
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [langOpen, setLangOpen] = useState(false)
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [stats, setStats] = useState<{
-    totalBookings: number; totalRevenue: number; activeTrips: number;
-    totalBuses: number; recentTrips: any[]
-  } | null>(null)
+export default function V2HomePage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const router = useRouter();
+
+  const [stations, setStations] = useState<Station[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  // Booking widget state (real station ids → /trips query)
+  const [mode, setMode] = useState<'b2c' | 'b2b'>('b2c');
+  const [fromId, setFromId] = useState('');
+  const [toId, setToId] = useState('');
+  const [date, setDate] = useState('');
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    fetch('/api/stations').then((r) => r.json()).then((d) => {
+      const list: Station[] = d.stations || d || [];
+      if (Array.isArray(list)) setStations(list);
+    }).catch(() => {});
+    fetch('/api/public/stats').then((r) => r.json()).then((d) => {
+      if (!d.error) setStats(d);
+    }).catch(() => {});
+  }, []);
 
-  useEffect(() => {
-    fetch('/api/public/stats')
-      .then(r => r.json())
-      .then(d => {
-        if (!d.error) setStats(d)
-      })
-      .catch(() => {})
-  }, [])
+  const cities = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const s of stations) {
+      const city = (s.city || s.name || '').trim();
+      if (city && !seen.has(city.toLowerCase())) seen.set(city.toLowerCase(), city);
+    }
+    const showcase = ['cairo', 'alexandria', 'hurghada', 'luxor'];
+    const ordered = [
+      ...showcase.flatMap((k) => {
+        const found = [...seen.entries()].find(([low]) => low.includes(k));
+        return found ? [found[1]] : [];
+      }),
+      ...[...seen.values()],
+    ];
+    return [...new Set(ordered)].slice(0, 4);
+  }, [stations]);
 
-  const features = [
-    { icon: '⚡', color: 'blue', title: tr(lang, 'features.realtime.title'), desc: tr(lang, 'features.realtime.desc') },
-    { icon: '🎨', color: 'purple', title: tr(lang, 'features.seatBuilder.title'), desc: tr(lang, 'features.seatBuilder.desc') },
-    { icon: '📊', color: 'emerald', title: tr(lang, 'features.analytics.title'), desc: tr(lang, 'features.analytics.desc') },
-    { icon: '🚌', color: 'orange', title: tr(lang, 'features.multiBus.title'), desc: tr(lang, 'features.multiBus.desc') },
-    { icon: '📅', color: 'cyan', title: tr(lang, 'features.bulkTrips.title'), desc: tr(lang, 'features.bulkTrips.desc') },
-    { icon: '💳', color: 'pink', title: tr(lang, 'features.payments.title'), desc: tr(lang, 'features.payments.desc') },
-  ]
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (fromId) params.set('fromStationId', fromId);
+    if (toId) params.set('toStationId', toId);
+    if (date) params.set('date', date);
+    router.push(`/trips?${params.toString()}`);
+  }
 
-  const testimonials = [
-    { quote: { ar: '"خريطة المقاعد جميلة والعملاء بيحبوا."', en: '"The seat map is beautiful. Customers love it."' }, author: { ar: 'أحمد حسن', en: 'Ahmed Hassan' }, role: { ar: 'CEO', en: 'CEO' }, company: 'Cairo Express' },
-    { quote: { ar: '"نظام الحجز اللحظي أزال الحجز الزائد بالكامل."', en: '"The realtime booking eliminated overbooking."' }, author: { ar: 'سارة محمود', en: 'Sarah Mahmoud' }, role: { ar: 'مديرة العمليات', en: 'Ops Director' }, company: 'Delta Transport' },
-    { quote: { ar: '"UI جميل، Backend قوي. CrushCar بالظبط."', en: '"Beautiful UI, powerful backend. Exactly what we needed."' }, author: { ar: 'عمر فاروق', en: 'Omar Farouk' }, role: { ar: 'المؤسس', en: 'Founder' }, company: 'Nile Bus Co.' },
-  ]
+  const trust = [
+    { icon: Zap, title: stats ? `${stats.activeTrips} ${isRTL ? 'رحلة نشطة' : 'active trips'}` : t('v2.trustRoutes'), sub: t('v2.trustRoutesSub') },
+    { icon: MapPin, title: stations.length ? `${stations.length} ${isRTL ? 'محطة' : 'stations'}` : t('v2.trustStations'), sub: t('v2.trustStationsSub') },
+    { icon: ShieldCheck, title: t('v2.trustSecure'), sub: t('v2.trustSecureSub') },
+    { icon: Leaf, title: t('v2.trustGreen'), sub: t('v2.trustGreenSub') },
+  ];
 
-  const plans = [
-    { name: tr(lang, 'pricing.starter.name'), price: tr(lang, 'pricing.starter.price'), desc: tr(lang, 'pricing.starter.desc'), features: lang === 'ar' ? ['3 باصات', 'تخطيطات أساسية', 'جدولة'] : ['3 buses', 'Basic layouts', 'Scheduling'], color: 'zinc', popular: false },
-    { name: tr(lang, 'pricing.pro.name'), price: tr(lang, 'pricing.pro.price'), desc: tr(lang, 'pricing.pro.desc'), features: lang === 'ar' ? ['باصات غير محدودة', 'تحليلات متقدمة', 'إنشاء متعدد'] : ['Unlimited buses', 'Advanced analytics', 'Bulk create'], color: 'blue', popular: true },
-    { name: tr(lang, 'pricing.enterprise.name'), price: tr(lang, 'pricing.enterprise.price'), desc: tr(lang, 'pricing.enterprise.desc'), features: lang === 'ar' ? ['كل حاجة في Pro', 'API', 'دعم مخصص'] : ['Everything in Pro', 'API access', 'Dedicated support'], color: 'purple', popular: false },
-  ]
+  const steps = [
+    { icon: Search, title: t('v2.how1t'), desc: t('v2.how1d') },
+    { icon: Bus, title: t('v2.how2t'), desc: t('v2.how2d') },
+    { icon: Armchair, title: t('v2.how3t'), desc: t('v2.how3d') },
+    { icon: TicketCheck, title: t('v2.how4t'), desc: t('v2.how4d') },
+  ];
+
+  const bullets = isRTL
+    ? ['حجز باص كامل ورحلات جماعية', 'مسارات ومواعيد مخصصة', 'حساب مخصص للشركات', 'خيارات دفع مرنة']
+    : ['Full bus charter & group bookings', 'Custom routes and schedules', 'Dedicated company account', 'Flexible payment options'];
 
   return (
-    <PageTransitionWrapper>
-      <BackgroundLayers />
-      <div className={cn('min-h-screen bg-background text-foreground overflow-x-hidden relative z-10', isRTL && 'font-[Cairo]')} dir={isRTL ? 'rtl' : 'ltr'}>
-        <Navbar scrolled={scrolled} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} langOpen={langOpen} setLangOpen={setLangOpen} lang={lang} isRTL={isRTL} session={session} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} />
-        <HeroSection lang={lang} isRTL={isRTL} stats={stats} session={session} />
-        <FeaturesSection features={features} lang={lang} isRTL={isRTL} />
-        <LiveBookingSection lang={lang} isRTL={isRTL} />
-        <HowItWorksSection lang={lang} isRTL={isRTL} />
-        <TestimonialsSection testimonials={testimonials} isRTL={isRTL} lang={lang} />
-        <PricingSection plans={plans} isRTL={isRTL} lang={lang} session={session} />
-        <CtaSection lang={lang} isRTL={isRTL} session={session} />
-        <FooterSection isRTL={isRTL} lang={lang} />
-      </div>
-      <ActivityToastContainer />
-    </PageTransitionWrapper>
-  )
-}
+    <div className="v2 min-h-dvh overflow-x-clip bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+      <V2SiteHeader overlay />
 
-// ─── NAVBAR ───────────────────────────────────────────────────────────────
-function Navbar({ scrolled, mobileOpen, setMobileOpen, langOpen, setLangOpen, lang, isRTL, session, userMenuOpen, setUserMenuOpen }: { scrolled: boolean, mobileOpen: boolean, setMobileOpen: (v: boolean) => void, langOpen: boolean, setLangOpen: (v: boolean) => void, lang: string, isRTL: boolean, session: any, userMenuOpen: boolean, setUserMenuOpen: (v: boolean) => void }) {
-  const setLang = useLangStore((s) => s.setLang)
-  const navLinks = [
-    { href: '#features', label: tr(lang, 'nav.features') },
-    { href: '#live', label: tr(lang, 'hero.liveLabel') },
-    { href: '#pricing', label: tr(lang, 'nav.pricing') },
-    { href: '/trips', label: tr(lang, 'nav.demo') },
-    { href: '/stations', label: tr(lang, 'nav.stations') },
-    { href: '/faq', label: tr(lang, 'nav.faq') },
-    ...(session ? [
-      { href: '/bookings', label: isRTL ? 'حجوزاتي' : 'My Bookings' },
-      { href: '/profile', label: isRTL ? 'حسابي' : 'My Account' },
-    ] : []),
-  ]
-  return (
-    <motion.nav initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6 }} className={cn('fixed top-0 left-0 right-0 z-[100] transition-all duration-500', scrolled ? 'backdrop-blur-2xl bg-black/60 border-b border-white/5 shadow-2xl shadow-black/20' : 'bg-transparent')}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-18">
-          <Link href="/" className="flex items-center gap-3 group nav-logo">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-shadow duration-300"><span className="text-white font-bold text-sm">CC</span></div>
-              <div className="absolute -inset-1 rounded-xl bg-blue-500/20 blur-lg group-hover:bg-blue-500/40 transition-all duration-300 -z-10" />
-            </div>
-            <span className="font-display font-bold text-lg text-white tracking-tight">CrushCar</span>
-          </Link>
-          <div className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href} className="nav-link px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-white/5">{link.label}</Link>
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <button onClick={() => setLangOpen(!langOpen)} className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 text-sm hover:bg-white/5 transition-all duration-200">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                <span className="font-medium">{lang === 'ar' ? 'عربي' : 'EN'}</span>
-                <ChevronDown size={14} className={cn('transition-transform duration-200', langOpen && 'rotate-180')} />
-              </button>
-              <AnimatePresence>
-                {langOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setLangOpen(false)} />
-                    <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.2 }} className={cn('absolute top-full mt-2 z-20 glass rounded-2xl border border-white/10 overflow-hidden w-40', isRTL ? 'left-0' : 'right-0')}>
-                      {[{ code: 'ar' as const, label: 'العربية', flag: '🇪��' }, { code: 'en' as const, label: 'English', flag: '🇬🇧' }].map((l) => (
-                        <button key={l.code} onClick={() => { setLang(l.code); setLangOpen(false) }} className={cn('w-full flex items-center gap-3 px-4 py-3 text-sm transition-all duration-150 hover:bg-white/5', lang === l.code ? 'text-blue-400 bg-blue-500/5' : 'text-zinc-300')}>
-                          <span>{l.flag}</span><span>{l.label}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-            <div className="hidden lg:flex items-center gap-2">
-              {session ? (
-                <div className="relative">
-                  <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 text-sm hover:bg-white/5 transition-all duration-200">
-                    <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center">
-                      <span className="text-blue-400 text-xs font-bold">{session.user?.name?.[0] || 'U'}</span>
-                    </div>
-                    <span className="text-zinc-300 text-sm">{session.user?.name?.split(' ')[0] || 'User'}</span>
-                    <ChevronDown size={14} className={cn('transition-transform duration-200', userMenuOpen && 'rotate-180')} />
-                  </button>
-                  <AnimatePresence>
-                    {userMenuOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
-                        <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.2 }} className={cn('absolute top-full mt-2 z-20 glass rounded-2xl border border-white/10 overflow-hidden w-44', isRTL ? 'left-0' : 'right-0')}>
-                          {(session.user?.role === 'COMPANY_ADMIN' || session.user?.role === 'SUPER_ADMIN') && (
-                            <>
-                              <Link href="/admin" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-blue-400 hover:text-blue-300 hover:bg-white/5 transition-all">
-                                <span className="text-lg">📊</span>
-                                <span>{isRTL ? 'لوحة التحكم' : 'Dashboard'}</span>
-                              </Link>
-                              <div className="border-t border-white/5" />
-                            </>
-                          )}
-                          <Link href="/bookings" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-all">
-                            <User size={15} />
-                            <span>{isRTL ? 'حجوزاتي' : 'My Bookings'}</span>
-                          </Link>
-                          <Link href="/profile" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-all">
-                            <span className="text-lg">⚙️</span>
-                            <span>{isRTL ? 'حسابي' : 'My Account'}</span>
-                          </Link>
-                          <div className="border-t border-white/5" />
-                          <button onClick={() => { signOut({ callbackUrl: '/' }); setUserMenuOpen(false) }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 transition-all">
-                            <LogOut size={15} />
-                            <span>{isRTL ? 'خروج' : 'Sign Out'}</span>
-                          </button>
-                        </motion.div>
-                      </>
+      {/* ── HERO ── */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0">
+          <Image src="/v2/hero.jpg" alt="" fill priority className="object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0B1B33]/70 via-[#0B1B33]/35 to-[#0B1B33]/55" />
+        </div>
+        <div className="v2-container relative pb-12 pt-28 md:pb-16 md:pt-32">
+          <motion.p
+            initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="text-[12px] font-bold tracking-[0.22em] text-white/75"
+          >
+            {t('v2.heroEyebrow')}
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.05 }}
+            className="mt-4 max-w-[600px] text-balance text-[40px] font-extrabold leading-[1.08] text-white md:text-[64px] md:leading-[1.04]"
+          >
+            {t('v2.heroTitleA')}
+            <br />
+            <span className="bg-gradient-to-r from-[#9DBCFF] to-[#5EE6FF] bg-clip-text text-transparent">{t('v2.heroTitleB')}</span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.1 }}
+            className="mt-5 max-w-[480px] text-pretty text-[16px] leading-relaxed text-white/90 md:text-[19px]"
+          >
+            {t('v2.heroSubtitle')}
+          </motion.p>
+
+          {/* ── BOOKING WIDGET (real stations → /trips) ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.15 }}
+            className="mt-8 scroll-mt-24"
+          >
+            <div className="rounded-2xl bg-white p-2.5 shadow-[0_24px_64px_rgba(11,27,51,0.25)]">
+              <div className="flex gap-1 rounded-xl bg-[#F1F4F9] p-1.5" role="tablist" aria-label="Trip type">
+                {(
+                  [
+                    { key: 'b2c', icon: User, label: t('v2.individual') },
+                    { key: 'b2b', icon: Building2, label: t('v2.business') },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.key} role="tab" aria-selected={mode === tab.key} onClick={() => setMode(tab.key)}
+                    className={cn(
+                      'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-[14.5px] font-bold transition',
+                      mode === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]'
                     )}
-                  </AnimatePresence>
-                </div>
+                  >
+                    <tab.icon className="size-5" /> {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {mode === 'b2c' ? (
+                <form onSubmit={submitSearch} className="grid gap-3 p-2.5 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+                  <label className="grid gap-2">
+                    <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.from')}</span>
+                    <span className="relative">
+                      <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+                      <select value={fromId} onChange={(e) => setFromId(e.target.value)} aria-label={t('v2.from')} className="v2-input appearance-none ps-11">
+                        <option value="">{t('v2.fromPh')}</option>
+                        {stations.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
+                        ))}
+                      </select>
+                    </span>
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="flex items-center justify-between px-1 text-[13px] font-bold text-[#0B1B33]">
+                      {t('v2.to')}
+                      <button
+                        type="button" aria-label="Swap origin and destination"
+                        onClick={() => { setFromId(toId); setToId(fromId); }}
+                        className="grid size-7 place-items-center rounded-full border border-slate-200 text-[#1D5BD8] hover:bg-slate-50"
+                      >
+                        <ArrowLeftRight className="size-4 v2-flip-rtl" />
+                      </button>
+                    </span>
+                    <span className="relative">
+                      <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+                      <select value={toId} onChange={(e) => setToId(e.target.value)} aria-label={t('v2.to')} className="v2-input appearance-none ps-11">
+                        <option value="">{t('v2.toPh')}</option>
+                        {stations.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
+                        ))}
+                      </select>
+                    </span>
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.date')}</span>
+                    <span className="relative">
+                      <CalendarDays className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+                      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('v2.date')} className="v2-input ps-11 tabular-nums" />
+                    </span>
+                  </label>
+                  <button type="submit" className="v2-btn-primary flex min-h-[52px] items-center justify-center gap-2 px-7 text-[15px] lg:min-h-[60px] lg:px-8">
+                    <Search className="size-5 v2-flip-rtl" /> {t('v2.searchTrips')}
+                  </button>
+                </form>
               ) : (
-                <>
-                  <Link href="/login" className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-white/5">{tr(lang, 'nav.signIn')}</Link>
-                  <Link href="/register" data-cinematic data-cinematic-href="/register" className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105">{tr(lang, 'nav.signUp')}</Link>
-                </>
+                <div className="grid items-center gap-3 p-2.5 md:grid-cols-[1fr_auto]">
+                  <p className="rounded-xl bg-[#EFF4FF] px-4 py-3.5 text-[14.5px] font-bold text-[#1D5BD8]">{t('v2.charter')}</p>
+                  <Link href="/register/company" className="v2-btn-dark min-h-[52px] px-7 py-3.5 text-center text-[15px]">
+                    {t('v2.requestBus')}
+                  </Link>
+                </div>
               )}
             </div>
-            <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden p-2 rounded-lg glass hover:bg-white/5 transition">{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
-          </div>
+          </motion.div>
         </div>
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="lg:hidden overflow-hidden">
-              <div className="pb-6 pt-2 flex flex-col gap-1 border-t border-white/5">
-                {navLinks.map((link) => <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="nav-link px-4 py-3 text-sm text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5">{link.label}</Link>)}
-                {session ? (
-                  <div className="flex flex-col gap-1 pt-4 px-4 border-t border-white/5">
-                    <Link href="/bookings" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-white/5">
-                      <User size={16} />
-                      <span>{isRTL ? 'حجوزاتي' : 'My Bookings'}</span>
-                    </Link>
-                    <Link href="/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-white/5">
-                      <span className="text-base">⚙️</span>
-                      <span>{isRTL ? 'حسابي' : 'My Account'}</span>
-                    </Link>
-                    <button onClick={() => { signOut({ callbackUrl: '/' }); setMobileOpen(false) }} className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 transition-colors rounded-lg hover:bg-white/5 mt-1">
-                      <LogOut size={16} />
-                      <span>{isRTL ? 'خروج' : 'Sign Out'}</span>
-                    </button>
+      </section>
+
+      {/* ── TRUST ── */}
+      <section className="border-b border-[#E6EBF2] bg-white">
+        <div className="v2-container grid grid-cols-2 gap-x-4 gap-y-7 py-8 lg:grid-cols-4">
+          {trust.map((it) => (
+            <div key={it.title} className="flex items-center gap-3.5">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#F1F4F9] text-[#0A1E3C]">
+                <it.icon className="size-6" />
+              </span>
+              <span>
+                <span className="block text-balance text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">{it.title}</span>
+                <span className="mt-0.5 block text-[13px] text-[#5B6B84]">{it.sub}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── DESTINATIONS (cities proven by stations API) ── */}
+      <section id="destinations" className="scroll-mt-20 bg-white py-16 md:py-20">
+        <div className="v2-container">
+          <V2SectionHeading
+            title={t('v2.popularTitle')}
+            sub={t('v2.popularSub')}
+            action={
+              <Link href="/trips" className="flex items-center gap-1.5 text-[14.5px] font-bold text-[#1D5BD8]">
+                {t('v2.exploreAll')} <ArrowRight className="size-4 v2-flip-rtl" />
+              </Link>
+            }
+          />
+          <div className="v2-snap-row mt-8">
+            {cities.map((city, i) => (
+              <motion.div
+                key={city}
+                initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.06 }}
+              >
+                <Link href="/trips" className="v2-img-zoom v2-hover-lift group relative block overflow-hidden rounded-2xl">
+                  <div className="relative aspect-[4/3] w-full bg-[#E6EBF2] lg:aspect-[3/3.4]">
+                    <Image src={cityImage(city)} alt={city} fill sizes="(max-width:768px) 82vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
                   </div>
-                ) : (
-                  <div className="flex gap-2 pt-4 px-4">
-                    <Link href="/login" onClick={() => setMobileOpen(false)} className="flex-1 py-2.5 text-center text-sm glass rounded-xl hover:bg-white/5 transition">{tr(lang, 'nav.signIn')}</Link>
-                    <Link href="/register" data-cinematic data-cinematic-href="/register" onClick={() => setMobileOpen(false)} className="flex-1 py-2.5 text-center text-sm bg-blue-500 rounded-xl hover:bg-blue-600 transition text-white font-medium">{tr(lang, 'nav.signUp')}</Link>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B1B33]/90 via-[#0B1B33]/15 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
+                    <p className="text-balance text-[17px] font-bold leading-snug text-white">{city}</p>
+                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-[#0B1B33]" aria-hidden="true">
+                      <ArrowRight className="size-5 v2-flip-rtl" />
+                    </span>
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.nav>
-  )
-}
-
-// ─── HERO ──────────────────────────────────────────────────────────────────
-function HeroSection({ lang, isRTL, stats, session }: { lang: string, isRTL: boolean, stats: { totalBookings: number; totalRevenue: number; activeTrips: number; totalBuses: number; recentTrips: any[] } | null, session: any }) {
-  return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-16 px-4">
-      <div className="absolute inset-0 bg-[#030303]" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-gradient-radial from-blue-600/20 via-blue-600/5 to-transparent rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-gradient-radial from-cyan-500/10 to-transparent rounded-full blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-      </div>
-      <ParticleField />
-      <div className="relative z-10 max-w-6xl mx-auto text-center">
-        <motion.div initial={{ opacity: 0, y: 20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.6, delay: 0.1 }}>
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full glass border border-blue-500/20 mb-8">
-            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" /></span>
-            <span className="text-xs font-medium text-blue-300 tracking-wide">{tr(lang, 'hero.badge')}</span>
-          </div>
-        </motion.div>
-        <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="text-5xl sm:text-6xl lg:text-7xl font-display font-bold leading-[1.05] mb-6 tracking-tight">
-          <span className="text-white">{tr(lang, 'hero.title')}</span><br />
-          <span className="accent-word">{tr(lang, 'hero.titleAccent')}</span>
-        </motion.h1>
-        <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.35 }} className="text-lg sm:text-xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed">{tr(lang, 'hero.subtitle')}</motion.p>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.5 }} className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-          <Link href={session?.user ? '/trips' : '/register'} data-cinematic data-cinematic-href={session?.user ? '/trips' : '/register'} className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold text-base shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 overflow-hidden">
-            <span className="relative z-10 flex items-center gap-2"><Sparkles size={18} className="group-hover:rotate-12 transition-transform" />{session?.user ? (isRTL ? 'احجز رحلتك' : 'Book Your Trip') : tr(lang, 'hero.cta')}</span>
-          </Link>
-          <Link href="/trips" className="group flex items-center gap-2 px-8 py-4 rounded-2xl glass border border-white/10 text-white font-medium text-base hover:bg-white/5 hover:border-white/20 transition-all duration-300">
-            <Play size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />{tr(lang, 'hero.ctaSecondary')}
-          </Link>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.65 }} className="flex flex-wrap justify-center gap-8 sm:gap-12 mb-16">
-          {[
-            { value: stats?.totalBookings ?? 0, label: tr(lang, 'hero.stats.bookings'), color: 'blue' },
-            { value: stats?.activeTrips ?? 0, label: tr(lang, 'hero.stats.cities'), color: 'cyan' },
-            { value: stats?.totalBuses ?? 0, label: tr(lang, 'hero.stats.companies'), color: 'emerald' },
-            { value: Math.round(stats?.totalRevenue ?? 0), label: isRTL ? 'جنيه' : 'EGP', color: 'purple' },
-          ].map((stat) => (
-            <StatCounter key={stat.label} value={stat.value} label={stat.label} color={stat.color} />
-          ))}
-        </motion.div>
-        <HeroSeatMap lang={lang} isRTL={isRTL} />
-      </div>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }} className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-        <span className="text-xs text-zinc-600 animate-pulse">{isRTL ? 'انزل للأسفل' : 'Scroll down'}</span>
-        <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity }} className="w-5 h-8 rounded-full border border-zinc-700 flex justify-center pt-1"><div className="w-1 h-2 rounded-full bg-zinc-500" /></motion.div>
-      </motion.div>
-    </section>
-  )
-}
-
-function ParticleField() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: 20 }).map((_, i) => (
-        <motion.div key={i} className="absolute w-1 h-1 rounded-full bg-blue-400/30"
-          initial={{ x: (i * 61) % 1200, y: (i * 47) % 800 }}
-          animate={{ y: [null, -200], opacity: [0.3, 0.8, 0] }}
-          transition={{ duration: 8, repeat: Infinity, delay: i * 0.5, ease: 'linear' }}
-        />
-      ))}
-    </div>
-  )
-}
-
-function StatCounter({ value, label, color }: { value: number; label: string; color: string }) {
-  const { count, ref } = useCountUp(value, 2200)
-  return (
-    <div ref={ref} className="text-center stat-card px-6 py-4">
-      <div className={cn('text-3xl sm:text-4xl font-display font-bold mb-1 font-[Geist_Mono]', color === 'blue' && 'text-blue-400', color === 'cyan' && 'text-cyan-400', color === 'emerald' && 'text-emerald-400', color === 'purple' && 'text-purple-400')}>
-        {count.toLocaleString()}
-      </div>
-      <div className="text-xs text-zinc-500 uppercase tracking-wider">{label}</div>
-    </div>
-  )
-}
-
-function HeroSeatMap({ lang, isRTL }: { lang: string, isRTL: boolean }) {
-  const [seats, setSeats] = useState<Array<{ label: string, state: 'available' | 'selected' | 'reserved' | 'vip' }>>([])
-  useEffect(() => {
-    const init = ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4'].map((label, i) => ({
-      label, state: (i === 1 ? 'selected' : i === 3 ? 'reserved' : i === 5 ? 'vip' : 'available') as 'available' | 'selected' | 'reserved' | 'vip'
-    }))
-    setSeats(init)
-    const iv = setInterval(() => {
-      setSeats(prev => {
-        const avail = prev.filter(s => s.state === 'available')
-        if (avail.length > 5) {
-          const idx = Math.floor(Math.random() * avail.length)
-          const lbl = avail[idx].label
-          return prev.map(s => s.label === lbl ? { ...s, state: 'reserved' } : s)
-        }
-        return prev
-      })
-    }, 2500)
-    return () => clearInterval(iv)
-  }, [])
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 40, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.8, delay: 0.8 }} className="relative max-w-lg mx-auto">
-      <div className="glass rounded-3xl p-8 border border-white/5 shadow-2xl shadow-blue-500/10">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span className="text-xs font-medium text-emerald-400">{tr(lang, 'hero.liveLabel')}</span></div>
-          <span className="text-xs text-zinc-600">{tr(lang, 'hero.stats.bookings')}</span>
-        </div>
-        <div className="grid grid-cols-4 gap-3">
-          {seats.map((seat, i) => (
-            <EnhancedSeat key={seat.label} label={seat.label} state={seat.state as 'available' | 'selected' | 'reserved' | 'vip'} index={i} />
-          ))}
-        </div>
-        <div className="mt-6 flex items-center justify-center gap-4 text-xs">
-          <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-500" /> {tr(lang, 'seat.selected')}</span>
-          <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-zinc-700 border border-zinc-600" /> {tr(lang, 'seat.available')}</span>
-          <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-amber-500/30 border border-amber-500/40" /> {tr(lang, 'seat.vipSeat')}</span>
-        </div>
-      </div>
-      <div className="absolute -inset-8 rounded-3xl bg-gradient-to-r from-blue-500/10 via-purple-500/5 to-blue-500/10 blur-2xl -z-10" />
-    </motion.div>
-  )
-}
-
-// ─── FEATURES ──────────────────────────────────────────────────────────────
-function FeaturesSection({ features, lang, isRTL }: { features: Array<{ icon: string, color: string, title: string, desc: string }>, lang: string, isRTL: boolean }) {
-  return (
-    <section id="features" className="relative py-32 px-4 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/20 to-transparent" />
-      <div className="relative z-10 max-w-6xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-20">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border border-blue-500/10 mb-6"><Sparkles size={12} className="text-blue-400" /><span className="text-xs text-blue-300 font-medium tracking-wide">{tr(lang, 'features.badge')}</span></div>
-          <h2 className="text-4xl sm:text-5xl font-display font-bold mb-4 tracking-tight">{tr(lang, 'features.title')}</h2>
-          <p className="text-lg text-zinc-400 max-w-xl mx-auto">{tr(lang, 'features.subtitle')}</p>
-        </motion.div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((f, i) => (
-            <motion.div key={f.title} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08, duration: 0.5 }} whileHover={{ y: -4, scale: 1.02 }}
-              className="group relative glass rounded-2xl p-7 border border-white/5 overflow-hidden hover:border-white/10 transition-all duration-300">
-              <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-5 transition-transform duration-300 group-hover:scale-110', f.color === 'blue' && 'bg-blue-500/10', f.color === 'purple' && 'bg-purple-500/10', f.color === 'emerald' && 'bg-emerald-500/10', f.color === 'orange' && 'bg-orange-500/10', f.color === 'cyan' && 'bg-cyan-500/10', f.color === 'pink' && 'bg-pink-500/10')}>{f.icon}</div>
-              <h3 className="text-lg font-semibold mb-2 text-white">{f.title}</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">{f.desc}</p>
-              <div className={cn('absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity', f.color === 'blue' && 'via-blue-500/50', f.color === 'purple' && 'via-purple-500/50', f.color === 'emerald' && 'via-emerald-500/50', f.color === 'orange' && 'via-orange-500/50', f.color === 'cyan' && 'via-cyan-500/50', f.color === 'pink' && 'via-pink-500/50')} />
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ─── LIVE BOOKING ─────────────────────────────────────────────────────────
-function LiveBookingSection({ lang, isRTL }: { lang: string, isRTL: boolean }) {
-  const [liveSeats, setLiveSeats] = useState<Array<{ label: string, state: 'available' | 'selected' | 'reserved' | 'vip' }>>([])
-  useEffect(() => {
-    const init = Array.from({ length: 32 }, (_, i) => {
-      const row = String.fromCharCode(65 + Math.floor(i / 4))
-      const col = (i % 4) + 1
-      const label = `${row}${col}`
-      let state: 'available' | 'selected' | 'reserved' | 'vip' = 'available'
-      if (i === 1 || i === 6) state = 'reserved'
-      if (i === 4 || i === 16) state = 'vip'
-      if (i === 2) state = 'selected'
-      return { label, state }
-    })
-    setLiveSeats(init)
-    const iv = setInterval(() => {
-      setLiveSeats(prev => {
-        const avail = prev.filter(s => s.state === 'available')
-        if (avail.length > 5) {
-          const idx = Math.floor(Math.random() * avail.length)
-          const lbl = avail[idx].label
-          return prev.map(s => s.label === lbl ? { ...s, state: 'reserved' } : s)
-        }
-        return prev
-      })
-    }, 4000)
-    return () => clearInterval(iv)
-  }, [])
-
-  return (
-    <section id="live" className="relative py-32 px-4 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-950/20 to-transparent" />
-      <div className="relative z-10 max-w-6xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border border-emerald-500/10 mb-6"><div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /><span className="text-xs text-emerald-300 font-medium tracking-wide">{tr(lang, 'liveBooking.badge')}</span></div>
-          <h2 className="text-4xl sm:text-5xl font-display font-bold mb-4">{tr(lang, 'liveBooking.title')}</h2>
-          <p className="text-lg text-zinc-400 max-w-xl mx-auto">{tr(lang, 'liveBooking.subtitle')}</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="glass rounded-3xl p-8 sm:p-12 border border-white/5 shadow-2xl max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center"><Bus size={18} className="text-white" /></div><div><p className="font-semibold text-white">Cairo → Alexandria</p><p className="text-xs text-zinc-500">Tomorrow, 8:00 AM</p></div></div>
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />{liveSeats.filter(s => s.state === 'available').length} {tr(lang, 'liveBooking.legend.available')}</span>
-          </div>
-          <div className="flex items-center justify-center mb-6"><div className="flex items-center gap-2 px-4 py-2 rounded-full glass text-xs text-zinc-500"><span>🚍</span><span>{isRTL ? 'الأمام' : 'FRONT'}</span></div></div>
-          <div className="flex flex-col gap-2 max-w-md mx-auto">
-            {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((row) => (
-              <div key={row} className="flex items-center gap-2">
-                <span className="w-6 text-xs text-zinc-600 font-medium text-center">{row}</span>
-                <div className="flex gap-2">
-                  {[1, 2].map(col => { const seat = liveSeats.find(s => s.label === `${row}${col}`); return seat ? <EnhancedSeat key={seat.label} label={seat.label} state={seat.state as 'available' | 'selected' | 'reserved' | 'vip'} /> : <div key={`e${col}`} className="w-12 h-12" /> })}
-                  <div className="w-8" />
-                  {[3, 4].map(col => { const seat = liveSeats.find(s => s.label === `${row}${col}`); return seat ? <EnhancedSeat key={seat.label} label={seat.label} state={seat.state as 'available' | 'selected' | 'reserved' | 'vip'} /> : <div key={`e${col}`} className="w-12 h-12" /> })}
-                </div>
-              </div>
+                </Link>
+              </motion.div>
             ))}
           </div>
-          <div className="mt-8 flex flex-wrap justify-center gap-4 text-xs">
-            {[{ label: tr(lang, 'liveBooking.legend.available'), class: 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-400' }, { label: tr(lang, 'seat.selected'), class: 'bg-blue-500 border border-blue-400 text-white' }, { label: tr(lang, 'seat.reserved'), class: 'bg-red-500/20 border border-red-500/30 text-red-400' }, { label: tr(lang, 'seat.vipSeat'), class: 'bg-amber-500/20 border border-amber-500/30 text-amber-400' }].map(item => <span key={item.label} className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-full', item.class)}>{item.label}</span>)}
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section className="bg-[#F6F8FC] py-16 md:py-20">
+        <div className="v2-container grid gap-12 lg:grid-cols-[340px_1fr] lg:items-center">
+          <div>
+            <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.howEyebrow')}</p>
+            <h2 className="mt-3 text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[34px]">{t('v2.howTitle')}</h2>
+            <p className="mt-3 text-pretty text-[15px] leading-relaxed text-[#5B6B84] md:text-[16px]">{t('v2.howSub')}</p>
+            <Link href="/trips" className="v2-btn-primary mt-6 inline-flex items-center gap-2 px-6 py-3.5 text-[15px]">
+              {t('v2.howCta')} <ArrowRight className="size-4 v2-flip-rtl" />
+            </Link>
           </div>
-        </motion.div>
-      </div>
-    </section>
-  )
-}
-
-function SeatButton({ lang, seat }: { lang: string, seat: { label: string, state: string } }) {
-  return (
-    <motion.div whileHover={seat.state === 'available' ? { scale: 1.15, y: -2 } : {}} whileTap={seat.state === 'available' ? { scale: 0.9 } : {}} className={cn('w-12 h-12 rounded-xl flex items-center justify-center text-xs font-semibold transition-all duration-200',
-      seat.state === 'available' && 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-400 hover:bg-blue-500/20 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/20',
-      seat.state === 'selected' && 'bg-blue-500 border border-blue-400 text-white shadow-lg shadow-blue-500/40 animate-seat-bounce-glow',
-      seat.state === 'reserved' && 'bg-red-500/20 border border-red-500/30 text-red-400 cursor-not-allowed relative',
-      seat.state === 'vip' && 'bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25'
-    )}>
-      {seat.label}
-      {seat.state === 'reserved' && <div className="absolute inset-0 flex items-center justify-center"><div className="w-3 h-0.5 bg-red-500/60 rotate-45" /></div>}
-    </motion.div>
-  )
-}
-
-// ─── HOW IT WORKS ─────────────────────────────────────────────────────────
-function HowItWorksSection({ lang, isRTL }: { lang: string, isRTL: boolean }) {
-  const steps = [
-    { num: '01', icon: <Bus size={28} className="text-blue-400" />, title: tr(lang, 'landingHow.create'), desc: tr(lang, 'landingHow.createDesc'), color: 'blue' },
-    { num: '02', icon: <Calendar size={28} className="text-purple-400" />, title: tr(lang, 'landingHow.trips'), desc: tr(lang, 'landingHow.tripsDesc'), color: 'purple' },
-    { num: '03', icon: <CreditCard size={28} className="text-emerald-400" />, title: tr(lang, 'landingHow.book'), desc: tr(lang, 'landingHow.bookDesc'), color: 'emerald' },
-  ]
-  return (
-    <section className="relative py-32 px-4 overflow-hidden bg-gradient-to-b from-transparent via-zinc-950/50 to-transparent">
-      <div className="max-w-6xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-20">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border border-white/5 mb-6"><span className="text-xs text-zinc-400 font-medium tracking-wide">{tr(lang, 'landingHow.badge')}</span></div>
-          <h2 className="text-4xl sm:text-5xl font-display font-bold">{tr(lang, 'landingHow.title')}</h2>
-        </motion.div>
-        <div className="grid md:grid-cols-3 gap-8">
-          {steps.map((step, i) => (
-            <motion.div key={step.num} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15, duration: 0.5 }} className="relative group">
-              <div className="glass rounded-3xl p-8 h-full border border-white/5 hover:border-white/10 transition-all duration-300">
-                <div className={cn('w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-transform duration-300 group-hover:scale-110', step.color === 'blue' && 'bg-blue-500/10', step.color === 'purple' && 'bg-purple-500/10', step.color === 'emerald' && 'bg-emerald-500/10')}>{step.icon}</div>
-                <div className={cn('text-6xl font-display font-bold mb-4', step.color === 'blue' && 'text-blue-500/10', step.color === 'purple' && 'text-purple-500/10', step.color === 'emerald' && 'text-emerald-500/10')}>{step.num}</div>
-                <h3 className="text-xl font-semibold mb-3 text-white">{step.title}</h3>
-                <p className="text-sm text-zinc-400 leading-relaxed">{step.desc}</p>
-              </div>
-              {i < 2 && <div className={cn('hidden md:block absolute top-1/2 -translate-y-1/2 z-10', isRTL ? 'left-0 -translate-x-1/2' : 'right-0 translate-x-1/2')}><div className="w-12 h-px bg-gradient-to-r from-white/10 to-transparent" /></div>}
-            </motion.div>
-          ))}
+          <ol className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            {steps.map((s, i) => (
+              <motion.li
+                key={s.title}
+                initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.07 }}
+                className="relative text-center"
+              >
+                <span className="absolute -top-1.5 start-1/2 grid size-6 -translate-x-1/2 place-items-center rounded-full bg-[#1D5BD8] text-[12px] font-bold tabular-nums text-white rtl:translate-x-1/2">
+                  {i + 1}
+                </span>
+                <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-white text-[#1D5BD8] shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
+                  <s.icon className="size-7" />
+                </span>
+                <p className="mt-4 text-balance text-[15.5px] font-extrabold text-[#0B1B33]">{s.title}</p>
+                <p className="mx-auto mt-2 max-w-[220px] text-pretty text-[13.5px] leading-relaxed text-[#5B6B84]">{s.desc}</p>
+              </motion.li>
+            ))}
+          </ol>
         </div>
-      </div>
-    </section>
-  )
-}
+      </section>
 
-// ─── TESTIMONIALS ────────────────────────────────────────────────────────
-function TestimonialsSection({ testimonials, isRTL, lang }: { testimonials: any[], isRTL: boolean, lang: string }) {
-  return (
-    <section className="relative py-32 px-4 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/20 to-transparent" />
-      <div className="relative z-10 max-w-6xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border border-white/5 mb-6"><Star size={12} className="text-amber-400 fill-amber-400" /><span className="text-xs text-zinc-400 font-medium tracking-wide">{tr(lang, 'testimonials.badge')}</span></div>
-          <h2 className="text-4xl sm:text-5xl font-display font-bold mb-4">{tr(lang, 'testimonials.title')}</h2>
-        </motion.div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((item, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} whileHover={{ y: -6, scale: 1.02 }} className="glass rounded-2xl p-8 border border-white/5 hover:border-white/10 transition-all duration-300 relative overflow-hidden">
-              <div className="absolute top-4 right-4 text-4xl text-blue-500/10 font-serif">"</div>
-              <div className="flex gap-1 mb-4">{[1,2,3,4,5].map(s => <Star key={s} size={14} className="text-amber-400 fill-amber-400" />)}</div>
-              <p className="text-zinc-300 mb-6 leading-relaxed relative z-10">{item.quote[lang]}</p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">{item.author[lang].charAt(0)}</div>
-                <div><p className="font-semibold text-white text-sm">{item.author[lang]}</p><p className="text-xs text-zinc-500">{item.role[lang]} — {item.company}</p></div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ─── PRICING ──────────────────────────────────────────────────────────────
-function PricingSection({ plans, isRTL, lang, session }: { plans: any[], isRTL: boolean, lang: string, session: any }) {
-  return (
-    <section id="pricing" className="relative py-32 px-4 overflow-hidden bg-gradient-to-b from-transparent via-zinc-950/50 to-transparent">
-      <div className="max-w-5xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border border-white/5 mb-6"><CreditCard size={12} className="text-blue-400" /><span className="text-xs text-zinc-400 font-medium tracking-wide">{tr(lang, 'pricing.badge')}</span></div>
-          <h2 className="text-4xl sm:text-5xl font-display font-bold mb-4">{tr(lang, 'pricing.title')}</h2>
-          <p className="text-lg text-zinc-400">{tr(lang, 'pricing.subtitle')}</p>
-        </motion.div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan, i) => (
-            <motion.div key={plan.name} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} whileHover={{ y: -6, scale: 1.02 }} className={cn('relative glass rounded-3xl p-8 transition-all duration-300', plan.popular ? 'border-blue-500/40 shadow-2xl shadow-blue-500/15 ring-1 ring-blue-500/20' : 'border-white/5 hover:border-white/10')}>
-              {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><div className="px-4 py-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-xs font-semibold text-white shadow-lg shadow-blue-500/30">Popular</div></div>}
-              <h3 className="text-lg font-semibold mb-1 text-white">{plan.name}</h3>
-              <p className="text-xs text-zinc-500 mb-6">{plan.desc}</p>
-              <div className="mb-8"><span className="text-4xl font-display font-bold text-white">{plan.price}</span></div>
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((f: string) => (
-                  <li key={f} className="flex items-center gap-3 text-sm text-zinc-400">
-                    <div className={cn('w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0', plan.color === 'blue' && 'bg-blue-500/10 text-blue-400', plan.color === 'purple' && 'bg-purple-500/10 text-purple-400', plan.color === 'zinc' && 'bg-zinc-700/50 text-zinc-400')}><Check size={12} /></div>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href={session?.user ? '/trips' : '/register'} data-cinematic data-cinematic-href={session?.user ? '/trips' : '/register'} className={cn('block w-full py-3 rounded-xl font-medium text-center transition-all duration-200', plan.popular ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105' : 'glass hover:bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:border-white/20')}>
-                {session?.user ? (isRTL ? 'احجز الآن' : 'Book Now') : (lang === 'ar' ? 'ابدأ الآن' : 'Get Started')}
+      {/* ── FEATURED TRIPS (real: /api/public/stats recentTrips; hidden when none upcoming) ── */}
+      {stats && stats.recentTrips.length > 0 && (
+      <section id="featured" className="scroll-mt-20 bg-white py-16 md:py-20">
+        <div className="v2-container">
+          <V2SectionHeading
+            title={t('v2.featTitle')}
+            sub={t('v2.featSub')}
+            action={
+              <Link href="/trips" className="flex items-center gap-1.5 text-[14.5px] font-bold text-[#1D5BD8]">
+                {t('v2.viewAll')} <ArrowRight className="size-4 v2-flip-rtl" />
               </Link>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ─── CTA ──────────────────────────────────────────────────────────────────
-function CtaSection({ lang, isRTL, session }: { lang: string, isRTL: boolean, session: any }) {
-  return (
-    <section className="relative py-32 px-4 overflow-hidden">
-      <div className="absolute inset-0"><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-gradient-radial from-blue-600/15 via-blue-600/5 to-transparent rounded-full blur-3xl" /></div>
-      <div className="relative z-10 max-w-2xl mx-auto text-center">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
-          <h2 className="text-4xl sm:text-5xl font-display font-bold mb-6 leading-tight">{tr(lang, 'cta.title')}</h2>
-          <p className="text-lg text-zinc-400 mb-10">{tr(lang, 'cta.subtitle')}</p>
-          <Link href={session?.user ? '/trips' : '/register'} data-cinematic data-cinematic-href={session?.user ? '/trips' : '/register'} className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300">
-            <Sparkles size={18} />{session?.user ? (isRTL ? 'احجز الآن' : 'Book Now') : tr(lang, 'cta.button')}
-          </Link>
-        </motion.div>
-      </div>
-    </section>
-  )
-}
-
-// ─── FOOTER ───────────────────────────────────────────────────────────────
-function FooterSection({ isRTL, lang }: { isRTL: boolean, lang: string }) {
-  const links = {
-    product: lang === 'ar' ? ['المميزات', 'الأسعار', 'لوحة التحكم'] : ['Features', 'Pricing', 'Dashboard'],
-    company: lang === 'ar' ? ['عن الشركة', 'المدونة'] : ['About', 'Blog'],
-    legal: lang === 'ar' ? ['الخصوصية', 'الشروط'] : ['Privacy', 'Terms'],
-  }
-  return (
-    <footer className="relative py-16 px-4 border-t border-white/5">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
-          <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center"><span className="text-white font-bold text-sm">CC</span></div><div><span className="font-display font-bold text-white">CrushCar</span><p className="text-xs text-zinc-600 mt-0.5">{tr(lang, 'footer.tagline')}</p></div></div>
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-zinc-500">
-            {Object.entries(links).map(([section, items]) => <div key={section} className="flex gap-4">{items.map((link, i) => <span key={i} className="hover:text-white cursor-pointer transition-colors">{link}</span>)}</div>)}
+            }
+          />
+          <div className="v2-snap-row mt-8">
+            {(stats?.recentTrips || []).map((trip, i) => {
+              const left = trip.totalSeats - trip.bookedSeats;
+              const soldOut = left <= 0;
+              return (
+                <motion.article
+                  key={trip.id}
+                  initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                  transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.06 }}
+                  className="v2-hover-lift flex flex-col overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white"
+                >
+                  <div className="relative h-40 overflow-hidden bg-[#E6EBF2]">
+                    <Image src={cityImage(trip.destination)} alt="" fill sizes="(max-width:768px) 82vw, 25vw" className="object-cover" />
+                    <span className="absolute end-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[12px] font-bold text-[#1D5BD8]">
+                      {trip.bus.type || t('v2.direct')}
+                    </span>
+                  </div>
+                  <div className="flex flex-1 flex-col p-5">
+                    <p className="text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
+                      {isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`}
+                    </p>
+                    <p className="mt-2 text-[14.5px] font-bold tabular-nums text-[#0B1B33]" dir="ltr" style={{ textAlign: 'start' }}>
+                      {new Date(trip.departure).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {' → '}
+                      {new Date(trip.arrival).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-[#5B6B84]">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock className="size-4" /> {durationOf(trip.departure, trip.arrival, lang)}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="tabular-nums">{trip.bus.name}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className={cn('inline-flex items-center gap-1 font-bold tabular-nums', soldOut ? 'text-red-600' : 'text-emerald-600')}>
+                        <Users className="size-4" />
+                        {soldOut ? t('v2.soldOut') : `${left} ${t('v2.seatsLeft')}`}
+                      </span>
+                    </p>
+                    <p className="mt-4 text-[22px] font-extrabold tabular-nums text-[#0B1B33]">
+                      EGP {trip.price}
+                      <span className="ms-1.5 text-[13px] font-medium text-[#5B6B84]">{t('v2.perPassenger')}</span>
+                    </p>
+                    <Link
+                      href={soldOut ? '/trips' : `/trips/${trip.id}`}
+                      aria-disabled={soldOut}
+                      className={cn(
+                        'mt-4 w-full rounded-xl py-3.5 text-center text-[14.5px] font-bold transition',
+                        soldOut ? 'pointer-events-none bg-slate-100 text-slate-400' : 'bg-[#EFF4FF] text-[#1D5BD8] hover:bg-[#1D5BD8] hover:text-white'
+                      )}
+                    >
+                      {t('v2.selectTrip')} →
+                    </Link>
+                  </div>
+                </motion.article>
+              );
+            })}
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-white/5">
-          <p className="text-sm text-zinc-600">© 2026 CrushCar.</p>
-          <p className="text-xs text-zinc-700">Made with ❤️ in Egypt</p>
+      </section>
+      )}
+
+      {/* ── B2B ── */}
+      <section id="b2b" className="scroll-mt-20 bg-[#F6F8FC] py-16 md:py-24">
+        <div className="v2-container grid items-center gap-12 lg:grid-cols-[400px_1fr_300px]">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.b2bEyebrow')}</p>
+            <h2 className="mt-3 text-balance text-[28px] font-extrabold leading-tight text-[#0B1B33] md:text-[36px]">{t('v2.b2bTitle')}</h2>
+            <p className="mt-4 text-pretty text-[15.5px] leading-relaxed text-[#5B6B84] md:text-[16.5px]">{t('v2.b2bSub')}</p>
+            <ul className="mt-6 grid gap-3.5">
+              {bullets.map((b) => (
+                <li key={b} className="flex items-start gap-3 text-[15px] font-semibold text-[#0B1B33]">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[#0A1E3C] text-white">
+                    <Check className="size-3.5" />
+                  </span>
+                  {b}
+                </li>
+              ))}
+            </ul>
+            <Link href="/register/company" className="v2-btn-dark mt-7 inline-flex items-center gap-2 px-6 py-4 text-[15px]">
+              {t('v2.b2bCta')} <ArrowRight className="size-4 v2-flip-rtl" />
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.1 }}
+            className="relative hidden overflow-hidden rounded-2xl lg:block"
+          >
+            <div className="relative aspect-[16/10] w-full">
+              <Image src="/v2/bus.jpg" alt="" fill sizes="50vw" className="object-cover" />
+            </div>
+          </motion.div>
+
+          <motion.aside
+            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.15 }}
+            className="rounded-2xl border border-[#E6EBF2] bg-white p-7 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
+          >
+            <span className="grid size-12 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
+              <LayoutDashboard className="size-6" />
+            </span>
+            <p className="mt-5 text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
+              {isRTL ? 'أدر أسطولك وفريقك من لوحة واحدة.' : 'Manage your fleet and team from one dashboard.'}
+            </p>
+            <p className="mt-2.5 text-pretty text-[14px] leading-relaxed text-[#5B6B84]">
+              {isRTL ? 'تحديثات لحظية وتقارير مفصلة وتحكم كامل — مصمم للشركات.' : 'Real-time updates, detailed reports, and complete control — built for businesses.'}
+            </p>
+            <Link href="/register/company" className="v2-btn-dark mt-6 flex items-center justify-center gap-2 px-4 py-3.5 text-[14.5px]">
+              {t('v2.requestBus')} <ArrowRight className="size-4 v2-flip-rtl" />
+            </Link>
+          </motion.aside>
         </div>
-      </div>
-    </footer>
-  )
+      </section>
+
+      <V2SiteFooter />
+    </div>
+  );
 }
