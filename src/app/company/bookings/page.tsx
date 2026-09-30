@@ -1,162 +1,146 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Ticket, Search, Plus, Eye } from 'lucide-react'
-import Link from 'next/link'
-import { useLangStore } from '@/lib/lang'
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useLangStore } from '@/lib/lang';
+import { V2Input } from '@/components/v2/Field';
+import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';
 
-export default function CompanyBookings() {
-  const t = useLangStore((s) => s.t)
-  const [bookings, setBookings] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState('')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState({ page: 1, take: 20, total: 0, pages: 0 })
+/* V2 company bookings list — same ?status&q&page API as V1. */
 
-  const fetchBookings = () => {
-    setLoading(true)
-    const params = new URLSearchParams({ page: page.toString(), take: '20' })
-    if (status) params.set('status', status)
-    if (q) params.set('q', q)
+export default function CompanyBookingsPage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
 
-    fetch(`/api/company/bookings?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        setBookings(data.data || [])
-        setPagination(data.pagination)
-        setLoading(false)
-      })
-  }
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
 
-  useEffect(() => { fetchBookings() }, [status, page])
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams();
+      if (status) p.set('status', status);
+      if (q) p.set('q', q);
+      p.set('page', String(page));
+      const res = await fetch(`/api/company/bookings?${p}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBookings(data.data || []);
+        setPages(data.pagination?.pages || 1);
+      }
+    } catch { /* keep list */ } finally { setLoading(false); }
+  }, [status, q, page]);
 
-  const statusColors: Record<string, string> = {
-    PENDING: 'bg-amber-500/20 text-amber-400 border-amber-500/20',
-    PAID: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20',
-    CANCELLED: 'bg-red-500/20 text-red-400 border-red-500/20',
-    BOARDED: 'bg-blue-500/20 text-blue-400 border-blue-500/20',
-  }
+  useEffect(() => {
+    const timer = setTimeout(load, q ? 350 : 0);
+    return () => clearTimeout(timer);
+  }, [load, q]);
 
-  const statusLabels: Record<string, string> = {
-    PENDING: t('payment.pending'),
-    PAID: t('payment.confirmed'),
-    CANCELLED: t('booking.cancelled') || 'Cancelled',
-    BOARDED: t('booking.boarded') || 'Boarded',
-  }
+  const filters = ['', 'PENDING', 'PAID', 'BOARDED', 'CANCELLED'];
 
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">{t('company.bookings')}</h1>
-        <Link href="/company/bookings/new" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition text-sm">
-          <Plus size={16} /> {t('company.newBooking')}
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.bookings')}</h1>
+          <p className="mt-1 text-[14.5px] tabular-nums text-[#5B6B84]">{t('company.totalBookings')}</p>
+        </div>
+        <Link href="/company/bookings/new" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
+          <Plus className="size-5" /> {t('company.newBooking')}
         </Link>
-      </motion.div>
+      </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchBookings()}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/50 text-sm"
-          />
+      <div className="mt-5 flex flex-wrap items-center gap-2.5">
+        <span className="relative block w-full sm:w-64">
+          <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+          <V2Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={t('bookings.search')} aria-label={t('bookings.search')} className="ps-11" />
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {filters.map((f) => (
+            <button
+              key={f || 'all'}
+              onClick={() => { setStatus(f); setPage(1); }}
+              aria-pressed={status === f}
+              className={cn(
+                'rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition',
+                status === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-white text-[#5B6B84]'
+              )}
+            >
+              {f || (isRTL ? 'الكل' : 'All')}
+            </button>
+          ))}
         </div>
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-          className="px-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm [&>option]:bg-zinc-900 [&>option]:text-white"
-        >
-          <option value="">All</option>
-          <option value="PENDING">Pending</option>
-          <option value="PAID">Paid</option>
-          <option value="CANCELLED">Cancelled</option>
-          <option value="BOARDED">Boarded</option>
-        </select>
-      </motion.div>
+      </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
-        </div>
-      ) : bookings.length === 0 ? (
-        <div className="glass rounded-2xl p-12 text-center text-zinc-500">
-          <Ticket size={48} className="mx-auto mb-3 opacity-30" />
-          <p>{t('company.noBookings')}</p>
-        </div>
-      ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Ref</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Passenger</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Route</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Seat</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Total</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Status</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium">Date</th>
-                  <th className="text-right px-4 py-3 text-zinc-400 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((b) => (
-                  <tr key={b.id} className="border-b border-white/5 hover:bg-white/5 transition">
-                    <td className="px-4 py-3 text-white font-mono text-xs">{b.reference}</td>
-                    <td className="px-4 py-3 text-zinc-300">{b.passengerName || '-'}</td>
-                    <td className="px-4 py-3 text-zinc-300">
-                      {b.actualOrigin || b.trip?.origin} → {b.actualDestination || b.trip?.destination}
-                    </td>
-                    <td className="px-4 py-3 text-white">{b.seatLabel}</td>
-                    <td className="px-4 py-3 text-white font-semibold">{b.total.toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-lg text-xs border ${statusColors[b.status]}`}>
-                        {statusLabels[b.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-400 text-xs">{new Date(b.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <Link href={`/company/bookings/${b.id}`} className="text-blue-400 hover:text-blue-300">
-                        <Eye size={16} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="mt-4">
+        {loading ? (
+          <div className="grid gap-3" role="status">
+            <V2Skeleton className="h-28 rounded-2xl" />
+            <V2Skeleton className="h-28 rounded-2xl" />
           </div>
-
-          {pagination.pages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
-              <p className="text-xs text-zinc-500">
-                {pagination.total} total · Page {pagination.page} of {pagination.pages}
-              </p>
-              <div className="flex gap-2">
+        ) : bookings.length === 0 ? (
+          <V2EmptyState
+            title={t('company.noBookings')}
+            actionLabel={t('company.newBooking')}
+            onAction={() => { window.location.href = '/company/bookings/new'; }}
+          />
+        ) : (
+          <>
+            <div className="grid gap-3">
+              {bookings.map((b: any) => (
+                <Link key={b.id} href={`/company/bookings/${b.id}`} className="rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
+                      {b.status}
+                    </V2StatusBadge>
+                    <span className="font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr">{b.reference}</span>
+                    <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
+                      EGP {(b.total || 0).toLocaleString(locale)}
+                    </span>
+                  </div>
+                  <p className="mt-2.5 truncate text-[15.5px] font-extrabold text-[#0B1B33]">
+                    {isRTL
+                      ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}`
+                      : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
+                  </p>
+                  <p className="mt-1 text-[13px] tabular-nums text-[#5B6B84]">
+                    {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                    {b.customer?.name ? ` · ${b.customer.name}` : ''}
+                    {b.seatLabel ? ` · ${isRTL ? 'مقعد' : 'Seat'} ${b.seatLabel}` : ''}
+                  </p>
+                </Link>
+              ))}
+            </div>
+            {pages > 1 && (
+              <div className="mt-5 flex items-center justify-center gap-2">
                 <button
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="px-3 py-1 rounded-lg bg-white/5 text-zinc-400 disabled:opacity-30 hover:bg-white/10 transition text-sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
+                  aria-label="Previous page"
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#0B1B33] disabled:opacity-40"
                 >
-                  Prev
+                  <ChevronLeft className="size-5 v2-flip-rtl" />
                 </button>
+                <span className="text-[14px] font-bold tabular-nums text-[#0B1B33]">{page} / {pages}</span>
                 <button
-                  disabled={page >= pagination.pages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="px-3 py-1 rounded-lg bg-white/5 text-zinc-400 disabled:opacity-30 hover:bg-white/10 transition text-sm"
+                  onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages}
+                  aria-label="Next page"
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#0B1B33] disabled:opacity-40"
                 >
-                  Next
+                  <ChevronRight className="size-5 v2-flip-rtl" />
                 </button>
               </div>
-            </div>
-          )}
-        </motion.div>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </div>
-  )
+  );
 }

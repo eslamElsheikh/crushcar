@@ -1,267 +1,181 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, MapPin, Users, Plus, X, MessageSquare, CheckCircle, XCircle, Clock } from 'lucide-react'
-import { useLangStore } from '@/lib/lang'
+import { useCallback, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, X, Loader2, CalendarDays, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { useLangStore } from '@/lib/lang';
+import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';
 
-interface Station {
-  id: string
-  name: string
-  city: string
-}
+/* V2 company trip requests — same list + POST API as V1. */
 
-interface TripRequest {
-  id: string
-  fromStation: Station
-  toStation: Station
-  date: string
-  passengerCount: number
-  notes: string
-  status: string
-  adminNotes: string
-  createdAt: string
-}
+interface Station { id: string; name: string; city: string }
 
-export default function CompanyTripRequests() {
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
+export default function CompanyTripRequestsPage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
 
-  const [requests, setRequests] = useState<TripRequest[]>([])
-  const [stations, setStations] = useState<Station[]>([])
-  const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({
-    fromStationId: '',
-    toStationId: '',
-    date: '',
-    passengerCount: '',
-    notes: '',
-  })
+  const [requests, setRequests] = useState<any[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ fromStationId: '', toStationId: '', date: '', passengerCount: '', notes: '' });
+  const [submitting, setSubmitting] = useState(false);
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/company/trip-requests', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setRequests(data.data || []);
+      }
+    } catch { /* keep empty */ } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    fetch('/api/stations', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => setStations(d.stations || []))
-    fetch('/api/company/trip-requests', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { setRequests(d.data || []); setLoading(false) })
-  }, [])
+    fetch('/api/stations', { credentials: 'include' }).then((r) => r.json()).then((d) => setStations(d.stations || [])).catch(() => {});
+  }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.fromStationId || !form.toStationId || !form.date || !form.passengerCount) return
-
-    setSubmitting(true)
-    const res = await fetch('/api/company/trip-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        fromStationId: form.fromStationId,
-        toStationId: form.toStationId,
-        date: form.date,
-        passengerCount: parseInt(form.passengerCount),
-        notes: form.notes,
-      }),
-    })
-    const json = await res.json()
-    setSubmitting(false)
-
-    if (json.data) {
-      setRequests(prev => [json.data, ...prev])
-      setForm({ fromStationId: '', toStationId: '', date: '', passengerCount: '', notes: '' })
-      setFormOpen(false)
+  async function submit() {
+    if (!form.fromStationId || !form.toStationId || !form.date || !form.passengerCount) {
+      toast.error(isRTL ? 'أكمل كل الحقول المطلوبة' : 'Fill all required fields');
+      return;
     }
-  }
-
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case 'APPROVED': return <CheckCircle size={18} className="text-emerald-400" />
-      case 'REJECTED': return <XCircle size={18} className="text-red-400" />
-      default: return <Clock size={18} className="text-amber-400" />
-    }
-  }
-
-  const statusClass = (status: string) => {
-    switch (status) {
-      case 'APPROVED': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-      case 'REJECTED': return 'bg-red-500/10 text-red-400 border-red-500/20'
-      default: return 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/company/trip-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fromStationId: form.fromStationId,
+          toStationId: form.toStationId,
+          date: form.date,
+          passengerCount: Number(form.passengerCount),
+          notes: form.notes,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRequests((prev) => [data.data || data, ...prev]);
+        setModal(false);
+        setForm({ fromStationId: '', toStationId: '', date: '', passengerCount: '', notes: '' });
+        toast.success(t('tripRequest.success'));
+      } else {
+        toast.error(data.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">{t('company.tripRequests')}</h1>
-          <p className="text-sm text-zinc-500 mt-1">{t('tripRequest.title')}</p>
+          <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.tripRequests')}</h1>
+          <p className="mt-1 text-[14.5px] text-[#5B6B84]">{t('tripRequest.title')}</p>
         </div>
-        <button
-          onClick={() => setFormOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition"
-        >
-          <Plus size={16} />
-          {t('tripRequest.newRequest')}
-        </button>
+        <V2Button onClick={() => setModal(true)}>
+          <Plus className="size-5" /> {t('tripRequest.newRequest')}
+        </V2Button>
+      </div>
+
+      <div className="mt-5">
+        {loading ? (
+          <div className="grid gap-3" role="status">
+            <V2Skeleton className="h-28 rounded-2xl" />
+            <V2Skeleton className="h-28 rounded-2xl" />
+          </div>
+        ) : requests.length === 0 ? (
+          <V2EmptyState
+            title={t('tripRequest.noRequests')}
+            actionLabel={t('tripRequest.newRequest')}
+            onAction={() => setModal(true)}
+          />
+        ) : (
+          <div className="grid gap-3">
+            {requests.map((r: any) => (
+              <div key={r.id} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
+                    {r.status}
+                  </V2StatusBadge>
+                  <span className="ms-auto flex items-center gap-1.5 text-[13px] tabular-nums text-[#5B6B84]">
+                    <Users className="size-4" /> {r.passengerCount}
+                    <CalendarDays className="ms-2 size-4" />
+                    {r.date && new Date(r.date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <p className="mt-2.5 text-[15.5px] font-extrabold text-[#0B1B33]">
+                  {isRTL
+                    ? `${r.toStation?.name} ← ${r.fromStation?.name}`
+                    : `${r.fromStation?.name} → ${r.toStation?.name}`}
+                </p>
+                {r.notes && <p className="mt-1 text-[13.5px] text-[#5B6B84]">{r.notes}</p>}
+                {r.adminNotes && (
+                  <p className="mt-2 rounded-xl bg-[#F6F8FC] px-4 py-2.5 text-[13px] text-[#5B6B84]">
+                    <strong className="text-[#0B1B33]">{t('tripRequest.adminNotes')}:</strong> {r.adminNotes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
-        {formOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass rounded-2xl p-6 border border-white/5"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">{t('tripRequest.newRequest')}</h2>
-              <button onClick={() => setFormOpen(false)} className="p-2 rounded-lg hover:bg-white/5 transition">
-                <X size={18} className="text-zinc-400" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t('tripRequest.from')}</label>
-                <select
-                  value={form.fromStationId}
-                  onChange={e => setForm({ ...form, fromStationId: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm [&>option]:bg-zinc-900 [&>option]:text-white"
-                  required
-                >
-                  <option value="">--</option>
-                  {stations.map(s => <option key={s.id} value={s.id}>{s.name} - {s.city}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t('tripRequest.to')}</label>
-                <select
-                  value={form.toStationId}
-                  onChange={e => setForm({ ...form, toStationId: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm [&>option]:bg-zinc-900 [&>option]:text-white"
-                  required
-                >
-                  <option value="">--</option>
-                  {stations.map(s => <option key={s.id} value={s.id}>{s.name} - {s.city}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t('tripRequest.date')}</label>
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={e => setForm({ ...form, date: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t('tripRequest.passengerCount')}</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.passengerCount}
-                  onChange={e => setForm({ ...form, passengerCount: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm"
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-xs text-zinc-400 mb-1 block">{t('tripRequest.notes')}</label>
-                <textarea
-                  value={form.notes}
-                  onChange={e => setForm({ ...form, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm resize-none"
-                />
-              </div>
-              <div className="md:col-span-2 flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setFormOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-sm transition"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition disabled:opacity-50"
-                >
-                  {submitting ? '...' : t('tripRequest.submit')}
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={t('tripRequest.newRequest')}>
+            <div className="absolute inset-0 bg-[#0B1B33]/60" onClick={() => setModal(false)} />
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative max-h-[90dvh] w-full max-w-[520px] overflow-y-auto rounded-2xl bg-white p-6">
+              <div className="flex items-center justify-between">
+                <p className="text-[18px] font-extrabold text-[#0B1B33]">{t('tripRequest.newRequest')}</p>
+                <button onClick={() => setModal(false)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100">
+                  <X className="size-5" />
                 </button>
               </div>
-            </form>
-          </motion.div>
+              <div className="mt-4 grid gap-3.5">
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  <V2Field label={t('tripRequest.from')}>
+                    <V2Select value={form.fromStationId} onChange={(e) => setForm({ ...form, fromStationId: e.target.value })}>
+                      <option value="">—</option>
+                      {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </V2Select>
+                  </V2Field>
+                  <V2Field label={t('tripRequest.to')}>
+                    <V2Select value={form.toStationId} onChange={(e) => setForm({ ...form, toStationId: e.target.value })}>
+                      <option value="">—</option>
+                      {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </V2Select>
+                  </V2Field>
+                </div>
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  <V2Field label={t('tripRequest.date')}>
+                    <V2Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="tabular-nums" />
+                  </V2Field>
+                  <V2Field label={t('tripRequest.passengerCount')}>
+                    <V2Input type="number" min="1" value={form.passengerCount} onChange={(e) => setForm({ ...form, passengerCount: e.target.value })} dir="ltr" className="tabular-nums" />
+                  </V2Field>
+                </div>
+                <V2Field label={t('tripRequest.notes')}>
+                  <V2Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                </V2Field>
+              </div>
+              <V2Button disabled={submitting} onClick={submit} size="lg" className="mt-5 w-full">
+                {submitting && <Loader2 className="size-5 animate-spin" />} {t('tripRequest.submit')}
+              </V2Button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
-
-      {loading ? (
-        <div className="text-center py-20 text-zinc-500">{t('common.loading')}</div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-20">
-          <p className="text-zinc-500">{t('tripRequest.noRequests')}</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((req) => (
-            <motion.div
-              key={req.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl p-5 border border-white/5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="flex items-center gap-2 text-white text-sm">
-                      <MapPin size={14} className="text-blue-400" />
-                      <span>{req.fromStation.name} ({req.fromStation.city})</span>
-                      <span className="text-zinc-600">→</span>
-                      <span>{req.toStation.name} ({req.toStation.city})</span>
-                    </div>
-                    <span className={`text-xs px-2.5 py-1 rounded-full border ${statusClass(req.status)}`}>
-                      {statusIcon(req.status)}
-                      <span className="mr-1.5">
-                        {req.status === 'APPROVED' ? t('tripRequest.approved') : req.status === 'REJECTED' ? t('tripRequest.rejected') : t('tripRequest.pending')}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-zinc-500">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      {new Date(req.date).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US')}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users size={12} />
-                      {req.passengerCount}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} />
-                      {new Date(req.createdAt).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US')}
-                    </span>
-                  </div>
-                  {req.notes && (
-                    <p className="text-xs text-zinc-500 flex items-start gap-1.5">
-                      <MessageSquare size={12} className="mt-0.5 shrink-0" />
-                      {req.notes}
-                    </p>
-                  )}
-                  {req.adminNotes && (
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                      <p className="text-xs text-zinc-400 mb-1">{t('tripRequest.reason')}</p>
-                      <p className="text-sm text-zinc-300">{req.adminNotes}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
     </div>
-  )
+  );
 }

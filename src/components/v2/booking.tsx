@@ -30,6 +30,7 @@ export interface V2Trip {
   departure: string;
   arrival: string;
   price: number;
+  calculatedPrice?: number;
   status: string;
   tripStops: V2TripStop[];
   bus: {

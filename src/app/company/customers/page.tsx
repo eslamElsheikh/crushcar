@@ -1,135 +1,194 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Users, Search, Plus, Pencil, Trash2, X } from 'lucide-react'
-import { toast } from 'sonner'
-import { useLangStore } from '@/lib/lang'
+import { useCallback, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Search, Pencil, Trash2, X, Loader2, Users } from 'lucide-react';
+import { useLangStore } from '@/lib/lang';
+import { V2Field, V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';
 
-export default function CompanyCustomers() {
-  const t = useLangStore((s) => s.t)
-  const [customers, setCustomers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [q, setQ] = useState('')
-  const [showModal, setShowModal] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', notes: '' })
+/* V2 company customers — same CRUD endpoints as V1. */
 
-  const fetchCustomers = () => {
-    setLoading(true)
-    const params = new URLSearchParams({ page: '1', take: '100' })
-    if (q) params.set('q', q)
-    fetch(`/api/company/customers?${params}`)
-      .then(r => r.json())
-      .then(data => { setCustomers(data.data || []); setLoading(false) })
+export default function CompanyCustomersPage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState('');
+  const [modal, setModal] = useState<null | { id?: string; name: string; email: string; phone: string; notes: string }>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/company/customers?take=100${q ? `&q=${encodeURIComponent(q)}` : ''}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCustomers(data.data || []);
+      }
+    } catch { /* keep list */ } finally { setLoading(false); }
+  }, [q]);
+
+  useEffect(() => {
+    const timer = setTimeout(load, q ? 350 : 0);
+    return () => clearTimeout(timer);
+  }, [load, q]);
+
+  async function save() {
+    if (!modal || !modal.name.trim()) return;
+    setSaving(true);
+    try {
+      const isEdit = !!modal.id;
+      const url = isEdit ? `/api/company/customers/${modal.id}` : '/api/company/customers';
+      const res = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: modal.name, email: modal.email, phone: modal.phone, notes: modal.notes }),
+      });
+      if (res.ok) {
+        setModal(null);
+        load();
+      }
+    } catch { /* keep modal */ } finally { setSaving(false); }
   }
 
-  useEffect(() => { fetchCustomers() }, [q])
-
-  const openAdd = () => { setEditing(null); setForm({ name: '', email: '', phone: '', notes: '' }); setShowModal(true) }
-  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, email: c.email || '', phone: c.phone || '', notes: c.notes || '' }); setShowModal(true) }
-
-  const save = async () => {
-    if (!form.name.trim()) { toast.error('Name is required'); return }
-    const url = editing ? `/api/company/customers/${editing.id}` : '/api/company/customers'
-    const method = editing ? 'PATCH' : 'POST'
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-    const data = await res.json()
-    if (data.error) { toast.error(data.error) }
-    else { toast.success(editing ? 'Updated' : 'Created'); setShowModal(false); fetchCustomers() }
-  }
-
-  const deleteCustomer = async (id: string) => {
-    if (!confirm('Delete this customer?')) return
-    const res = await fetch(`/api/company/customers/${id}`, { method: 'DELETE' })
-    if (res.ok) { toast.success('Deleted'); fetchCustomers() }
+  async function remove(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/company/customers/${id}`, { method: 'DELETE' });
+      if (res.ok) setCustomers((prev) => prev.filter((c) => c.id !== id));
+    } catch { /* keep row */ } finally { setDeleting(null); }
   }
 
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">{t('company.customers')}</h1>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition text-sm">
-          <Plus size={16} /> {t('company.addCustomer')}
-        </button>
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="relative max-w-md">
-        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-        <input type="text" placeholder="Search customers..." value={q} onChange={e => setQ(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/50 text-sm" />
-      </motion.div>
-
-      {loading ? (
-        <div className="flex justify-center py-20"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
-      ) : customers.length === 0 ? (
-        <div className="glass rounded-2xl p-12 text-center text-zinc-500">
-          <Users size={48} className="mx-auto mb-3 opacity-30" />
-          <p>{t('company.noCustomers')}</p>
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.customers')}</h1>
+          <p className="mt-1 text-[14.5px] tabular-nums text-[#5B6B84]">
+            {customers.length} {isRTL ? 'عميل' : 'customers'}
+          </p>
         </div>
-      ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="text-right px-4 py-3 text-zinc-400 font-medium">Name</th>
-                <th className="text-right px-4 py-3 text-zinc-400 font-medium">Email</th>
-                <th className="text-right px-4 py-3 text-zinc-400 font-medium">Phone</th>
-                <th className="text-right px-4 py-3 text-zinc-400 font-medium">Bookings</th>
-                <th className="text-right px-4 py-3 text-zinc-400 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map((c) => (
-                <tr key={c.id} className="border-b border-white/5 hover:bg-white/5 transition">
-                  <td className="px-4 py-3 text-white font-medium">{c.name}</td>
-                  <td className="px-4 py-3 text-zinc-400">{c.email || '-'}</td>
-                  <td className="px-4 py-3 text-zinc-400">{c.phone || '-'}</td>
-                  <td className="px-4 py-3 text-zinc-400">{c._count?.bookings || 0}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-blue-400 transition"><Pencil size={14} /></button>
-                      <button onClick={() => deleteCustomer(c.id)} className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-red-400 transition"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </motion.div>
-      )}
+        <V2Button onClick={() => setModal({ name: '', email: '', phone: '', notes: '' })}>
+          <Plus className="size-5" /> {t('company.addCustomer')}
+        </V2Button>
+      </div>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass rounded-2xl p-6 border border-white/5 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white">{editing ? t('company.editCustomer') : t('company.addCustomer')}</h2>
-              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400"><X size={18} /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm" />
+      <span className="relative mt-5 block max-w-sm">
+        <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+        <V2Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('bookings.search')} aria-label={t('bookings.search')} className="ps-11" />
+      </span>
+
+      <div className="mt-4">
+        {loading ? (
+          <div className="grid gap-3" role="status">
+            <V2Skeleton className="h-24 rounded-2xl" />
+            <V2Skeleton className="h-24 rounded-2xl" />
+          </div>
+        ) : customers.length === 0 ? (
+          <V2EmptyState
+            title={t('company.noCustomers')}
+            actionLabel={t('company.addCustomer')}
+            onAction={() => setModal({ name: '', email: '', phone: '', notes: '' })}
+          />
+        ) : (
+          <div className="grid gap-3">
+            {customers.map((c: any) => (
+              <div key={c.id} className="flex items-center gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-5">
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#EFF4FF] text-[16px] font-extrabold text-[#1D5BD8]">
+                  {(c.name || '?').slice(0, 1)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{c.name}</p>
+                  <p className="truncate text-[13px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                    {[c.email, c.phone].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                {(c._count?.bookings ?? null) !== null && (
+                  <V2StatusBadge tone="slate">
+                    <span className="tabular-nums">{c._count.bookings}</span>&nbsp;{t('company.bookings')}
+                  </V2StatusBadge>
+                )}
+                <span className="hidden gap-1.5 sm:flex">
+                  <button
+                    onClick={() => setModal({ id: c.id, name: c.name || '', email: c.email || '', phone: c.phone || '', notes: c.notes || '' })}
+                    aria-label={t('company.editCustomer')}
+                    className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]"
+                  >
+                    <Pencil className="size-5" />
+                  </button>
+                  <button
+                    onClick={() => remove(c.id)}
+                    disabled={deleting === c.id}
+                    aria-label={t('company.deleteCustomer')}
+                    className="grid size-10 place-items-center rounded-xl text-red-500 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {deleting === c.id ? <Loader2 className="size-5 animate-spin" /> : <Trash2 className="size-5" />}
+                  </button>
+                </span>
+                <span className="flex gap-1.5 sm:hidden">
+                  <button
+                    onClick={() => setModal({ id: c.id, name: c.name || '', email: c.email || '', phone: c.phone || '', notes: c.notes || '' })}
+                    aria-label={t('company.editCustomer')}
+                    className="grid size-11 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]"
+                  >
+                    <Pencil className="size-5" />
+                  </button>
+                  <button
+                    onClick={() => remove(c.id)}
+                    disabled={deleting === c.id}
+                    aria-label={t('company.deleteCustomer')}
+                    className="grid size-11 place-items-center rounded-xl bg-red-50 text-red-600 disabled:opacity-50"
+                  >
+                    {deleting === c.id ? <Loader2 className="size-5 animate-spin" /> : <Trash2 className="size-5" />}
+                  </button>
+                </span>
               </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Email</label>
-                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm" />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={modal.id ? t('company.editCustomer') : t('company.addCustomer')}>
+            <div className="absolute inset-0 bg-[#0B1B33]/60" onClick={() => setModal(null)} />
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative w-full max-w-[480px] rounded-2xl bg-white p-6">
+              <div className="flex items-center justify-between">
+                <p className="flex items-center gap-2 text-[18px] font-extrabold text-[#0B1B33]">
+                  <Users className="size-5 text-[#1D5BD8]" /> {modal.id ? t('company.editCustomer') : t('company.addCustomer')}
+                </p>
+                <button onClick={() => setModal(null)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100">
+                  <X className="size-5" />
+                </button>
               </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Phone</label>
-                <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm" />
+              <div className="mt-4 grid gap-3.5">
+                <V2Field label={t('company.customerName')}>
+                  <V2Input value={modal.name} onChange={(e) => setModal({ ...modal, name: e.target.value })} autoComplete="name" />
+                </V2Field>
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  <V2Field label={t('company.customerEmail')}>
+                    <V2Input type="email" value={modal.email} onChange={(e) => setModal({ ...modal, email: e.target.value })} dir="ltr" autoComplete="email" />
+                  </V2Field>
+                  <V2Field label={t('company.customerPhone')}>
+                    <V2Input type="tel" value={modal.phone} onChange={(e) => setModal({ ...modal, phone: e.target.value })} dir="ltr" autoComplete="tel" className="tabular-nums" />
+                  </V2Field>
+                </div>
+                <V2Field label={t('company.customerNotes')}>
+                  <V2Input value={modal.notes} onChange={(e) => setModal({ ...modal, notes: e.target.value })} />
+                </V2Field>
               </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">Notes</label>
-                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm resize-none" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 transition text-sm">Cancel</button>
-                <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition text-sm font-medium">Save</button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              <V2Button disabled={saving || !modal.name.trim()} onClick={save} className="mt-5 w-full" size="lg">
+                {saving && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
+              </V2Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
-  )
+  );
 }

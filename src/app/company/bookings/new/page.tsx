@@ -1,427 +1,279 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Search, MapPin, Calendar, ArrowLeft, User, Phone, Ticket, CreditCard, Wallet, Minus, Plus } from 'lucide-react'
-import Link from 'next/link'
-import { toast } from 'sonner'
-import { useLangStore } from '@/lib/lang'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MapPin, Search, Loader2, ArrowRight, User, Wallet } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { useLangStore } from '@/lib/lang';
+import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+import { V2StatusBadge, V2Skeleton, V2NoResults } from '@/components/v2/ui';
+import { V2Trip, unavailableForSegment, segmentPrice, V2SeatMap } from '@/components/v2/booking';
 
-export default function NewCompanyBooking() {
-  const router = useRouter()
-  const t = useLangStore((s) => s.t)
-  const [step, setStep] = useState(1)
-  const [stations, setStations] = useState<any[]>([])
-  const [trips, setTrips] = useState<any[]>([])
-  const [selectedTrip, setSelectedTrip] = useState<any>(null)
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([])
-  const [passengers, setPassengers] = useState<Record<string, { name: string; phone: string; hotel: string }>>({})
-  const [layout, setLayout] = useState<any>(null)
-  const [tripStops, setTripStops] = useState<any[]>([])
-  const [fromStationId, setFromStationId] = useState('')
-  const [toStationId, setToStationId] = useState('')
-  const [date, setDate] = useState('')
-  const [customers, setCustomers] = useState<any[]>([])
-  const [selectedCustomerId, setSelectedCustomerId] = useState('')
-  const [isNewCustomer, setIsNewCustomer] = useState(false)
-  const [bookingType, setBookingType] = useState('FOR_EMPLOYEE')
-  const [creditStatus, setCreditStatus] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [searching, setSearching] = useState(false)
+/* V2 company new booking — same 3-step + POST /api/company/bookings as V1. */
+
+interface Station { id: string; name: string; city: string }
+
+export default function CompanyNewBookingPage() {
+  const router = useRouter();
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
+
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [credit, setCredit] = useState<any>(null);
+  const [fromId, setFromId] = useState('');
+  const [toId, setToId] = useState('');
+  const [date, setDate] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [bookingType, setBookingType] = useState<'FOR_EMPLOYEE' | 'FOR_CLIENT'>('FOR_EMPLOYEE');
+
+  const [trips, setTrips] = useState<V2Trip[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [trip, setTrip] = useState<V2Trip | null>(null);
+  const [loadingTrip, setLoadingTrip] = useState(false);
+  const [seats, setSeats] = useState<string[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [phones, setPhones] = useState<Record<string, string>>({});
+  const [hotels, setHotels] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch('/api/stations', { credentials: 'include' }).then(r => r.json()).then(d => setStations(d.stations || []))
-    fetch('/api/company/credit', { credentials: 'include' }).then(r => r.json()).then(setCreditStatus)
-    fetch('/api/company/customers?take=100', { credentials: 'include' }).then(r => r.json()).then(d => setCustomers(d.data || []))
-  }, [])
+    fetch('/api/stations', { credentials: 'include' }).then((r) => r.json()).then((d) => setStations(d.stations || [])).catch(() => {});
+    fetch('/api/company/credit', { credentials: 'include' }).then((r) => r.json()).then(setCredit).catch(() => {});
+    fetch('/api/company/customers?take=100', { credentials: 'include' }).then((r) => r.json()).then((d) => setCustomers(d.data || [])).catch(() => {});
+  }, []);
 
-  useEffect(() => {
-    if (selectedTrip) {
-      const tripStopsData = selectedTrip.tripStops || []
-      setTripStops(tripStopsData)
-      if (selectedTrip.bus?.layout) {
-        setLayout(selectedTrip.bus.layout)
-      } else {
-        fetch(`/api/trips/${selectedTrip.id}`, { credentials: 'include' }).then(r => r.json()).then(d => {
-          setLayout(d.bus?.layout || null)
-        })
-      }
+  async function search() {
+    if (!fromId || !toId || !date) {
+      toast.error(isRTL ? 'اختر المحطات والتاريخ' : 'Pick stations and date');
+      return;
     }
-  }, [selectedTrip])
-
-  const searchTrips = async () => {
-    if (!fromStationId || !toStationId || !date) {
-      toast.error('Please select stations and date')
-      return
-    }
-    setSearching(true)
-    const res = await fetch(`/api/trips?fromStationId=${fromStationId}&toStationId=${toStationId}&date=${date}&all=true`, { credentials: 'include' })
-    const data = await res.json()
-    setTrips(data.data || [])
-    setSearching(false)
-    if (data.data?.length === 0) toast.error('No trips found')
-  }
-
-  const selectTrip = async (trip: any) => {
-    setSelectedSeats([])
-    setPassengers({})
-    setStep(2)
+    setSearching(true);
     try {
-      const res = await fetch(`/api/trips/${trip.id}`, { credentials: 'include' })
+      const res = await fetch(`/api/trips?fromStationId=${fromId}&toStationId=${toId}&date=${date}&all=true`, { credentials: 'include' });
+      const json = await res.json();
+      setTrips(Array.isArray(json.data) ? json.data : []);
+      setStep(2);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function pickTrip(id: string) {
+    setLoadingTrip(true);
+    try {
+      const res = await fetch(`/api/trips/${id}`, { credentials: 'include' });
       if (res.ok) {
-        const data = await res.json()
-        setSelectedTrip(data)
-        if (data.bus?.layout) setLayout(data.bus.layout)
-        if (data.tripStops) setTripStops(data.tripStops)
-        return
+        setTrip(await res.json());
+        setSeats([]);
       }
-    } catch {}
-    setSelectedTrip(trip)
+    } catch { /* keep list */ } finally { setLoadingTrip(false); }
   }
 
-  const getBookedSeats = (): Set<string> => {
-    if (!selectedTrip) return new Set()
-    const booked = selectedTrip.bookings || []
-    const companyBooked = selectedTrip.companyBookings || []
-    const all = [...booked, ...companyBooked]
-    return new Set(all
-      .filter((b: any) => ['PENDING', 'PAID', 'BOARDED'].includes(b.status))
-      .map((b: any) => b.seatLabel))
-  }
+  const reserved = unavailableForSegment(trip, fromId || null, toId || null);
+  const seg = segmentPrice(trip, fromId || null, toId || null);
+  const priceOf = (label: string) => seg + (trip?.bus?.layout?.seats.find((s) => s.label === label)?.price || 0);
+  const total = seats.reduce((s, l) => s + priceOf(l), 0);
 
-  const toggleSeat = (label: string) => {
-    setSelectedSeats(prev => {
-      if (prev.includes(label)) {
-        const next = prev.filter(s => s !== label)
-        setPassengers(p => {
-          const copy = { ...p }
-          delete copy[label]
-          return copy
-        })
-        return next
+  async function submit() {
+    if (!trip || seats.length === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/company/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          tripId: trip.id,
+          passengers: seats.map((seatLabel) => ({
+            seatLabel,
+            passengerName: names[seatLabel] || '',
+            passengerPhone: phones[seatLabel] || '',
+            passengerHotel: hotels[seatLabel] || '',
+          })),
+          fromStationId: fromId || null,
+          toStationId: toId || null,
+          customerId: customerId || null,
+          bookingType,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.bookings?.[0]) {
+        router.push(`/company/bookings/${data.bookings[0].id}`);
+      } else {
+        toast.error(data.error || t('common.error'));
       }
-      setPassengers(p => ({ ...p, [label]: { name: '', phone: '', hotel: '' } }))
-      return [...prev, label]
-    })
-  }
-
-  const updatePassenger = (seat: string, field: 'name' | 'phone' | 'hotel', value: string) => {
-    setPassengers(prev => ({
-      ...prev,
-      [seat]: { ...prev[seat], [field]: value },
-    }))
-  }
-
-  const confirmBooking = async () => {
-    if (!selectedTrip || selectedSeats.length === 0) return
-
-    const missing = selectedSeats.find(label => !passengers[label]?.name.trim())
-    if (missing) {
-      toast.error(`Passenger name required for seat ${missing}`)
-      return
-    }
-
-    setLoading(true)
-    const res = await fetch('/api/company/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        tripId: selectedTrip.id,
-        passengers: selectedSeats.map(label => ({
-          seatLabel: label,
-          passengerName: passengers[label].name,
-          passengerPhone: passengers[label].phone,
-          passengerHotel: passengers[label].hotel || '',
-        })),
-        fromStationId: fromStationId || null,
-        toStationId: toStationId || null,
-        customerId: selectedCustomerId || null,
-        bookingType,
-      }),
-    })
-    const data = await res.json()
-    setLoading(false)
-
-    if (data.error) {
-      toast.error(data.message || data.error)
-    } else {
-      toast.success(t('company.bookingSuccess'))
-      router.push(`/company/bookings/${data.bookings?.[0]?.id || data.booking?.id}`)
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSubmitting(false);
     }
   }
-
-  const bookedSeats = getBookedSeats()
-
-  const seatCols = layout ? (layout.colsPerRow ? JSON.parse(layout.colsPerRow) : {}) : {}
-  const maxCols = layout ? layout.cols : 4
-  const aisleAfter = layout ? layout.aisleAfter : 2
-  const rowLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-
-  const totalPrice = selectedTrip
-    ? selectedTrip.calculatedPrice || selectedTrip.price
-    : 0
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <Link href="/company/bookings" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
-        <ArrowLeft size={16} /> {t('company.bookings')}
-      </Link>
-
-      <div className="flex gap-4 mb-8">
-        {[1, 2, 3].map(s => (
-          <div key={s} className={`flex-1 h-1 rounded-full ${s <= step ? 'bg-blue-500' : 'bg-white/10'}`} />
+    <div>
+      <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.newBooking')}</h1>
+      <ol className="mt-4 flex items-center gap-1.5" aria-label="Steps">
+        {[1, 2, 3].map((s) => (
+          <li key={s} className="flex items-center gap-1.5">
+            <span className={cn(
+              'rounded-full px-3.5 py-2 text-[13px] font-bold tabular-nums',
+              s < step && 'bg-emerald-50 text-emerald-700',
+              s === step && 'bg-[#0A1E3C] text-white',
+              s > step && 'bg-white text-[#5B6B84] ring-1 ring-slate-200'
+            )}>
+              {s}
+            </span>
+            {s < 3 && <ArrowRight className="size-4 text-slate-300 v2-flip-rtl" aria-hidden="true" />}
+          </li>
         ))}
-      </div>
+      </ol>
 
       {step === 1 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 border border-white/5">
-          <h2 className="text-xl font-bold text-white mb-6">Search Trips</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-xs text-zinc-400 mb-1 block">From</label>
-              <select value={fromStationId} onChange={e => setFromStationId(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm [&>option]:bg-zinc-900 [&>option]:text-white">
-                <option value="">Select</option>
-                {stations.map((s: any) => <option key={s.id} value={s.id}>{s.name} - {s.city}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-400 mb-1 block">To</label>
-              <select value={toStationId} onChange={e => setToStationId(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm [&>option]:bg-zinc-900 [&>option]:text-white">
-                <option value="">Select</option>
-                {stations.map((s: any) => <option key={s.id} value={s.id}>{s.name} - {s.city}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Date</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm" />
-            </div>
-            <div className="flex items-end">
-              <button onClick={searchTrips} disabled={searching} className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2">
-                <Search size={16} /> {searching ? 'Searching...' : 'Search'}
-              </button>
-            </div>
+        <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+          {credit && (
+            <p className="mb-4 flex items-center gap-2 rounded-xl bg-[#F6F8FC] px-4 py-3 text-[13.5px] font-semibold tabular-nums text-[#0B1B33]">
+              <Wallet className="size-5 text-emerald-600" />
+              {t('company.walletBalance')}: {Number(credit.walletBalance || 0).toLocaleString(locale)} EGP
+            </p>
+          )}
+          <div className="grid gap-3.5 md:grid-cols-2">
+            <V2Field label={t('v2.from')}>
+              <V2Select value={fromId} onChange={(e) => setFromId(e.target.value)}>
+                <option value="">{t('v2.fromPh')}</option>
+                {stations.map((s) => <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>)}
+              </V2Select>
+            </V2Field>
+            <V2Field label={t('v2.to')}>
+              <V2Select value={toId} onChange={(e) => setToId(e.target.value)}>
+                <option value="">{t('v2.toPh')}</option>
+                {stations.map((s) => <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>)}
+              </V2Select>
+            </V2Field>
+            <V2Field label={t('v2.date')}>
+              <V2Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tabular-nums" />
+            </V2Field>
+            <V2Field label={t('company.selectCustomer')}>
+              <V2Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                <option value="">{t('company.newCustomer')}</option>
+                {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </V2Select>
+            </V2Field>
           </div>
-
-          {trips.length > 0 && (
-            <div className="mt-6 space-y-3">
-              {trips.map((trip: any) => (
-                <div key={trip.id} className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition cursor-pointer border border-transparent hover:border-blue-500/30" onClick={() => selectTrip(trip)}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-white">{new Date(trip.departure).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                        <p className="text-xs text-zinc-500">{trip.origin}</p>
-                      </div>
-                      <div className="flex items-center gap-2 text-zinc-500">
-                        <div className="w-16 h-px bg-zinc-600" />
-                        <MapPin size={12} />
-                        <div className="w-16 h-px bg-zinc-600" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-white">{new Date(trip.arrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                        <p className="text-xs text-zinc-500">{trip.destination}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-blue-400">{trip.price.toFixed(2)} EGP</p>
-                      <p className="text-xs text-zinc-500">{trip.bus?.name}</p>
-                    </div>
-                  </div>
-                </div>
+          <div className="mt-3.5">
+            <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('company.bookingType')}</p>
+            <div className="mt-2 flex gap-1 rounded-xl bg-[#F1F4F9] p-1.5">
+              {(['FOR_EMPLOYEE', 'FOR_CLIENT'] as const).map((bt) => (
+                <button
+                  key={bt} onClick={() => setBookingType(bt)} aria-pressed={bookingType === bt}
+                  className={cn('flex-1 rounded-lg px-4 py-2.5 text-[14px] font-bold transition', bookingType === bt ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]')}
+                >
+                  {bt === 'FOR_EMPLOYEE' ? t('company.forEmployee') : t('company.forClient')}
+                </button>
               ))}
             </div>
-          )}
-        </motion.div>
+          </div>
+          <V2Button size="lg" disabled={searching} onClick={search} className="mt-5 w-full sm:w-auto">
+            {searching && <Loader2 className="size-5 animate-spin" />}
+            <Search className="size-5 v2-flip-rtl" /> {t('v2.searchTrips')}
+          </V2Button>
+        </div>
       )}
 
       {step === 2 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 glass rounded-2xl p-6 border border-white/5">
-            <h2 className="text-xl font-bold text-white mb-2">Select Seats</h2>
-            <p className="text-sm text-zinc-500 mb-6">
-              {selectedSeats.length > 0
-                ? `${selectedSeats.length} seat(s) selected: ${selectedSeats.join(', ')}`
-                : 'Click seats to select. Select multiple seats.'}
-            </p>
-            {layout ? (
-              <div className="flex justify-center">
-                <div className="inline-block">
-                  {rowLabels.slice(0, layout.rows).map((rowLabel, rowIdx) => {
-                    const seatsInRow = seatCols[rowLabel] || maxCols
-                    return (
-                      <div key={rowLabel} className="flex items-center justify-center gap-1 mb-1">
-                        {Array.from({ length: seatsInRow }, (_, colIdx) => {
-                          const col = colIdx + 1
-                          const label = `${rowLabel}${col}`
-                          const isBooked = bookedSeats.has(label)
-                          const isSelected = selectedSeats.includes(label)
-                          return (
-                            <button
-                              key={label}
-                              disabled={isBooked}
-                              onClick={() => toggleSeat(label)}
-                              className={`w-10 h-10 rounded-lg text-xs font-medium transition ${
-                                isBooked ? 'bg-red-500/20 text-red-400 cursor-not-allowed' :
-                                isSelected ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 scale-110' :
-                                'bg-white/10 text-zinc-300 hover:bg-white/20 hover:scale-105'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )
-                  })}
-                </div>
+        <div className="mt-5 grid items-start gap-5 lg:grid-cols-[1fr_360px]">
+          <div className="grid gap-3">
+            {trips.length === 0 ? (
+              <V2NoResults title={t('v2.noTrips')} actionLabel={t('v2.back')} onAction={() => setStep(1)} />
+            ) : trips.map((tr) => {
+              const active = trip?.id === tr.id;
+              const left = (tr.bus?.layout?.seats.length || 0) - (tr.bookings?.length || 0) - (tr.companyBookings?.length || 0);
+              return (
+                <button
+                  key={tr.id} onClick={() => pickTrip(tr.id)} aria-pressed={active}
+                  className={cn('rounded-2xl border bg-white p-5 text-start transition', active ? 'border-[#1D5BD8] shadow-[0_0_0_3px_rgba(29,91,216,0.15)]' : 'border-[#E6EBF2] hover:border-[#1D5BD8]/40')}
+                >
+                  <p className="text-[16px] font-extrabold text-[#0B1B33]">
+                    {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
+                  </p>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] tabular-nums text-[#5B6B84]">
+                    <span>{new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} · {tr.bus?.name}</span>
+                    <V2StatusBadge tone={left > 0 ? 'green' : 'red'}>{left > 0 ? `${left} ${t('v2.seatsLeft')}` : t('v2.soldOut')}</V2StatusBadge>
+                    <span className="ms-auto text-[16px] font-extrabold text-[#0B1B33]">EGP {(tr.calculatedPrice || tr.price).toLocaleString(locale)}</span>
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 lg:sticky lg:top-6">
+            {!trip || loadingTrip ? (
+              <div className="grid gap-3" role="status">
+                <V2Skeleton className="h-6 w-2/3" />
+                <V2Skeleton className="h-64 rounded-xl" />
               </div>
             ) : (
-              <div className="text-center py-12 text-zinc-500">Loading seat map...</div>
-            )}
-            <div className="flex items-center justify-center gap-6 mt-6 text-xs text-zinc-400">
-              <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-white/10" /> Available</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-blue-500" /> Selected</div>
-              <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-red-500/20" /> Booked</div>
-            </div>
-          </div>
-
-          <div className="glass rounded-2xl p-6 border border-white/5">
-            <h3 className="text-lg font-bold text-white mb-4">Booking Details</h3>
-            {selectedTrip && (
-              <div className="space-y-4 text-sm">
-                <div>
-                  <p className="text-zinc-500">Route</p>
-                  <p className="text-white">{selectedTrip.origin} → {selectedTrip.destination}</p>
-                </div>
-                <div>
-                  <p className="text-zinc-500">Date</p>
-                  <p className="text-white">{new Date(selectedTrip.departure).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-zinc-500">Seats</p>
-                  <p className="text-white font-semibold">{selectedSeats.length > 0 ? selectedSeats.join(', ') : '-'}</p>
-                </div>
-                <div>
-                  <p className="text-zinc-500">Price per seat</p>
-                  <p className="text-blue-400 font-bold text-lg">{totalPrice.toFixed(2)} EGP</p>
-                </div>
-                {selectedSeats.length > 1 && (
-                  <div>
-                    <p className="text-zinc-500">Total</p>
-                    <p className="text-emerald-400 font-bold text-lg">{(totalPrice * selectedSeats.length).toFixed(2)} EGP</p>
+              <>
+                <V2SeatMap
+                  trip={trip} reserved={reserved} lang={lang} basePrice={seg}
+                  selected={seats}
+                  onToggle={(l) => setSeats((p) => (reserved.has(l) ? p : p.includes(l) ? p.filter((x) => x !== l) : [...p, l]))}
+                />
+                {seats.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {seats.map((s) => (
+                      <span key={s} className="rounded-full bg-[#0A1E3C] px-3.5 py-1.5 text-[13px] font-bold tabular-nums text-white">{s}</span>
+                    ))}
                   </div>
                 )}
-                {selectedSeats.length > 0 && (
-                  <button onClick={() => setStep(3)} className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition text-sm font-medium">
-                    Continue ({selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''})
-                  </button>
-                )}
-              </div>
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                  <span className="text-[14px] font-extrabold text-[#0B1B33]">{t('v2.total')}</span>
+                  <span className="text-[19px] font-extrabold tabular-nums text-[#0B1B33]">EGP {total.toLocaleString(locale)}</span>
+                </div>
+              </>
             )}
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => setStep(1)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[#5B6B84] hover:bg-slate-100">{t('v2.back')}</button>
+              <V2Button disabled={seats.length === 0} onClick={() => setStep(3)} className="flex-1">
+                {t('v2.continue')} <ArrowRight className="size-4 v2-flip-rtl" />
+              </V2Button>
+            </div>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {step === 3 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 border border-white/5 max-w-3xl">
-          <h2 className="text-xl font-bold text-white mb-6">Passenger Details</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-zinc-400 mb-1 block">{t('company.bookingType')}</label>
-              <div className="flex gap-3">
-                <button onClick={() => setBookingType('FOR_EMPLOYEE')} className={`flex-1 py-2 rounded-xl text-sm transition ${bookingType === 'FOR_EMPLOYEE' ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400'}`}>
-                  {t('company.forEmployee')}
-                </button>
-                <button onClick={() => setBookingType('FOR_CLIENT')} className={`flex-1 py-2 rounded-xl text-sm transition ${bookingType === 'FOR_CLIENT' ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400'}`}>
-                  {t('company.forClient')}
-                </button>
-              </div>
-            </div>
-
-            {bookingType === 'FOR_CLIENT' && (
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t('company.selectCustomer')}</label>
-                <select value={selectedCustomerId} onChange={e => { setSelectedCustomerId(e.target.value); setIsNewCustomer(e.target.value === 'new') }} className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm [&>option]:bg-zinc-900 [&>option]:text-white">
-                  <option value="">{t('company.newCustomer')}</option>
-                  {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            <div className="border-t border-white/5 pt-4">
-              <h3 className="text-sm font-semibold text-white mb-4">Passengers ({selectedSeats.length})</h3>
-              <div className="space-y-4">
-                {selectedSeats.map((seat, i) => (
-                  <div key={seat} className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <p className="text-xs text-blue-400 font-medium mb-3">Seat {seat}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="relative">
-                        <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input
-                          type="text"
-                          value={passengers[seat]?.name || ''}
-                          onChange={e => updatePassenger(seat, 'name', e.target.value)}
-                          placeholder={`Passenger name for seat ${seat}`}
-                          className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 text-sm"
-                        />
-                      </div>
-                      <div className="relative">
-                        <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input
-                          type="text"
-                          value={passengers[seat]?.phone || ''}
-                          onChange={e => updatePassenger(seat, 'phone', e.target.value)}
-                          placeholder={`Phone for seat ${seat}`}
-                          className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 text-sm"
-                        />
-                      </div>
-                      <div className="relative">
-                        <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input
-                          type="text"
-                          value={passengers[seat]?.hotel || ''}
-                          onChange={e => updatePassenger(seat, 'hotel', e.target.value)}
-                          placeholder={`Hotel for seat ${seat}`}
-                          className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {creditStatus && (
-              <div className="p-4 rounded-xl bg-white/5 space-y-2 text-sm">
-                <p className="text-zinc-400 font-medium">Payment Summary</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-500 flex items-center gap-2"><Wallet size={14} /> Wallet</span>
-                  <span className="text-emerald-400">{creditStatus.walletBalance.toFixed(2)} EGP</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-500 flex items-center gap-2"><CreditCard size={14} /> Credit Available</span>
-                  <span className="text-blue-400">{creditStatus.availableCredit.toFixed(2)} EGP</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-white/5 pt-2">
-                  <span className="text-zinc-500 font-medium">Total Due</span>
-                  <span className="text-white font-bold">{(totalPrice * selectedSeats.length).toFixed(2)} EGP</span>
+        <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+          <div className="grid gap-3.5">
+            {seats.map((s) => (
+              <div key={s} className="rounded-2xl border border-slate-200 p-4">
+                <p className="flex items-center gap-2 text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
+                  <User className="size-5 text-[#1D5BD8]" /> {isRTL ? 'مقعد' : 'Seat'} {s}
+                  <span className="ms-auto text-[14px] text-[#5B6B84]">EGP {priceOf(s).toLocaleString(locale)}</span>
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <V2Input value={names[s] || ''} onChange={(e) => setNames({ ...names, [s]: e.target.value })} placeholder={t('company.passengerName')} aria-label={`${t('company.passengerName')} ${s}`} />
+                  <V2Input value={phones[s] || ''} onChange={(e) => setPhones({ ...phones, [s]: e.target.value })} placeholder={t('company.passengerPhone')} aria-label={`${t('company.passengerPhone')} ${s}`} dir="ltr" className="tabular-nums" />
+                  <V2Input value={hotels[s] || ''} onChange={(e) => setHotels({ ...hotels, [s]: e.target.value })} placeholder={t('v2.hotelPh')} aria-label={`${t('v2.hotelPh')} ${s}`} />
                 </div>
               </div>
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <button onClick={() => setStep(2)} className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 transition text-sm">
-                Back
-              </button>
-              <button onClick={confirmBooking} disabled={loading || selectedSeats.length === 0} className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition text-sm font-medium disabled:opacity-50">
-                {loading ? 'Booking...' : `Confirm Booking (${selectedSeats.length} seat${selectedSeats.length > 1 ? 's' : ''})`}
-              </button>
-            </div>
+            ))}
           </div>
-        </motion.div>
+          <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+            <button onClick={() => setStep(2)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[#5B6B84] hover:bg-slate-100">{t('v2.back')}</button>
+            <V2Button size="lg" disabled={submitting || seats.length === 0} onClick={submit}>
+              {submitting && <Loader2 className="size-5 animate-spin" />}
+              {t('v2.confirmBooking')} · EGP {total.toLocaleString(locale)}
+            </V2Button>
+          </div>
+        </div>
       )}
     </div>
-  )
+  );
 }

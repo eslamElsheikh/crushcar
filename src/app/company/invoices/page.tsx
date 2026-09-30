@@ -1,101 +1,87 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { FileText } from 'lucide-react'
-import { useLangStore } from '@/lib/lang'
+import { useEffect, useState } from 'react';
+import { FileText } from 'lucide-react';
+import { useLangStore } from '@/lib/lang';
+import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';
 
-export default function CompanyInvoices() {
-  const t = useLangStore((s) => s.t)
-  const [invoices, setInvoices] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState('')
+/* V2 company invoices — same read-only list API as V1. */
+
+export default function CompanyInvoicesPage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
+
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
 
   useEffect(() => {
-    const params = new URLSearchParams({ page: '1', take: '50' })
-    if (status) params.set('status', status)
-    fetch(`/api/company/invoices?${params}`)
-      .then(r => r.json())
-      .then(data => { setInvoices(data.data || []); setLoading(false) })
-  }, [status])
-
-  const statusColors: Record<string, string> = {
-    PENDING: 'bg-amber-500/20 text-amber-400 border-amber-500/20',
-    PARTIAL: 'bg-blue-500/20 text-blue-400 border-blue-500/20',
-    PAID: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20',
-    OVERDUE: 'bg-red-500/20 text-red-400 border-red-500/20',
-  }
-
-  const statusLabels: Record<string, string> = {
-    PENDING: t('company.invoicePending'),
-    PARTIAL: t('company.invoicePartial'),
-    PAID: t('company.invoicePaidStatus'),
-    OVERDUE: t('company.invoiceOverdue'),
-  }
+    (async () => {
+      try {
+        const q = filter ? `?status=${filter}` : '';
+        const res = await fetch(`/api/company/invoices${q}`);
+        if (res.ok) {
+          const data = await res.json();
+          setInvoices(data.data || []);
+        }
+      } catch { /* keep empty */ } finally { setLoading(false); }
+    })();
+  }, [filter]);
 
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">{t('company.invoices')}</h1>
-        <select value={status} onChange={e => setStatus(e.target.value)} className="px-4 py-2 rounded-xl bg-zinc-900 border border-white/10 text-white text-sm [&>option]:bg-zinc-900 [&>option]:text-white">
-          <option value="">All</option>
-          <option value="PENDING">Pending</option>
-          <option value="PARTIAL">Partial</option>
-          <option value="PAID">Paid</option>
-          <option value="OVERDUE">Overdue</option>
-        </select>
-      </motion.div>
+    <div>
+      <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.invoices')}</h1>
 
-      {loading ? (
-        <div className="flex justify-center py-20"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
-      ) : invoices.length === 0 ? (
-        <div className="glass rounded-2xl p-12 text-center text-zinc-500">
-          <FileText size={48} className="mx-auto mb-3 opacity-30" />
-          <p>{t('company.noInvoices')}</p>
-        </div>
-      ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {invoices.map((inv) => (
-            <div key={inv.id} className="glass rounded-2xl p-6 border border-white/5 hover:border-white/10 transition">
-              <div className="flex items-center justify-between mb-4">
-                <span className={`px-2 py-1 rounded-lg text-xs border ${statusColors[inv.status]}`}>
-                  {statusLabels[inv.status]}
+      <div className="mt-5 flex flex-wrap gap-1.5">
+        {['', 'PENDING', 'PARTIAL', 'PAID', 'OVERDUE'].map((s) => (
+          <button
+            key={s || 'all'}
+            onClick={() => setFilter(s)}
+            aria-pressed={filter === s}
+            className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === s ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-white text-[#5B6B84]'}`}
+          >
+            {s || (isRTL ? 'الكل' : 'All')}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4">
+        {loading ? (
+          <div className="grid gap-3" role="status">
+            <V2Skeleton className="h-28 rounded-2xl" />
+            <V2Skeleton className="h-28 rounded-2xl" />
+          </div>
+        ) : invoices.length === 0 ? (
+          <V2EmptyState title={t('company.noInvoices')} />
+        ) : (
+          <div className="grid gap-3">
+            {invoices.map((inv: any) => (
+              <div key={inv.id} className="flex items-center gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-5">
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#EFF4FF] text-[#1D5BD8]">
+                  <FileText className="size-6" />
                 </span>
-                <span className="text-xs text-zinc-500">
-                  {new Date(inv.periodStart).toLocaleDateString()} - {new Date(inv.periodEnd).toLocaleDateString()}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
+                    {inv.periodStart && new Date(inv.periodStart).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                    {' — '}
+                    {inv.periodEnd && new Date(inv.periodEnd).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <p className="mt-0.5 text-[13px] tabular-nums text-[#5B6B84]">
+                    {t('company.invoiceTotal')}: EGP {Number(inv.totalAmount || 0).toLocaleString(locale)}
+                    {' · '}{t('company.invoiceRemaining')}: EGP {Number((inv.totalAmount || 0) - (inv.paidAmount || 0)).toLocaleString(locale)}
+                    {inv.dueDate && ` · ${t('company.dueDate')}: ${new Date(inv.dueDate).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`}
+                  </p>
+                </div>
+                <V2StatusBadge tone={inv.status === 'PAID' ? 'green' : inv.status === 'OVERDUE' ? 'red' : 'amber'}>
+                  {inv.status}
+                </V2StatusBadge>
               </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-500">{t('company.invoiceTotal')}</span>
-                  <span className="text-white font-semibold">{inv.totalAmount.toFixed(2)} EGP</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-500">{t('company.invoicePaid')}</span>
-                  <span className="text-emerald-400">{inv.paidAmount.toFixed(2)} EGP</span>
-                </div>
-                {inv.totalAmount > inv.paidAmount && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">{t('company.invoiceRemaining')}</span>
-                    <span className="text-red-400">{(inv.totalAmount - inv.paidAmount).toFixed(2)} EGP</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                  <span className="text-zinc-500">{t('company.dueDate')}</span>
-                  <span className={`font-medium ${new Date(inv.dueDate) < new Date() && inv.status !== 'PAID' ? 'text-red-400' : 'text-zinc-300'}`}>
-                    {new Date(inv.dueDate).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              {inv.notes && (
-                <p className="text-xs text-zinc-500 mt-4 pt-4 border-t border-white/5">{inv.notes}</p>
-              )}
-            </div>
-          ))}
-        </motion.div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }
