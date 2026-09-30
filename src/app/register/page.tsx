@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -100,6 +100,18 @@ export default function RegisterPage() {
             </div>
 
             <div>
+              <label className="text-sm text-zinc-400 mb-2 block">{isRTL ? 'رقم الهاتف' : 'Phone Number'}</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className="w-full px-4 py-3.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all text-white placeholder:text-zinc-600"
+                placeholder={isRTL ? '٠١٠١٢٣٤٥٦٧٨٩' : '+20 101 234 5678'}
+                dir="ltr"
+              />
+            </div>
+
+            <div>
               <label className="text-sm text-zinc-400 mb-2 block">{t('auth.password')}</label>
               <div className="relative">
                 <input
@@ -151,6 +163,14 @@ export default function RegisterPage() {
             {t('auth.alreadyAccount')}{' '}
             <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">
               {t('auth.signIn')}
+            </Link>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-white/5 text-center">
+            <p className="text-xs text-zinc-500 mb-2">{isRTL ? 'عندك شركة وعايز تحجز لموظفيك؟' : 'Have a company? Book for your employees'}</p>
+            <Link href="/register/company" className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium">
+              <Sparkles size={14} />
+              {isRTL ? 'سجل شركتك' : 'Register Your Company'}
             </Link>
           </div>
         </div>

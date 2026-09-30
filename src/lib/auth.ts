@@ -27,6 +27,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!valid) return null
 
+        // Block login for inactive company admins
+        if (user.role === 'COMPANY_ADMIN' && user.company && !user.company.isActive) return null
+
         return {
           id: user.id,
           email: user.email,
@@ -38,6 +41,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user }) {
+      return true
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      if (new URL(url).origin === baseUrl) return url
+      return baseUrl
+    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id
@@ -59,4 +70,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/login',
   },
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
 })

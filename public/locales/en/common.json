@@ -50,7 +50,7 @@
     },
     "payments": {
       "title": "Payment Integration",
-      "desc": "Accept payments online with Stripe integration. Support for Egyptian Pound (EGP) transactions."
+      "desc": "Admin confirms payments manually. Cash at station or bank transfer options."
     }
   },
   "liveBooking": {
@@ -139,6 +139,30 @@
     "tripsDesc": "Set routes, times, and pricing for each journey. Bulk create hundreds at once.",
     "book": "Start booking",
     "bookDesc": "Customers choose seats visually and book instantly with realtime updates"
+  },
+  "station": {
+    "title": "Stations",
+    "manage": "Manage Bus Stations",
+    "addStation": "Add Station",
+    "stationName": "Station Name",
+    "noStations": "No stations yet",
+    "addFirst": "Add your first station",
+    "saveStations": "Save Stations",
+    "stationsCount": "stations",
+    "stopsAt": "Stops at",
+    "selectStation": "Select station"
+  },
+  "roundtrip": {
+    "toggle": "Round Trip",
+    "outbound": "Outbound",
+    "return": "Return",
+    "returnDate": "Return Date",
+    "selectReturn": "Select Return Trip",
+    "noReturnTrips": "No return trips available",
+    "outboundTrip": "Outbound Trip",
+    "returnTrip": "Return Trip",
+    "totalBoth": "Total (Both Ways)",
+    "bothLegs": "Round Trip"
   },
   "seat": {
     "select": "Select Your Seat",

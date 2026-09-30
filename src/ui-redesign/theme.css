@@ -1,0 +1,158 @@
+/* Safro UI Preview — isolated light theme. Scoped under .safro-preview only. */
+/* Tokens locked per spec. Uses logical properties for RTL. */
+
+.safro-preview {
+  --sp-bg: #ffffff;
+  --sp-muted: #f6f8fc;
+  --sp-navy: #0b1b33;
+  --sp-navy-2: #10233f;
+  --sp-blue: #1d5bd8;
+  --sp-blue-dark: #1447ad;
+  --sp-cta: #0a1e3c;
+  --sp-text-muted: #5b6b84;
+  --sp-border: #e6ebf2;
+  --sp-radius-card: 16px;
+  --sp-radius-input: 12px;
+  --sp-shadow: 0 12px 32px rgba(11, 27, 51, 0.08);
+  --sp-shadow-lg: 0 24px 64px rgba(11, 27, 51, 0.14);
+
+  background: var(--sp-bg);
+  color: var(--sp-navy);
+  font-family: var(--font-inter), 'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  text-align: start;
+  isolation: isolate;
+}
+
+.safro-preview[dir='rtl'] {
+  font-family: 'Cairo', 'IBM Plex Sans Arabic', var(--font-inter), system-ui, sans-serif;
+  letter-spacing: 0 !important;
+}
+
+/* Arabic needs more generous line-height to avoid cramped rendering */
+.safro-preview[dir='rtl'] p,
+.safro-preview[dir='rtl'] li,
+.safro-preview[dir='rtl'] a,
+.safro-preview[dir='rtl'] button,
+.safro-preview[dir='rtl'] label,
+.safro-preview[dir='rtl'] input,
+.safro-preview[dir='rtl'] select {
+  line-height: 1.8;
+}
+.safro-preview[dir='rtl'] h1,
+.safro-preview[dir='rtl'] h2,
+.safro-preview[dir='rtl'] h3 {
+  line-height: 1.5;
+}
+
+.safro-preview * {
+  box-sizing: border-box;
+}
+
+.sp-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+@media (min-width: 768px) {
+  .sp-container { padding-inline: 28px; }
+}
+
+.sp-card {
+  background: #fff;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-card);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-input {
+  background: #fff;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-input);
+  padding-inline: 16px;
+  padding-block: 0;
+  min-height: 52px;
+  font-size: 15px;
+  color: var(--sp-navy);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+@media (min-width: 1024px) {
+  .sp-input { min-height: 60px; font-size: 15.5px; }
+}
+.sp-input::placeholder { color: #9aa8bd; }
+.sp-input:focus {
+  border-color: var(--sp-blue);
+  box-shadow: 0 0 0 3px rgba(29, 91, 216, 0.12);
+}
+
+.sp-btn-primary {
+  background: var(--sp-blue);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+  box-shadow: 0 8px 20px rgba(29, 91, 216, 0.28);
+}
+.sp-btn-primary:hover { background: var(--sp-blue-dark); transform: translateY(-1px); }
+
+.sp-btn-dark {
+  background: var(--sp-cta);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 700;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+.sp-btn-dark:hover { background: #132c55; transform: translateY(-1px); }
+
+/* Baseline: interaction feedback animates transform only (≤200ms, ease-out) */
+.sp-hover-lift { transition: transform 0.2s ease-out; }
+.sp-hover-lift:hover { transform: translateY(-4px); }
+
+.sp-img-zoom { overflow: hidden; }
+.sp-img-zoom img { transition: transform 0.2s ease-out; }
+.sp-img-zoom:hover img { transform: scale(1.04); }
+
+.sp-no-scrollbar::-webkit-scrollbar { display: none; }
+.sp-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* RTL: flip directional arrows automatically */
+.safro-preview[dir='rtl'] .sp-flip-rtl { transform: scaleX(-1); }
+
+/* Snap scroll rows on mobile — comfortable card width with peek */
+.sp-snap-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 82%;
+  overflow-x: auto;
+  scroll-snap-type: inline mandatory;
+  gap: 16px;
+  padding-block: 4px 12px;
+  margin-inline: -20px;
+  padding-inline: 20px;
+}
+.sp-snap-row > * { scroll-snap-align: start; }
+@media (min-width: 768px) {
+  .sp-snap-row {
+    grid-auto-flow: row;
+    grid-auto-columns: unset;
+    grid-template-columns: repeat(2, 1fr);
+    overflow: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+@media (min-width: 1024px) {
+  .sp-snap-row { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Baseline: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .safro-preview *,
+  .safro-preview *::before,
+  .safro-preview *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

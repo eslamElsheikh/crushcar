@@ -14,6 +14,8 @@ interface Booking {
   seatLabel: string
   total: number
   createdAt: string
+  actualOrigin?: string
+  actualDestination?: string
   trip: {
     origin: string
     destination: string
@@ -209,9 +211,9 @@ export default function CustomersPage() {
                           <div className="flex items-center gap-3 text-sm">
                             <span className="flex items-center gap-1.5 text-zinc-400">
                               <MapPin size={12} className="text-blue-400" />
-                              {booking.trip.origin}
-                              <span className="text-zinc-600 mx-1">→</span>
-                              {booking.trip.destination}
+                              {booking.actualOrigin || booking.trip.origin}
+                              <span className="text-zinc-600 mx-1">{isRTL ? '←' : '→'}</span>
+                              {booking.actualDestination || booking.trip.destination}
                             </span>
                             <span className="flex items-center gap-1.5 text-zinc-500">
                               <Bus size={12} />

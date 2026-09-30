@@ -49,7 +49,7 @@ export default function SeatsDashboardPage() {
   async function loadTrips() {
     setLoading(true)
     try {
-      const res = await fetch('/api/trips')
+      const res = await fetch('/api/trips', { credentials: 'include' })
       const data = await res.json()
       const allTrips: Trip[] = Array.isArray(data) ? data : data.data || []
 
@@ -202,7 +202,7 @@ export default function SeatsDashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="font-semibold text-white">{trip.origin}</span>
-                      <span className="text-zinc-600">→</span>
+                      <span className="text-zinc-600">{isRTL ? '←' : '→'}</span>
                       <span className="font-semibold text-white">{trip.destination}</span>
                       <span className="flex items-center gap-1 text-xs text-zinc-500">
                         <Bus size={11} /> {trip.bus?.name}

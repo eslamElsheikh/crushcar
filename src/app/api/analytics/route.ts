@@ -8,6 +8,8 @@ export async function GET(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    console.log('📊 Analytics - user:', session.user.email, 'role:', session.user.role, 'companyId:', session.user.companyId)
+
     const { searchParams } = new URL(req.url)
     const range = searchParams.get('range') || '30d'
     const requestedCompanyId = searchParams.get('companyId')
@@ -20,7 +22,14 @@ export async function GET(req: NextRequest) {
       ? (requestedCompanyId || undefined)
       : session.user.companyId
 
+    console.log('📊 Analytics - using companyId:', companyId, 'days:', days)
+
     const baseWhere = companyId ? { trip: { bus: { companyId } } } : {}
+
+    const totalBookingsCount = await prisma.booking.count({ where: baseWhere })
+    console.log('📊 totalBookings:', totalBookingsCount)
+
+    const baseWhereCancelled = companyId ? { trip: { bus: { companyId } } } : {}
 
     const [
       totalBookings,
@@ -28,8 +37,12 @@ export async function GET(req: NextRequest) {
       activeTrips,
       recentBookings,
       revenueByDay,
+      customerCancellationsPending,
+      companyCancellationsPending,
+      customerCancellationsProcessed,
+      companyCancellationsProcessed,
     ] = await Promise.all([
-      prisma.booking.count({ where: baseWhere }),
+      Promise.resolve(totalBookingsCount),
       prisma.booking.aggregate({
         where: { status: 'PAID', createdAt: { gte: startDate }, ...baseWhere },
         _sum: { total: true },
@@ -51,7 +64,21 @@ export async function GET(req: NextRequest) {
         select: { createdAt: true, total: true },
         orderBy: { createdAt: 'asc' },
       }),
+      prisma.booking.count({
+        where: { status: 'CANCELLED', refundProcessedAt: null, ...baseWhereCancelled },
+      }),
+      prisma.companyBooking.count({
+        where: { status: 'CANCELLED', refundProcessedAt: null, refundAmount: { not: null } },
+      }),
+      prisma.booking.count({
+        where: { status: 'CANCELLED', refundProcessedAt: { not: null }, ...baseWhereCancelled },
+      }),
+      prisma.companyBooking.count({
+        where: { status: 'CANCELLED', refundProcessedAt: { not: null } },
+      }),
     ])
+
+    console.log('📊 revenue:', totalRevenue._sum.total, 'activeTrips:', activeTrips, 'recentBookings:', recentBookings.length)
 
     // Group by day
     const revenueMap = new Map<string, number>()
@@ -71,6 +98,12 @@ export async function GET(req: NextRequest) {
       activeTrips,
       recentBookings: recentBookings.map(b => ({ ...b, paidAt: b.paidAt ? b.paidAt.toISOString() : null })),
       chartData,
+      cancellations: {
+        customerPending: customerCancellationsPending,
+        companyPending: companyCancellationsPending,
+        customerProcessed: customerCancellationsProcessed,
+        companyProcessed: companyCancellationsProcessed,
+      },
     })
   } catch (err) {
     console.error(err)

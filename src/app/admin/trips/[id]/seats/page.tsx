@@ -29,6 +29,20 @@ interface Booking {
   user: { id: string; name: string; email: string }
 }
 
+interface CompanyBooking {
+  id: string
+  reference: string
+  seatLabel: string
+  passengerName: string
+  passengerPhone: string
+  status: string
+  total: number
+  paidAt: string | null
+  boardedAt: string | null
+  company: { id: string; name: string }
+  bookingType: string
+}
+
 interface Trip {
   id: string
   origin: string
@@ -50,6 +64,7 @@ interface Trip {
     }
   }
   bookings: Booking[]
+  companyBookings?: CompanyBooking[]
 }
 
 export default function TripSeatsPage() {
@@ -75,8 +90,9 @@ export default function TripSeatsPage() {
     setLoading(false)
   }
 
-  async function markBoarded(bookingId: string) {
-    const res = await fetch(`/api/bookings/${bookingId}`, {
+  async function markBoarded(bookingId: string, isCompany: boolean) {
+    const url = isCompany ? `/api/company/bookings/${bookingId}` : `/api/bookings/${bookingId}`
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'BOARDED' }),
@@ -84,10 +100,19 @@ export default function TripSeatsPage() {
     })
     if (res.ok) {
       const updated = await res.json()
-      setTrip(prev => prev ? {
-        ...prev,
-        bookings: prev.bookings.map(b => b.id === bookingId ? { ...b, ...updated, boarded: true } : b)
-      } : null)
+      setTrip(prev => {
+        if (!prev) return null
+        if (isCompany) {
+          return {
+            ...prev,
+            companyBookings: (prev.companyBookings || []).map(b => b.id === bookingId ? { ...b, status: 'BOARDED', boardedAt: new Date().toISOString() } : b)
+          }
+        }
+        return {
+          ...prev,
+          bookings: prev.bookings.map(b => b.id === bookingId ? { ...b, ...updated, boarded: true } : b)
+        }
+      })
       setSelectedSeat(null)
     }
   }
@@ -103,12 +128,17 @@ export default function TripSeatsPage() {
   if (!trip) return null
 
   const layout = trip.bus?.layout
-  const bookedMap = new Map(trip.bookings.map(b => [b.seatLabel, b]))
+  const bookedMap = new Map<string, any>(trip.bookings.map(b => [b.seatLabel, { ...b, _type: 'customer' }]))
+  for (const cb of (trip.companyBookings || [])) {
+    if (!bookedMap.has(cb.seatLabel)) {
+      bookedMap.set(cb.seatLabel, { ...cb, _type: 'company', boarded: cb.status === 'BOARDED', user: { id: '', name: cb.company?.name || cb.passengerName || 'Company', email: '' }, company: cb.company })
+    }
+  }
   const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
   const totalSeats = trip.bus.seatCount
-  const bookedCount = trip.bookings.length
-  const boardedCount = trip.bookings.filter(b => b.boarded).length
+  const bookedCount = bookedMap.size
+  const boardedCount = [...bookedMap.values()].filter(b => b.status === 'BOARDED').length
 
   function getSeatAt(rowIdx: number, col: number): Seat | undefined {
     return layout?.seats.find(s => s.row === rowIdx && s.col === col)
@@ -142,7 +172,7 @@ export default function TripSeatsPage() {
               {isRTL ? 'خريطة المقاعد' : 'Seat Map'}
             </h1>
             <p className="text-zinc-400 text-sm">
-              {trip.origin} → {trip.destination} · {trip.bus?.name}
+              {trip.origin} {isRTL ? '←' : '→'} {trip.destination} · {trip.bus?.name}
             </p>
           </div>
         </div>
@@ -238,12 +268,12 @@ export default function TripSeatsPage() {
                                   : 'seat-available',
                                 selectedSeat?.id === seat.id && 'ring-2 ring-purple-400 ring-offset-2 ring-offset-zinc-900'
                               )}
-                              title={booking ? `${booking.passengerName || booking.user?.name} (${booking.seatLabel})` : seat.label}
+                              title={booking ? `${booking.passengerName || booking.company?.name || booking.user?.name} (${booking.seatLabel})` : seat.label}
                             >
                               <span className="font-mono">{seat.label}</span>
                               {booking && (
                                 <span className="text-[8px] font-semibold mt-0.5 leading-tight text-center px-0.5 overflow-hidden">
-                                  {booking.passengerName || booking.user?.name?.split(' ')[0] || booking.seatLabel}
+                                  {booking.passengerName || (booking as any).company?.name || booking.user?.name?.split(' ')[0] || booking.seatLabel}
                                 </span>
                               )}
                               {isBoarded && (
@@ -314,7 +344,7 @@ export default function TripSeatsPage() {
                     <h3 className="text-2xl font-bold text-white font-mono">{selectedSeat.label}</h3>
                     <span className="text-xs text-zinc-500">{isRTL ? 'مقعد محجوز' : 'Reserved Seat'}</span>
                   </div>
-                  {selectedBooking.boarded ? (
+                  {(selectedBooking as any).status === 'BOARDED' ? (
                     <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                       <CheckCircle2 size={10} /> {isRTL ? 'صعد' : 'Boarded'}
                     </span>
@@ -328,12 +358,18 @@ export default function TripSeatsPage() {
                 {/* Passenger info */}
                 <div className="mb-6">
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold mx-auto mb-3">
-                    {(selectedBooking.passengerName || selectedBooking.user?.name).charAt(0).toUpperCase()}
+                    {(selectedBooking.passengerName || (selectedBooking as any).company?.name || selectedBooking.user?.name || '?').charAt(0).toUpperCase()}
                   </div>
                   <p className="text-center font-semibold text-white text-lg">
-                    {selectedBooking.passengerName || selectedBooking.user?.name}
+                    {selectedBooking.passengerName || (selectedBooking as any).company?.name || selectedBooking.user?.name}
                   </p>
-                  <p className="text-center text-xs text-zinc-500 mt-1">{selectedBooking.user?.email}</p>
+                  {(selectedBooking as any)._type === 'company' ? (
+                    <p className="text-center text-xs text-zinc-500 mt-1">
+                      {(selectedBooking as any).company?.name ? `${isRTL ? 'شركة' : 'Company'}: ${(selectedBooking as any).company?.name}` : isRTL ? 'حجز شركة' : 'Company Booking'}
+                    </p>
+                  ) : (
+                    <p className="text-center text-xs text-zinc-500 mt-1">{selectedBooking.user?.email}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2 text-sm border-t border-white/5 pt-4">
@@ -365,23 +401,23 @@ export default function TripSeatsPage() {
                   )}
                 </div>
 
-                {!selectedBooking.boarded && selectedBooking.status === 'PAID' && (
+                {(selectedBooking as any).status !== 'BOARDED' && selectedBooking.status === 'PAID' && (
                   <button
-                    onClick={() => markBoarded(selectedBooking.id)}
+                    onClick={() => markBoarded(selectedBooking.id, (selectedBooking as any)._type === 'company')}
                     className="w-full mt-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-all flex items-center justify-center gap-2 hover-lift"
                   >
                     <CheckCircle2 size={16} />
                     {isRTL ? 'تأكيد الصعود' : 'Confirm Boarding'}
                   </button>
                 )}
-                {selectedBooking.boarded && selectedBooking.boardedAt && (
+                {(selectedBooking as any).status === 'BOARDED' && (selectedBooking as any).boardedAt && (
                   <div className="mt-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
                     <CheckCircle2 size={16} className="text-emerald-400 mx-auto mb-1" />
                     <p className="text-xs text-emerald-400 font-semibold">
                       {isRTL ? 'تم الصعود في' : 'Boarded at'}
                     </p>
                     <p className="text-xs text-emerald-500 mt-0.5">
-                      {new Date(selectedBooking.boardedAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date((selectedBooking as any).boardedAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 )}

@@ -16,6 +16,13 @@ interface TicketData {
   paidAt: string | null
   createdAt: string
   qrCode: string
+  actualOrigin?: string
+  actualDestination?: string
+  actualDeparture?: string
+  fromStopOrder?: number
+  toStopOrder?: number
+  roundTripGroupId?: string | null
+  returnForId?: string | null
   user: { name: string; email: string; phone: string }
   trip: {
     id: string
@@ -30,6 +37,13 @@ interface TicketData {
       company: { name: string }
     }
   }
+  tripStops?: Array<{
+    id: string
+    stationId: string
+    stopOrder: number
+    priceFromOrigin: number
+    station?: { name: string }
+  }>
 }
 
 function formatDate(dateStr: string) {
@@ -48,6 +62,7 @@ export default function PrintTicketPage() {
   const bookingId = params.id as string
   const lang = useLangStore((s) => s.lang)
   const isRTL = lang === 'ar'
+  const t = useLangStore((s) => s.t)
   const [ticket, setTicket] = useState<TicketData | null>(null)
   const [loading, setLoading] = useState(true)
   const printRef = useRef<HTMLDivElement>(null)
@@ -86,6 +101,8 @@ export default function PrintTicketPage() {
   if (!ticket) return null
 
   const isPaid = ticket.status === 'PAID'
+  const isReturnFor = !!ticket.returnForId
+  const isRoundTrip = !!ticket.roundTripGroupId
 
   return (
     <div className={cn('min-h-screen bg-zinc-100', isRTL && 'font-[Cairo]')} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -133,39 +150,79 @@ export default function PrintTicketPage() {
                   {isRTL ? 'CrushCar - نظام حجز الباصات' : 'CrushCar - Bus Booking System'}
                 </p>
               </div>
-              <div className="text-left">
+              <div className="text-right space-y-2">
+                {isRoundTrip && (
+                  <div className={cn(
+                    'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold bg-amber-400/20 text-amber-200 border border-amber-400/30',
+                    isRTL ? 'ml-2' : 'mr-2'
+                  )}>
+                    {isRTL ? 'ذهاب وعودة' : 'ROUND TRIP'}
+                  </div>
+                )}
                 <div className={cn(
                   'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold',
                   isPaid ? 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/30' : 'bg-red-400/20 text-red-200 border border-red-400/30'
                 )}>
                   {isPaid && <CheckCircle size={12} />}
-                  {isPaid ? (isRTL ? 'مؤكد - CONFIRMED' : 'CONFIRMED') : (isRTL ? 'ملغي - CANCELLED' : 'CANCELLED')}
+                  {t(`booking.${ticket.status.toLowerCase()}`) || ticket.status}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Route & time */}
-          <div className="px-8 py-6 bg-blue-50 border-b border-blue-100">
+          <div className={cn('px-8 py-6 border-b', isReturnFor ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100')}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg">
+                <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg', isReturnFor ? 'bg-amber-600' : 'bg-blue-600')}>
                   <Bus size={24} />
                 </div>
                 <div>
+                  {isRoundTrip && (
+                    <p className={cn('text-xs font-semibold mb-1', isReturnFor ? 'text-amber-600' : 'text-blue-600')}>
+                      {isReturnFor
+                        ? (isRTL ? '🔙 رحلة العودة' : '🔙 Return Trip')
+                        : (isRTL ? '🔵 رحلة الذهاب' : '🔵 Outbound Trip')}
+                    </p>
+                  )}
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-gray-800">{ticket.trip.origin}</span>
-                    <span className="text-2xl text-gray-400">→</span>
-                    <span className="text-2xl font-bold text-gray-800">{ticket.trip.destination}</span>
+                    <span className="text-2xl font-bold text-gray-800">{ticket.actualOrigin || ticket.trip.origin}</span>
+                    <span className="text-2xl text-gray-400">{isRTL ? '←' : '→'}</span>
+                    <span className="text-2xl font-bold text-gray-800">{ticket.actualDestination || ticket.trip.destination}</span>
                   </div>
+
+                  {/* Route path (stops) */}
+                  {ticket.tripStops && ticket.tripStops.length > 0 && ticket.fromStopOrder && ticket.toStopOrder && (
+                    <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-200/50">
+                      {(() => {
+                        const relevantStops = ticket.tripStops
+                          .filter((s: any) => s.stopOrder >= ticket.fromStopOrder! && s.stopOrder <= ticket.toStopOrder!)
+                          .sort((a: any, b: any) => a.stopOrder - b.stopOrder)
+                        return relevantStops.map((stop: any, idx: number) => (
+                          <span key={stop.id} className="flex items-center gap-2">
+                            <span className={cn(
+                              'text-xs font-semibold',
+                              idx === 0 ? 'text-blue-600' : idx === relevantStops.length - 1 ? 'text-emerald-600' : 'text-gray-500'
+                            )}>
+                              {stop.station?.name}
+                            </span>
+                            {idx < relevantStops.length - 1 && (
+                              <span className="text-gray-400">{isRTL ? '←' : '→'}</span>
+                            )}
+                          </span>
+                        ))
+                      })()}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                     <span className="flex items-center gap-1.5">
                       <Calendar size={14} />
-                      {formatDate(ticket.trip.departure)}
+                      {formatDate(ticket.actualDeparture || ticket.trip.departure)}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Clock size={14} />
-                      {formatTime(ticket.trip.departure)}
+                      {formatTime(ticket.actualDeparture || ticket.trip.departure)}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Bus size={14} />

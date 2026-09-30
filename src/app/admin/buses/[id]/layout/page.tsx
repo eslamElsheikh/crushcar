@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Save, Loader2, Trash2, Plus, Minus, Bus } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Trash2, Plus, Minus, Bus, Map, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SeatDraft {
@@ -12,6 +12,12 @@ interface SeatDraft {
   col: number
   type: 'NORMAL' | 'VIP' | 'DISABLED'
   price: number
+}
+
+interface StationDraft {
+  id?: string
+  name: string
+  order: number
 }
 
 const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
@@ -37,16 +43,51 @@ export default function BusLayoutPage() {
   const [bus, setBus] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingStations, setSavingStations] = useState(false)
   const [selectedSeat, setSelectedSeat] = useState<SeatDraft | null>(null)
   const [seats, setSeats] = useState<SeatDraft[]>([])
   const [totalRows, setTotalRows] = useState(10)
-  // colsPerRow: how many seats in each row (e.g., { A: 4, B: 4, C: 3 })
   const [colsPerRow, setColsPerRow] = useState<Record<string, number>>({})
-  const [aisleAfter, setAisleAfter] = useState(2) // e.g., 2 = aisle after column 2
+  const [aisleAfter, setAisleAfter] = useState(2)
+  const [stations, setStations] = useState<StationDraft[]>([])
+  const [newStationName, setNewStationName] = useState('')
 
   useEffect(() => {
     loadBus()
+    loadStations()
   }, [busId])
+
+  async function loadStations() {
+    try {
+      const res = await fetch(`/api/buses/${busId}/stations`)
+      if (res.ok) {
+        const data = await res.json()
+        setStations(data.map((s: any) => ({ id: s.id, name: s.name, order: s.order })))
+      }
+    } catch {}
+  }
+
+  async function saveStations() {
+    setSavingStations(true)
+    try {
+      await fetch(`/api/buses/${busId}/stations`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stations: stations.map((s, i) => ({ name: s.name, order: i + 1 })) }),
+      })
+    } catch {}
+    setSavingStations(false)
+  }
+
+  function addStation() {
+    if (!newStationName.trim()) return
+    setStations([...stations, { name: newStationName.trim(), order: stations.length + 1 }])
+    setNewStationName('')
+  }
+
+  function removeStation(index: number) {
+    setStations(stations.filter((_, i) => i !== index))
+  }
 
   async function loadBus() {
     const res = await fetch(`/api/buses/${busId}`)
@@ -428,6 +469,59 @@ export default function BusLayoutPage() {
                   <span className="text-xs text-zinc-600">+{cfg.price} EGP</span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Bus stations */}
+          <div className="glass rounded-2xl p-6 border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm text-zinc-300 flex items-center gap-2">
+                <Map size={14} className="text-blue-400" />
+                المحطات / Stations
+              </h3>
+              {stations.length > 0 && (
+                <button
+                  onClick={saveStations}
+                  disabled={savingStations}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition"
+                >
+                  {savingStations ? '...' : 'حفظ'}
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 mb-3">
+              {stations.length === 0 ? (
+                <p className="text-xs text-zinc-600 text-center py-4">لا توجد محطات — أضف أول محطة</p>
+              ) : (
+                stations.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-zinc-800/30 rounded-lg px-3 py-2">
+                    <GripVertical size={12} className="text-zinc-600 flex-shrink-0" />
+                    <span className="text-xs text-zinc-500 w-4">{s.order}</span>
+                    <span className="flex-1 text-sm text-white">{s.name}</span>
+                    <button onClick={() => removeStation(i)} className="text-red-400 hover:text-red-300 transition">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newStationName}
+                onChange={(e) => setNewStationName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addStation()}
+                placeholder="اسم المحطة"
+                className="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 focus:border-blue-500 focus:outline-none transition text-sm"
+              />
+              <button
+                onClick={addStation}
+                className="px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition"
+              >
+                <Plus size={14} />
+              </button>
             </div>
           </div>
 

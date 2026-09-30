@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Bus, Ticket, TrendingUp, Clock, ArrowRight, TrendingDown } from 'lucide-react'
+import { Bus, Ticket, TrendingUp, Clock, ArrowRight, TrendingDown, Building2, XCircle } from 'lucide-react'
 import {
   AreaChart,
   Area,
@@ -23,6 +23,12 @@ interface Analytics {
   activeTrips: number
   recentBookings: any[]
   chartData: { day: string; revenue: number }[]
+  cancellations?: {
+    customerPending: number
+    companyPending: number
+    customerProcessed: number
+    companyProcessed: number
+  }
 }
 
 export default function AdminDashboard() {
@@ -32,14 +38,18 @@ export default function AdminDashboard() {
   const isRTL = lang === 'ar'
   const [data, setData] = useState<Analytics | null>(null)
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d')
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
-    // Trigger trip status transitions and expired booking cleanup
     fetch('/api/jobs/transition', { method: 'POST', credentials: 'include' }).catch(() => {})
-    // Load analytics
-    fetch(`/api/analytics?range=${dateRange}`)
+    fetch(`/api/analytics?range=${dateRange}`, { credentials: 'include' })
       .then((r) => r.json())
-      .then(setData)
+      .then((data) => { console.log('📊 Analytics data:', data); setData(data) })
+      .catch((err) => console.error('Analytics fetch error:', err))
+    fetch('/api/admin/companies/pending', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setPendingCount(d.length) })
+      .catch(() => {})
   }, [dateRange])
 
   const stats = [
@@ -77,6 +87,18 @@ export default function AdminDashboard() {
       change: '+5%',
       positive: true,
     },
+    {
+      labelKey: 'admin.cancellationsKpi',
+      value: data?.cancellations
+        ? `${data.cancellations.customerPending + data.cancellations.companyPending}`
+        : '...',
+      icon: XCircle,
+      color: 'red',
+      change: data?.cancellations
+        ? `${data.cancellations.customerProcessed + data.cancellations.companyProcessed} ${isRTL ? 'تمت' : 'done'}`
+        : '',
+      positive: true,
+    },
   ]
 
   return (
@@ -111,6 +133,7 @@ export default function AdminDashboard() {
               stat.color === 'emerald' && 'bg-emerald-500',
               stat.color === 'purple' && 'bg-purple-500',
               stat.color === 'amber' && 'bg-amber-500',
+              stat.color === 'red' && 'bg-red-500',
             )} />
 
             <div className="flex items-start justify-between mb-5 relative">
@@ -119,9 +142,10 @@ export default function AdminDashboard() {
                 stat.color === 'blue' && 'bg-blue-500/10 text-blue-400',
                 stat.color === 'emerald' && 'bg-emerald-500/10 text-emerald-400',
                 stat.color === 'purple' && 'bg-purple-500/10 text-purple-400',
-                stat.color === 'amber' && 'bg-amber-500/10 text-amber-400',
-              )}>
-                <stat.icon size={20} />
+            stat.color === 'amber' && 'bg-amber-500/10 text-amber-400',
+            stat.color === 'red' && 'bg-red-500/10 text-red-400',
+          )}>
+            <stat.icon size={20} />
               </div>
               <span className={cn(
                 'text-xs font-medium px-2.5 py-1 rounded-full',
@@ -240,7 +264,7 @@ export default function AdminDashboard() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate">{b.user?.name || t('common.guest')}</p>
                       <p className="text-xs text-zinc-500 truncate">
-                        {b.trip?.origin} → {b.trip?.destination} • {b.seatLabel}
+                        {b.trip?.origin} {isRTL ? '←' : '→'} {b.trip?.destination} • {b.seatLabel}
                       </p>
                     </div>
                   </div>
@@ -296,6 +320,14 @@ export default function AdminDashboard() {
             titleKey: 'dashboard.viewTrips',
             descKey: 'dashboard.seeTrips',
           },
+          {
+            href: '/admin/companies/pending',
+            icon: Building2,
+            color: 'amber',
+            titleKey: 'admin.pendingCompanies',
+            descKey: 'dashboard.reviewCompanies',
+            badge: pendingCount > 0 ? pendingCount : undefined,
+          },
         ].map((action, i) => (
           <motion.div
             key={action.href}
@@ -309,12 +341,18 @@ export default function AdminDashboard() {
               className="block glass rounded-2xl p-6 border border-white/5 hover:border-white/10 transition-all duration-200 group"
             >
               <div className={cn(
-                'w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110',
+                'w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 relative',
                 action.color === 'blue' && 'bg-blue-500/10 text-blue-400',
                 action.color === 'emerald' && 'bg-emerald-500/10 text-emerald-400',
                 action.color === 'purple' && 'bg-purple-500/10 text-purple-400',
+                action.color === 'amber' && 'bg-amber-500/10 text-amber-400',
               )}>
                 <action.icon size={22} />
+                {action.badge && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {action.badge}
+                  </span>
+                )}
               </div>
               <h4 className="font-semibold text-white mb-1">{t(action.titleKey)}</h4>
               <p className="text-xs text-zinc-500">{t(action.descKey)}</p>

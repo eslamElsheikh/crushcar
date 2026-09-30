@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -25,16 +25,37 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const res = await signIn('credentials', { email, password, redirect: false })
+    const res = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    })
     setLoading(false)
 
-    if (res?.ok) {
-      const redirect = email.includes('admin') ? '/admin' : '/trips'
-      router.push(redirect)
-      router.refresh()
-    } else {
-      setError(t('common.error') + ': Invalid credentials')
+    if (res?.error) {
+      setError('Invalid credentials')
+      return
     }
+
+    const sessionRes = await fetch('/api/auth/session')
+    const session = await sessionRes.json()
+
+    let redirectUrl = '/trips'
+
+    if (session?.user?.role === 'SUPER_ADMIN') {
+      redirectUrl = '/admin'
+    } else if (session?.user?.role === 'COMPANY_ADMIN') {
+      const companyRes = await fetch('/api/company/info')
+      const company = await companyRes.json()
+      if (company && company.busesCount > 0) {
+        redirectUrl = '/admin'
+      } else {
+        redirectUrl = '/company/dashboard'
+      }
+    }
+
+    router.push(redirectUrl)
+    router.refresh()
   }
 
   return (
@@ -151,6 +172,13 @@ export default function LoginPage() {
         >
           <p className="text-xs text-zinc-500 mb-3 text-center font-medium">{t('auth.demoAccounts')}</p>
           <div className="flex flex-col gap-2">
+            <button
+              onClick={() => { setEmail('superadmin@crushcar.com'); setPassword('super123') }}
+              className="w-full text-left px-4 py-2.5 rounded-xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 transition text-sm group"
+            >
+              <span className="text-red-400 font-medium mr-2">{t('auth.superAdmin')}:</span>
+              <span className="text-zinc-300 font-mono text-xs">superadmin@crushcar.com</span>
+            </button>
             <button
               onClick={() => { setEmail('admin@cairoexpress.com'); setPassword('admin123') }}
               className="w-full text-left px-4 py-2.5 rounded-xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition text-sm group"

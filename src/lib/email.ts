@@ -219,7 +219,7 @@ export async function sendBookingReminderEmail(to: string, data: BookingEmailDat
     await getTransporter().sendMail({
       from: process.env.SMTP_FROM,
       to,
-      subject: `⏰ تذكير: رحلتك غداً ${data.origin} → ${data.destination}`,
+      subject: `⏰ تذكير: رحلتك غداً ${data.origin} ← ${data.destination}`,
       html,
     })
     console.log('[Email] Reminder sent to:', to, data.reference)

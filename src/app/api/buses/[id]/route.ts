@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!bus) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     // COMPANY_ADMIN can only see their company's buses
-    if (session.user.role === 'COMPANY_ADMIN' && bus.companyId !== session.user.companyId) {
+    if (session.user.role === 'COMPANY_ADMIN' && bus.companyId !== null && bus.companyId !== session.user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -37,8 +37,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = await prisma.bus.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    // COMPANY_ADMIN can only edit their own company's buses
-    if (session.user.role === 'COMPANY_ADMIN' && existing.companyId !== session.user.companyId) {
+    // COMPANY_ADMIN can only edit their own company's buses (or global buses)
+    if (session.user.role === 'COMPANY_ADMIN' && existing.companyId !== null && existing.companyId !== session.user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -61,8 +61,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const existing = await prisma.bus.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    // COMPANY_ADMIN can only delete their own company's buses
-    if (session.user.role === 'COMPANY_ADMIN' && existing.companyId !== session.user.companyId) {
+    // COMPANY_ADMIN can only delete their own company's buses (or global buses)
+    if (session.user.role === 'COMPANY_ADMIN' && existing.companyId !== null && existing.companyId !== session.user.companyId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

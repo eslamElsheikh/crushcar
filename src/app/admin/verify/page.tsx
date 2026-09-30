@@ -260,7 +260,7 @@ export default function VerifyPage() {
                 <div>
                   <p className="text-xs text-zinc-500 mb-1">{lang === 'ar' ? 'المسار' : 'Route'}</p>
                   <p className="text-sm font-semibold text-white">
-                    {booking.trip.origin} → {booking.trip.destination}
+                    {booking.trip.origin} {isRTL ? '←' : '→'} {booking.trip.destination}
                   </p>
                 </div>
                 <div>

@@ -38,7 +38,7 @@ export default function AdminUsersPage() {
 
   async function loadUsers() {
     try {
-      const res = await fetch('/api/admin/users')
+      const res = await fetch('/api/admin/users', { credentials: 'include' })
       const data = await res.json()
       if (Array.isArray(data)) setUsers(data)
     } catch { /* ignore */ }
@@ -54,6 +54,7 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
@@ -249,6 +250,7 @@ export default function AdminUsersPage() {
                 >
                   <option value="CUSTOMER">{isRTL ? 'عميل' : 'Customer'}</option>
                   <option value="COMPANY_ADMIN">{isRTL ? 'مدير شركة' : 'Company Admin'}</option>
+                  <option value="SUPER_ADMIN">{isRTL ? 'مدير النظام' : 'Super Admin'}</option>
                 </select>
               </div>
               <div>

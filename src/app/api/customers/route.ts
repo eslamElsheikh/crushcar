@@ -34,7 +34,10 @@ export async function GET(req: NextRequest) {
           bookings: {
             include: {
               trip: {
-                include: { bus: { select: { name: true } } },
+                include: {
+                  bus: { select: { name: true } },
+                  tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } },
+                },
               },
             },
             orderBy: { createdAt: 'desc' },
@@ -56,20 +59,27 @@ export async function GET(req: NextRequest) {
         createdAt: u.createdAt.toISOString(),
         totalBookings: u.bookings.length,
         totalSpent: u.bookings.filter(b => b.status === 'PAID').reduce((sum, b) => sum + b.total, 0),
-        recentBookings: u.bookings.slice(0, 3).map((b) => ({
-          id: b.id,
-          reference: b.reference,
-          status: b.status,
-          seatLabel: b.seatLabel,
-          total: b.total,
-          createdAt: b.createdAt.toISOString(),
-          trip: {
-            origin: b.trip.origin,
-            destination: b.trip.destination,
-            departure: b.trip.departure,
-            bus: b.trip.bus,
-          },
-        })),
+        recentBookings: u.bookings.slice(0, 3).map((b) => {
+          const tripStops = b.trip.tripStops || []
+          const fromStop = tripStops.find((s: any) => s.stopOrder === b.fromStopOrder)
+          const toStop = tripStops.find((s: any) => s.stopOrder === b.toStopOrder)
+          return {
+            id: b.id,
+            reference: b.reference,
+            status: b.status,
+            seatLabel: b.seatLabel,
+            total: b.total,
+            createdAt: b.createdAt.toISOString(),
+            actualOrigin: fromStop?.station?.name || b.trip.origin,
+            actualDestination: toStop?.station?.name || b.trip.destination,
+            trip: {
+              origin: b.trip.origin,
+              destination: b.trip.destination,
+              departure: b.trip.departure,
+              bus: b.trip.bus,
+            },
+          }
+        }),
       })),
       pagination: { page, take, total, pages: Math.ceil(total / take) },
     })

@@ -210,7 +210,7 @@ export default function ReportsPage() {
                       className="border-b border-white/5 hover:bg-white/3 transition-colors">
                       <td className={cn('px-5 py-4', isRTL && 'text-right')}>
                         <div>
-                          <p className="font-semibold text-white text-sm">{route.origin} → {route.destination}</p>
+                          <p className="font-semibold text-white text-sm">{route.origin} {isRTL ? '←' : '→'} {route.destination}</p>
                           <p className="text-xs text-zinc-500">{new Date(route.departure).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                         </div>
                       </td>
@@ -259,7 +259,7 @@ export default function ReportsPage() {
                   return (
                     <div key={route.tripId} className="flex items-center gap-4">
                       <div className="w-52 shrink-0">
-                        <p className="text-sm font-semibold text-white truncate">{route.origin} → {route.destination}</p>
+                        <p className="text-sm font-semibold text-white truncate">{route.origin} {isRTL ? '←' : '→'} {route.destination}</p>
                         <p className="text-xs text-zinc-500">{route.bookedSeats}/{route.totalSeats} {lang === 'ar' ? 'مقعد' : 'seats'}</p>
                       </div>
                       <div className="flex-1 relative">

@@ -120,7 +120,7 @@ export default function TripPassengersPage() {
           </div>
           <div>
             <h1 className="text-xl font-display font-bold text-white">
-              {trip.origin} → {trip.destination}
+              {trip.origin} {isRTL ? '←' : '→'} {trip.destination}
             </h1>
             <p className="text-zinc-400 text-sm">
               {new Date(trip.departure).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

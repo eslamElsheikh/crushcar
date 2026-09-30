@@ -10,10 +10,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const companyId = searchParams.get('companyId')
 
-    // Non-admins see only their company's buses
+    // Non-admins see only their company's buses; COMPANY_ADMIN also sees global buses (null companyId)
     const where = session.user.role === 'SUPER_ADMIN'
       ? (companyId ? { companyId } : {})
-      : { companyId: session.user.companyId ?? undefined }
+      : {
+          OR: [
+            { companyId: session.user.companyId ?? undefined },
+            { companyId: null },
+          ],
+        }
 
     const buses = await prisma.bus.findMany({
       where,
@@ -41,12 +46,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // Resolve target companyId — MUST be a non-empty string
-    let targetCompanyId: string | undefined
+    // Resolve target companyId — SUPER_ADMIN can create buses without a company (global)
+    let targetCompanyId: string | null | undefined
     if (session.user.role === 'COMPANY_ADMIN') {
       targetCompanyId = session.user.companyId ?? undefined
     } else if (session.user.role === 'SUPER_ADMIN') {
-      targetCompanyId = companyId ?? undefined
+      targetCompanyId = companyId || null
     } else {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -57,13 +62,6 @@ export async function POST(req: NextRequest) {
       target: targetCompanyId,
       input: { name, type, seatCount, companyId },
     }))
-
-    if (!targetCompanyId) {
-      return NextResponse.json(
-        { error: 'No companyId — user has no company assigned', detail: `role=${session.user.role} companyId=${session.user.companyId}` },
-        { status: 400 }
-      )
-    }
 
     const bus = await prisma.bus.create({
       data: { name, type, seatCount, companyId: targetCompanyId },

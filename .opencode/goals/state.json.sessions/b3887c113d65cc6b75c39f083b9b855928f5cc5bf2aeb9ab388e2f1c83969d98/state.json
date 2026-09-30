@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "goals": [
+    {
+      "goalId": "54f83e36-981e-4c77-a390-d2d03cc80a97",
+      "runId": "ee50a26a-3f0a-432f-8adc-39228b28f16e",
+      "condition": "Transform Safro Travel website into a modern, premium, Egypt-only bus travel platform with completely redesigned UI/UX (V2), preserving backend, APIs, database, auth, booking engine and workflows exactly. Migrate page-by-page on feature/safro-v2-redesign with backup/pre-safro-v2 + v1-final tag as rollback.",
+      "successCriteria": "V2 design system + homepage/search/results on real APIs; all B2C booking steps and company area redesigned in V2 system; tsc clean; AR/RTL-mobile and EN/LTR-desktop verified; real-flow regressions pass; backend/schema/auth untouched; batches committed on feature branch; master untouched until cutover.",
+      "constraints": "{\"maxCostUsd\": 50, \"maxDurationMs\": 7200000, \"maxTokens\": 200000, \"maxTurns\": 100, \"mode\": \"plan-then-execute\"}",
+      "mode": "normal",
+      "sessionID": "ses_f0c016306ffeTyguYYt5WFSnzs",
+      "turnCount": 0,
+      "startedAt": 1790804663479,
+      "pausedAt": 0,
+      "totalTokens": 104092,
+      "usage": {
+        "input": 201563,
+        "output": 1031,
+        "reasoning": 959,
+        "cacheRead": 309316,
+        "cacheWrite": 0,
+        "cost": 0,
+        "costKnown": true
+      },
+      "options": {
+        "maxTurns": 10,
+        "maxDurationMs": 900000,
+        "maxTokens": 200000,
+        "maxCostUsd": 0,
+        "minDelayMs": 1500,
+        "maxRecentMessages": 50,
+        "noProgressTokenThreshold": 50,
+        "noProgressTurnsBeforePause": 2,
+        "noToolCallTurnsBeforePause": 2,
+        "noInterruptOnUserMessage": false,
+        "noContinueWhileChildrenActive": false,
+        "budgetWrapupRatio": 0.8,
+        "warnTurnsRemaining": 3,
+        "warnDurationMsRemaining": 60000,
+        "warnTokensRemaining": 25000,
+        "maxPromptFailures": 3,
+        "resultRetentionMs": 604800000,
+        "maxStoredResults": 200
+      },
+      "lastStatus": "Goal set.",
+      "lastAssistantText": "",
+      "lastAssistantMessageID": "",
+      "lastContinueAt": 0,
+      "lastProgressAt": 1790804786716,
+      "noProgressTurns": 0,
+      "noToolCallTurns": 0,
+      "blockedReason": "",
+      "budgetWrapupSent": false,
+      "stopped": false,
+      "stopReason": "",
+      "promptFailures": 0,
+      "formatFailures": 0,
+      "compactionEpoch": 0,
+      "stalledCompactions": 0,
+      "lastCompactionEventID": "",
+      "messageSeenSinceCompaction": true,
+      "compactionSourceAssistantMessageID": "",
+      "executionContext": {
+        "agent": "goal",
+        "model": {
+          "providerID": "opencode",
+          "modelID": "muse-spark-1.3-contributor-free"
+        },
+        "variant": "xhigh"
+      },
+      "continuationClaim": null,
+      "messageIDs": [
+        "msg_0f4462d39001INrK9jKs9LOFQ4",
+        "msg_0f446a0a8001Cmr4Fxk6Xm4kei",
+        "msg_0f4470e37001J4gyWyw6SXsEF8",
+        "msg_0f4477aac001Aeh6z4jocGqGIs",
+        "msg_0f447e2db001FKt5CsGbRJyMRB"
+      ],
+      "history": [
+        {
+          "type": "set",
+          "detail": "Goal created via agent tool with limits: 10 auto-continues, 900s, 200,000 context tokens.",
+          "timestamp": 1790804663480
+        }
+      ],
+      "checkpoints": [],
+      "lastCheckpoint": null,
+      "skipNextTerminalCheck": false,
+      "focused": true
+    }
+  ],
+  "results": [],
+  "archives": [],
+  "orderedSessions": []
+}

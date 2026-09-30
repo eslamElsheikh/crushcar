@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -23,13 +23,26 @@ model User {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  subdomain String   @unique
-  plan      String   @default("STARTER") // STARTER | PRO | ENTERPRISE
-  users     User[]
-  buses     Bus[]
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  subdomain        String   @unique
+  plan             String   @default("STARTER") // STARTER | PRO | ENTERPRISE
+  creditLimit      Float    @default(0)
+  walletBalance    Float    @default(0)
+  paymentMode      String   @default("PREPAID") // CREDIT | PREPAID | BOTH
+  outstandingBalance Float  @default(0)
+  billingCycle     String   @default("MONTHLY") // MONTHLY | WEEKLY
+  lastBillingDate  DateTime?
+  isActive         Boolean  @default(true)
+  users            User[]
+  buses            Bus[]
+  companyCustomers CompanyCustomer[]
+  companyBookings  CompanyBooking[]
+  invoices         Invoice[]
+  walletTransactions WalletTransaction[]
+  tripRequests     TripRequest[]
+  depositRequests  DepositRequest[]
+  createdAt        DateTime @default(now())
 }
 
 model Bus {
@@ -37,11 +50,37 @@ model Bus {
   name      String
   type      String      // MINI_BUS | COACH_BUS | VIP_BUS | DOUBLE_DECKER
   seatCount Int
-  companyId String
-  company   Company     @relation(fields: [companyId], references: [id])
+  companyId String?
+  company   Company?    @relation(fields: [companyId], references: [id])
   layout    BusLayout?
+  stations  BusStation[]
   trips     Trip[]
   createdAt DateTime   @default(now())
+}
+
+model Station {
+  id        String     @id @default(cuid())
+  name      String
+  city      String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime   @default(now())
+  tripStops       TripStop[]
+  tripRequestsFrom TripRequest[] @relation("TripRequestFrom")
+  tripRequestsTo   TripRequest[] @relation("TripRequestTo")
+
+  @@unique([name, city])
+}
+
+model BusStation {
+  id        String   @id @default(cuid())
+  busId     String
+  bus       Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int
+  createdAt DateTime @default(now())
+
+  @@unique([busId, order])
 }
 
 model BusLayout {
@@ -67,17 +106,47 @@ model Seat {
 }
 
 model Trip {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   busId       String
-  bus         Bus       @relation(fields: [busId], references: [id])
+  bus         Bus        @relation(fields: [busId], references: [id])
   origin      String
   destination String
   departure   DateTime
   arrival     DateTime
   price       Float
-  status      String    @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  status      String     @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  stopsJson   String     @default("[]") // JSON: [{stationId, name, order, arrivalTime?, departureTime?, price?}]
   bookings    Booking[]
-  createdAt   DateTime  @default(now())
+  companyBookings CompanyBooking[]
+  tripStops   TripStop[]
+  seatHolds   SeatHold[]
+  createdAt   DateTime   @default(now())
+}
+
+model TripStop {
+  id              String    @id @default(cuid())
+  tripId          String
+  trip            Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  stationId       String
+  station         Station   @relation(fields: [stationId], references: [id])
+  stopOrder       Int
+  priceFromOrigin Float
+  arrivalTime     DateTime?
+  departureTime   DateTime?
+
+  @@unique([tripId, stopOrder])
+  @@unique([tripId, stationId])
+}
+
+model SeatHold {
+  id            String   @id @default(cuid())
+  tripId        String
+  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  seatLabel     String
+  fromStopOrder Int
+  toStopOrder   Int
+  userId        String
+  expiresAt     DateTime
 }
 
 model Booking {
@@ -89,14 +158,26 @@ model Booking {
   trip            Trip      @relation(fields: [tripId], references: [id])
   seatLabel       String
   passengerName   String    @default("") // name of the actual traveler (may differ from buyer)
+  passengerPhone  String    @default("") // phone number of the traveler (optional)
+  passengerHotel  String    @default("")
   status          String    @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
   paidAt          DateTime?
   boarded         Boolean   @default(false)
   boardedAt       DateTime?
   total           Float
-  stripeSessionId String    @default("") // Stripe checkout session ID for grouping
-  createdAt       DateTime  @default(now())
-  reminders       Reminder[]
+  roundTripGroupId String?  // links outbound + return bookings in a round trip
+  returnForId     String?   // if this is a return booking, links to the outbound booking
+  fromStopOrder   Int       @default(1)
+  toStopOrder     Int       @default(1)
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancellationReason String? @default("")
+  refundAmount      Float?
+  cancellationFee   Float?
+  refundProcessedAt DateTime?
+  refundProcessedBy String?
+  createdAt         DateTime  @default(now())
+  reminders         Reminder[]
 }
 
 model Reminder {
@@ -105,4 +186,116 @@ model Reminder {
   booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   sentAt    DateTime @default(now())
   type      String   @default("24H") // 24H | 2H
+}
+
+model Faq {
+  id         String   @id @default(cuid())
+  questionAr String
+  questionEn String
+  answerAr   String
+  answerEn   String
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model CompanyCustomer {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  phone       String?
+  notes       String?  @default("")
+  bookings    CompanyBooking[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CompanyBooking {
+  id              String   @id @default(cuid())
+  reference       String   @unique
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  customerId      String?
+  customer        CompanyCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  tripId          String
+  trip            Trip     @relation(fields: [tripId], references: [id])
+  seatLabel       String
+  passengerName   String   @default("")
+  passengerPhone  String   @default("")
+  passengerHotel  String   @default("")
+  bookingType     String   @default("FOR_EMPLOYEE") // FOR_CLIENT | FOR_EMPLOYEE
+  status          String   @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
+  total           Float
+  paidFromWallet  Float    @default(0)
+  paidOnCredit    Float    @default(0)
+  fromStopOrder   Int      @default(1)
+  toStopOrder     Int      @default(1)
+  createdAt         DateTime @default(now())
+  paidAt            DateTime?
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancellationReason String? @default("")
+  refundAmount      Float?
+  cancellationFee   Float?
+  refundProcessedAt DateTime?
+  refundProcessedBy String?
+  boardedAt         DateTime?
+  roundTripGroupId  String?
+}
+
+model Invoice {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalAmount     Float
+  paidAmount      Float    @default(0)
+  status          String   @default("PENDING") // PENDING | PARTIAL | PAID | OVERDUE
+  dueDate         DateTime
+  paidAt          DateTime?
+  notes           String?  @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TripRequest {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fromStationId   String
+  fromStation     Station  @relation("TripRequestFrom", fields: [fromStationId], references: [id])
+  toStationId     String
+  toStation       Station  @relation("TripRequestTo", fields: [toStationId], references: [id])
+  passengerCount  Int
+  date            DateTime
+  notes           String   @default("")
+  status          String   @default("PENDING")
+  adminNotes      String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DepositRequest {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  amount     Float
+  status     String   @default("PENDING")
+  adminNotes String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  type        String   // DEPOSIT | BOOKING_CHARGE | REFUND | ADJUSTMENT
+  amount      Float    // positive = add, negative = deduct
+  description String   @default("")
+  reference   String?  @default("") // bookingId or invoiceId
+  createdAt   DateTime @default(now())
 }

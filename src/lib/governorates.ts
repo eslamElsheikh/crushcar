@@ -45,6 +45,7 @@ export const governorates: Record<string, string> = {
 
 export const governoratesList = [
   { value: 'cairo', label: 'القاهرة' },
+  { value: 'mansoura', label: 'المنصوره' },
   { value: 'alexandria', label: 'الإسكندرية' },
   { value: 'giza', label: 'الجيزة' },
   { value: 'asyut', label: 'أسيوط' },

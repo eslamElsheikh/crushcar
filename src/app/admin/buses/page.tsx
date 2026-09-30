@@ -36,7 +36,7 @@ export default function AdminBusesPage() {
 
   async function loadBuses() {
     try {
-      const res = await fetch('/api/buses')
+      const res = await fetch('/api/buses', { credentials: 'include' })
       const data = await res.json()
       setBuses(Array.isArray(data) ? data : [])
     } catch { setBuses([]) }
@@ -49,6 +49,7 @@ export default function AdminBusesPage() {
     setError('')
     const res = await fetch('/api/buses', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: form.name, type: form.type, seatCount: 0 }),
     })

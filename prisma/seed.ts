@@ -6,16 +6,28 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding database...')
 
-  // Delete in dependency order: bookings → trips → buses → users → companies
-  // (cascade handles seats/layouts automatically via schema relations)
-  await prisma.booking.deleteMany()
-  await prisma.trip.deleteMany()
-  await prisma.busLayout.deleteMany()
-  await prisma.bus.deleteMany()
-  await prisma.user.deleteMany()
-  await prisma.company.deleteMany()
+  // ── Create stations first ──────────────────────────────
+  const [cairo, alex, giza, portsaid, luxor, aswan, mansoura, hurghada, sharm, minya, beniSuef, fayoum, ismailia, zagazig, damietta] = await Promise.all([
+    prisma.station.create({ data: { name: 'القاهرة', city: 'القاهرة' } }),
+    prisma.station.create({ data: { name: 'الإسكندرية', city: 'الإسكندرية' } }),
+    prisma.station.create({ data: { name: 'الجيزة', city: 'الجيزة' } }),
+    prisma.station.create({ data: { name: 'بورسعيد', city: 'بورسعيد' } }),
+    prisma.station.create({ data: { name: 'الأقصر', city: 'الأقصر' } }),
+    prisma.station.create({ data: { name: 'أسوان', city: 'أسوان' } }),
+    prisma.station.create({ data: { name: 'المنصورة', city: 'المنصورة' } }),
+    prisma.station.create({ data: { name: 'الغردقة', city: 'البحر الأحمر' } }),
+    prisma.station.create({ data: { name: 'شرم الشيخ', city: 'جنوب سيناء' } }),
+    prisma.station.create({ data: { name: 'المنيا', city: 'المنيا' } }),
+    prisma.station.create({ data: { name: 'بني سويف', city: 'بني سويف' } }),
+    prisma.station.create({ data: { name: 'الفيوم', city: 'الفيوم' } }),
+    prisma.station.create({ data: { name: 'الإسماعيلية', city: 'الإسماعيلية' } }),
+    prisma.station.create({ data: { name: 'الزقازيق', city: 'الشرقية' } }),
+    prisma.station.create({ data: { name: 'دمياط', city: 'دمياط' } }),
+  ])
 
-  // Create company
+  console.log(`✅ Created ${15} stations`)
+
+  // ── Create company ──────────────────────────────
   const company = await prisma.company.create({
     data: {
       name: 'Cairo Express',
@@ -24,53 +36,61 @@ async function main() {
     },
   })
 
-  // Create users
+  // ── Create users ──────────────────────────────
   const adminPassword = await bcrypt.hash('admin123', 12)
   const userPassword = await bcrypt.hash('user123', 12)
+  const superAdminPassword = await bcrypt.hash('super123', 12)
 
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@cairoexpress.com',
-      password: adminPassword,
-      name: 'Ahmed Admin',
-      role: 'COMPANY_ADMIN',
-      companyId: company.id,
-    },
-  })
+  const [superAdmin, admin, customer1, customer2, customer3] = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'superadmin@crushcar.com',
+        password: superAdminPassword,
+        name: 'Super Admin',
+        role: 'SUPER_ADMIN',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'admin@cairoexpress.com',
+        password: adminPassword,
+        name: 'Ahmed Admin',
+        role: 'COMPANY_ADMIN',
+        companyId: company.id,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'user@example.com',
+        password: userPassword,
+        name: 'Mohamed Customer',
+        phone: '01012345678',
+        role: 'CUSTOMER',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'fatma@example.com',
+        password: userPassword,
+        name: 'Fatma Hassan',
+        phone: '01123456789',
+        role: 'CUSTOMER',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'ali@example.com',
+        password: userPassword,
+        name: 'Ali Mahmoud',
+        phone: '01234567890',
+        role: 'CUSTOMER',
+      },
+    }),
+  ])
 
-  const customer1 = await prisma.user.create({
-    data: {
-      email: 'user@example.com',
-      password: userPassword,
-      name: 'Mohamed Customer',
-      phone: '01012345678',
-      role: 'CUSTOMER',
-    },
-  })
+  console.log('✅ Created users')
 
-  const customer2 = await prisma.user.create({
-    data: {
-      email: 'fatma@example.com',
-      password: userPassword,
-      name: 'Fatma Hassan',
-      phone: '01123456789',
-      role: 'CUSTOMER',
-    },
-  })
-
-  const customer3 = await prisma.user.create({
-    data: {
-      email: 'ali@example.com',
-      password: userPassword,
-      name: 'Ali Mahmoud',
-      phone: '01234567890',
-      role: 'CUSTOMER',
-    },
-  })
-
-  const customers = [customer1, customer2, customer3]
-
-  // Create buses
+  // ── Create buses ──────────────────────────────
   const coachBus = await prisma.bus.create({
     data: {
       name: 'Coach 01',
@@ -98,27 +118,22 @@ async function main() {
     },
   })
 
-  // Create layouts with seats — using dynamic per-row counts
-  const ROW_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
-  const COACH_COLS_PER_ROW = { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4, I: 4, J: 4 }
-  const VIP_COLS_PER_ROW = { A: 3, B: 3, C: 3, D: 4, E: 4, F: 4, G: 4, H: 2 }
-  const MINI_COLS_PER_ROW = { A: 2, B: 3, C: 3 }
+  // ── Create layouts ──────────────────────────────
+  const COACH_COLS = { A: 4, B: 4, C: 4, D: 4, E: 4, F: 4, G: 4, H: 4, I: 4, J: 4 }
+  const VIP_COLS = { A: 3, B: 3, C: 3, D: 4, E: 4, F: 4, G: 4, H: 2 }
+  const MINI_COLS = { A: 2, B: 3, C: 3 }
 
   async function createLayout(bus: any, colsPerRow: Record<string, number>, aisleAfter = 2) {
-    const rows = Object.keys(colsPerRow).length
-    const maxCols = Math.max(...Object.values(colsPerRow))
-
-    const seatsData: { label: string; row: number; col: number; type: string; price: number }[] = []
     const rowLabels = Object.keys(colsPerRow)
+    const seatsData: any[] = []
 
     rowLabels.forEach((rowLabel, rowIdx) => {
       const seatsInRow = colsPerRow[rowLabel]
       for (let col = 1; col <= seatsInRow; col++) {
         const isVip = rowIdx === 0 && seatsInRow <= 3
         const isDisabled = rowIdx === rowLabels.length - 1 && col > seatsInRow - 2
-        const label = `${rowLabel}${col}`
         seatsData.push({
-          label,
+          label: `${rowLabel}${col}`,
           row: rowIdx,
           col,
           type: isVip ? 'VIP' : isDisabled ? 'DISABLED' : 'NORMAL',
@@ -130,8 +145,8 @@ async function main() {
     const layout = await prisma.busLayout.create({
       data: {
         busId: bus.id,
-        rows,
-        cols: maxCols,
+        rows: rowLabels.length,
+        cols: Math.max(...Object.values(colsPerRow)),
         aisleAfter,
         colsPerRow: JSON.stringify(colsPerRow),
         seats: { create: seatsData },
@@ -146,11 +161,13 @@ async function main() {
     return layout
   }
 
-  await createLayout(coachBus, COACH_COLS_PER_ROW, 2)
-  await createLayout(vipBus, VIP_COLS_PER_ROW, 2)
-  await createLayout(miniBus, MINI_COLS_PER_ROW, 1)
+  await createLayout(coachBus, COACH_COLS, 2)
+  await createLayout(vipBus, VIP_COLS, 2)
+  await createLayout(miniBus, MINI_COLS, 1)
 
-  // Create trips — past completed + future scheduled
+  console.log('✅ Created buses with layouts')
+
+  // ── Helper function ──────────────────────────────
   function makeDate(daysOffset: number, hour: number, minute = 0) {
     const d = new Date()
     d.setDate(d.getDate() + daysOffset)
@@ -158,162 +175,125 @@ async function main() {
     return d
   }
 
-  // Past completed trips
-  const pastTrips = await Promise.all([
-    prisma.trip.create({
-      data: {
-        busId: coachBus.id, origin: 'القاهرة', destination: 'الإسكندرية',
-        departure: makeDate(-7, 8, 0), arrival: makeDate(-7, 11, 30),
-        price: 250, status: 'COMPLETED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: vipBus.id, origin: 'القاهرة', destination: 'الجيزة',
-        departure: makeDate(-5, 9, 0), arrival: makeDate(-5, 10, 0),
-        price: 400, status: 'COMPLETED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: miniBus.id, origin: 'الإسكندرية', destination: 'بورسعيد',
-        departure: makeDate(-3, 6, 30), arrival: makeDate(-3, 10, 0),
-        price: 180, status: 'COMPLETED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: coachBus.id, origin: 'القاهرة', destination: 'الأقصر',
-        departure: makeDate(-2, 7, 0), arrival: makeDate(-2, 16, 0),
-        price: 550, status: 'COMPLETED',
-      },
-    }),
-  ])
+  // ── Create trips with proper TripStops ──────────────────────────────
+  type TripDef = {
+    bus: any
+    from: any
+    to: any
+    price: number
+    daysOffset: number
+    departHour: number
+    departMin: number
+    travelHours: number
+    travelMin: number
+    status: string
+  }
 
-  // Future scheduled trips
-  const futureTrips = await Promise.all([
-    prisma.trip.create({
-      data: {
-        busId: coachBus.id, origin: 'القاهرة', destination: 'الإسكندرية',
-        departure: makeDate(1, 8, 0), arrival: makeDate(1, 11, 30),
-        price: 250, status: 'SCHEDULED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: vipBus.id, origin: 'القاهرة', destination: 'الجيزة',
-        departure: makeDate(1, 10, 0), arrival: makeDate(1, 11, 0),
-        price: 400, status: 'SCHEDULED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: miniBus.id, origin: 'الإسكندرية', destination: 'بورسعيد',
-        departure: makeDate(2, 7, 0), arrival: makeDate(2, 10, 30),
-        price: 180, status: 'SCHEDULED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: coachBus.id, origin: 'القاهرة', destination: 'الأقصر',
-        departure: makeDate(3, 6, 0), arrival: makeDate(3, 14, 0),
-        price: 550, status: 'SCHEDULED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: vipBus.id, origin: 'الجيزة', destination: 'أسوان',
-        departure: makeDate(4, 5, 30), arrival: makeDate(4, 15, 0),
-        price: 600, status: 'SCHEDULED',
-      },
-    }),
-    prisma.trip.create({
-      data: {
-        busId: coachBus.id, origin: 'القاهرة', destination: 'المنصورة',
-        departure: makeDate(5, 9, 0), arrival: makeDate(5, 12, 0),
-        price: 200, status: 'SCHEDULED',
-      },
-    }),
-  ])
+  const tripDefs: TripDef[] = [
+    // Future trips
+    { bus: coachBus, from: cairo, to: alex, price: 250, daysOffset: 1, departHour: 8, departMin: 0, travelHours: 3, travelMin: 30, status: 'SCHEDULED' },
+    { bus: vipBus, from: cairo, to: giza, price: 400, daysOffset: 1, departHour: 10, departMin: 0, travelHours: 1, travelMin: 0, status: 'SCHEDULED' },
+    { bus: miniBus, from: alex, to: portsaid, price: 180, daysOffset: 2, departHour: 7, departMin: 0, travelHours: 3, travelMin: 30, status: 'SCHEDULED' },
+    { bus: coachBus, from: cairo, to: luxor, price: 550, daysOffset: 3, departHour: 6, departMin: 0, travelHours: 8, travelMin: 0, status: 'SCHEDULED' },
+    { bus: vipBus, from: giza, to: aswan, price: 600, daysOffset: 4, departHour: 5, departMin: 30, travelHours: 9, travelMin: 30, status: 'SCHEDULED' },
+    { bus: coachBus, from: cairo, to: mansoura, price: 200, daysOffset: 5, departHour: 9, departMin: 0, travelHours: 3, travelMin: 0, status: 'SCHEDULED' },
+    { bus: coachBus, from: cairo, to: hurghada, price: 450, daysOffset: 2, departHour: 7, departMin: 0, travelHours: 6, travelMin: 0, status: 'SCHEDULED' },
+    { bus: vipBus, from: cairo, to: sharm, price: 700, daysOffset: 3, departHour: 6, departMin: 0, travelHours: 7, travelMin: 0, status: 'SCHEDULED' },
+    // Past trips (completed)
+    { bus: coachBus, from: cairo, to: alex, price: 250, daysOffset: -7, departHour: 8, departMin: 0, travelHours: 3, travelMin: 30, status: 'COMPLETED' },
+    { bus: vipBus, from: cairo, to: giza, price: 400, daysOffset: -5, departHour: 9, departMin: 0, travelHours: 1, travelMin: 0, status: 'COMPLETED' },
+  ]
 
-  const allTrips = [...pastTrips, ...futureTrips]
+  const trips = await Promise.all(
+    tripDefs.map(async (def) => {
+      const departure = makeDate(def.daysOffset, def.departHour, def.departMin)
+      const arrival = new Date(departure.getTime() + def.travelHours * 60 * 60 * 1000 + def.travelMin * 60 * 1000)
 
-  // Create bookings for past trips with PAID status + paidAt
+      return prisma.trip.create({
+        data: {
+          busId: def.bus.id,
+          origin: def.from.name,
+          destination: def.to.name,
+          departure,
+          arrival,
+          price: def.price,
+          status: def.status,
+          tripStops: {
+            create: [
+              {
+                stationId: def.from.id,
+                stopOrder: 0,
+                priceFromOrigin: 0,
+                departureTime: departure,
+              },
+              {
+                stationId: def.to.id,
+                stopOrder: 1,
+                priceFromOrigin: def.price,
+                arrivalTime: arrival,
+              },
+            ],
+          },
+        },
+        include: { tripStops: true },
+      })
+    })
+  )
+
+  console.log(`✅ Created ${trips.length} trips with stops`)
+
+  // ── Create some bookings ──────────────────────────────
   function genRef() {
     return `CC${Math.random().toString(36).substring(2, 8).toUpperCase()}`
   }
 
-  const pastBookings = [
-    { tripIdx: 0, seatLabel: 'A1', total: 250, daysAgo: 7 },
-    { tripIdx: 0, seatLabel: 'A2', total: 250, daysAgo: 7 },
-    { tripIdx: 0, seatLabel: 'B1', total: 250, daysAgo: 7 },
-    { tripIdx: 0, seatLabel: 'B2', total: 250, daysAgo: 7 },
-    { tripIdx: 0, seatLabel: 'C1', total: 250, daysAgo: 7 },
-    { tripIdx: 1, seatLabel: 'A1', total: 400, daysAgo: 5 },
-    { tripIdx: 1, seatLabel: 'A2', total: 350, daysAgo: 5 },
-    { tripIdx: 1, seatLabel: 'B1', total: 350, daysAgo: 5 },
-    { tripIdx: 2, seatLabel: 'A1', total: 180, daysAgo: 3 },
-    { tripIdx: 2, seatLabel: 'A2', total: 180, daysAgo: 3 },
-    { tripIdx: 2, seatLabel: 'B1', total: 180, daysAgo: 3 },
-    { tripIdx: 3, seatLabel: 'A1', total: 550, daysAgo: 2 },
-    { tripIdx: 3, seatLabel: 'A2', total: 550, daysAgo: 2 },
-    { tripIdx: 3, seatLabel: 'B1', total: 550, daysAgo: 2 },
-    { tripIdx: 3, seatLabel: 'C1', total: 550, daysAgo: 2 },
-    { tripIdx: 3, seatLabel: 'C2', total: 550, daysAgo: 2 },
+  const customers = [customer1, customer2, customer3]
+  const futureTrips = trips.filter(t => t.status === 'SCHEDULED')
+
+  const bookings = [
+    { tripIdx: 0, seat: 'A1', customer: 0 },
+    { tripIdx: 0, seat: 'A2', customer: 1 },
+    { tripIdx: 1, seat: 'A1', customer: 2 },
+    { tripIdx: 2, seat: 'A1', customer: 0 },
+    { tripIdx: 3, seat: 'A1', customer: 1 },
+    { tripIdx: 3, seat: 'A2', customer: 2 },
   ]
 
-  const pastBookingRecords = []
-  for (let i = 0; i < pastBookings.length; i++) {
-    const b = pastBookings[i]
-    const custIdx = i % customers.length
-    const createdAt = new Date(Date.now() - b.daysAgo * 24 * 60 * 60 * 1000)
-    pastBookingRecords.push({
-      reference: genRef(),
-      userId: customers[custIdx].id,
-      tripId: allTrips[b.tripIdx].id,
-      seatLabel: b.seatLabel,
-      status: 'PAID',
-      paidAt: new Date(createdAt.getTime() + 5 * 60 * 1000),
-      total: b.total,
-      createdAt,
-    })
-  }
+  await Promise.all(
+    bookings.map(b =>
+      prisma.booking.create({
+        data: {
+          reference: genRef(),
+          userId: customers[b.customer].id,
+          tripId: futureTrips[b.tripIdx].id,
+          seatLabel: b.seat,
+          status: 'PAID',
+          paidAt: new Date(),
+          total: futureTrips[b.tripIdx].price,
+        },
+      })
+    )
+  )
 
-  // Future bookings
-  const futureBookings = [
-    { tripIdx: 5, seatLabel: 'A1', total: 250, daysAhead: 1 },
-    { tripIdx: 5, seatLabel: 'A2', total: 250, daysAhead: 1 },
-    { tripIdx: 6, seatLabel: 'A1', total: 400, daysAhead: 1 },
-    { tripIdx: 7, seatLabel: 'A1', total: 180, daysAhead: 2 },
-    { tripIdx: 7, seatLabel: 'A2', total: 180, daysAhead: 2 },
-  ]
+  console.log(`✅ Created ${bookings.length} bookings`)
 
-  const futureBookingRecords = []
-  for (const b of futureBookings) {
-    const custIdx = Math.floor(Math.random() * customers.length)
-    futureBookingRecords.push({
-      reference: genRef(),
-      userId: customers[custIdx].id,
-      tripId: allTrips[b.tripIdx].id,
-      seatLabel: b.seatLabel,
-      status: 'PAID',
-      paidAt: new Date(),
-      total: b.total,
-      createdAt: new Date(),
-    })
-  }
-
-  await prisma.booking.createMany({ data: [...pastBookingRecords, ...futureBookingRecords] })
-
-  console.log('✅ Seed completed!')
+  // ─ Summary ──────────────────────────────
+  console.log('')
+  console.log('📊 Summary:')
+  console.log(`   Stations: ${await prisma.station.count()}`)
+  console.log(`   Companies: ${await prisma.company.count()}`)
+  console.log(`   Users: ${await prisma.user.count()}`)
+  console.log(`   Buses: ${await prisma.bus.count()}`)
+  console.log(`   Trips: ${await prisma.trip.count()}`)
+  console.log(`   TripStops: ${await prisma.tripStop.count()}`)
+  console.log(`   Bookings: ${await prisma.booking.count()}`)
   console.log('')
   console.log('Demo accounts:')
-  console.log('  Admin:    admin@cairoexpress.com / admin123')
-  console.log('  Customer: user@example.com / user123')
+  console.log('  Super Admin:  superadmin@crushcar.com / super123')
+  console.log('  Company Admin: admin@cairoexpress.com / admin123')
+  console.log('  Customer:     user@example.com / user123')
   console.log('')
-  console.log('Buses created: 3 (Coach, VIP, Mini) with dynamic layouts')
-  console.log('Trips created: 4 past (COMPLETED) + 6 future (SCHEDULED)')
-  console.log('Bookings: ~20 total across all trips')
+  console.log('✅ Seed completed!')
 }
 
 main()
