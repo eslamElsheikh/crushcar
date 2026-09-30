@@ -1,365 +1,164 @@
-'use client'
+'use client';
 
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Bus, Ticket, TrendingUp, Clock, ArrowRight, TrendingDown, Building2, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Ticket, Wallet, Bus, TrendingUp, Clock, ArrowRight } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2StatCard } from '@/components/v2/admin';
+import { V2Skeleton } from '@/components/v2/ui';
+
+/* V2 admin dashboard — same /api/analytics + pending-companies data as V1.
+   No invented deltas: only metrics the backend actually returns. */
 
 interface Analytics {
-  totalBookings: number
-  totalRevenue: number
-  activeTrips: number
-  recentBookings: any[]
-  chartData: { day: string; revenue: number }[]
-  cancellations?: {
-    customerPending: number
-    companyPending: number
-    customerProcessed: number
-    companyProcessed: number
-  }
+  totalBookings: number;
+  totalRevenue: number;
+  activeTrips: number;
+  chartData?: { label: string; revenue: number; bookings: number }[];
+  cancellations?: { customerPending: number; companyPending: number };
 }
 
 export default function AdminDashboard() {
-  const { data: session } = useSession()
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
-  const [data, setData] = useState<Analytics | null>(null)
-  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d')
-  const [pendingCount, setPendingCount] = useState(0)
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
+
+  const [data, setData] = useState<Analytics | null>(null);
+  const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/jobs/transition', { method: 'POST', credentials: 'include' }).catch(() => {})
-    fetch(`/api/analytics?range=${dateRange}`, { credentials: 'include' })
+    setLoading(true);
+    fetch(`/api/analytics?range=${range}`, { credentials: 'include' })
       .then((r) => r.json())
-      .then((data) => { console.log('📊 Analytics data:', data); setData(data) })
-      .catch((err) => console.error('Analytics fetch error:', err))
-    fetch('/api/admin/companies/pending', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setPendingCount(d.length) })
+      .then(setData)
       .catch(() => {})
-  }, [dateRange])
+      .finally(() => setLoading(false));
+    fetch('/api/admin/companies/pending', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setPendingCount(d.length); })
+      .catch(() => {});
+  }, [range]);
 
-  const stats = [
-    {
-      labelKey: 'dashboard.totalBookings',
-      value: data?.totalBookings ?? '...',
-      icon: Ticket,
-      color: 'blue',
-      change: '+12%',
-      positive: true,
-    },
-    {
-      labelKey: 'dashboard.totalRevenue',
-      value: data?.totalRevenue ? `${data.totalRevenue.toLocaleString()} ${t('common.currency')}` : '...',
-      icon: TrendingUp,
-      color: 'emerald',
-      change: '+8%',
-      positive: true,
-    },
-    {
-      labelKey: 'dashboard.activeTrips',
-      value: data?.activeTrips ?? '...',
-      icon: Bus,
-      color: 'purple',
-      change: '+3',
-      positive: true,
-    },
-    {
-      labelKey: 'dashboard.todayRevenue',
-      value: data?.chartData?.length
-        ? `${(data.chartData[data.chartData.length - 1]?.revenue || 0).toLocaleString()} ${t('common.currency')}`
-        : `0 ${t('common.currency')}`,
-      icon: TrendingUp,
-      color: 'amber',
-      change: '+5%',
-      positive: true,
-    },
-    {
-      labelKey: 'admin.cancellationsKpi',
-      value: data?.cancellations
-        ? `${data.cancellations.customerPending + data.cancellations.companyPending}`
-        : '...',
-      icon: XCircle,
-      color: 'red',
-      change: data?.cancellations
-        ? `${data.cancellations.customerProcessed + data.cancellations.companyProcessed} ${isRTL ? 'تمت' : 'done'}`
-        : '',
-      positive: true,
-    },
-  ]
+  const pendingCancel = (data?.cancellations?.customerPending || 0) + (data?.cancellations?.companyPending || 0);
+
+  if (loading) {
+    return (
+      <div className="grid gap-4" role="status">
+        <V2Skeleton className="h-10 w-64" />
+        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+          <V2Skeleton className="h-32 rounded-2xl" />
+          <V2Skeleton className="h-32 rounded-2xl" />
+          <V2Skeleton className="h-32 rounded-2xl" />
+          <V2Skeleton className="h-32 rounded-2xl" />
+        </div>
+        <V2Skeleton className="h-72 rounded-2xl" />
+      </div>
+    );
+  }
 
   return (
-    <div className={isRTL ? 'font-[Cairo]' : ''}>
-      {/* Page header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <h1 className="text-2xl font-display font-bold text-white">
-          {t('dashboard.welcome')}, {session?.user?.name?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-zinc-400 mt-1">{t('dashboard.manageBuses')}</p>
-      </motion.div>
+    <div>
+      <V2PageHeader
+        title={t('nav.dashboard')}
+        sub={t('nav.admin')}
+        action={
+          <div className="flex gap-1.5 rounded-xl bg-white p-1 ring-1 ring-[#E6EBF2]" role="tablist" aria-label="Range">
+            {(['7d', '30d', '90d'] as const).map((r) => (
+              <button
+                key={r}
+                role="tab"
+                aria-selected={range === r}
+                onClick={() => setRange(r)}
+                className={`rounded-lg px-3.5 py-2 text-[13px] font-bold tabular-nums transition ${range === r ? 'bg-[#0A1E3C] text-white' : 'text-[#5B6B84]'}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.labelKey}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08, type: 'spring', stiffness: 200 }}
-            whileHover={{ y: -2, scale: 1.01 }}
-            className="glass rounded-2xl p-6 border border-white/5 hover:border-white/10 transition-all duration-200 relative overflow-hidden group"
-          >
-            {/* Glow */}
-            <div className={cn(
-              'absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-10',
-              stat.color === 'blue' && 'bg-blue-500',
-              stat.color === 'emerald' && 'bg-emerald-500',
-              stat.color === 'purple' && 'bg-purple-500',
-              stat.color === 'amber' && 'bg-amber-500',
-              stat.color === 'red' && 'bg-red-500',
-            )} />
-
-            <div className="flex items-start justify-between mb-5 relative">
-              <div className={cn(
-                'w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110',
-                stat.color === 'blue' && 'bg-blue-500/10 text-blue-400',
-                stat.color === 'emerald' && 'bg-emerald-500/10 text-emerald-400',
-                stat.color === 'purple' && 'bg-purple-500/10 text-purple-400',
-            stat.color === 'amber' && 'bg-amber-500/10 text-amber-400',
-            stat.color === 'red' && 'bg-red-500/10 text-red-400',
-          )}>
-            <stat.icon size={20} />
-              </div>
-              <span className={cn(
-                'text-xs font-medium px-2.5 py-1 rounded-full',
-                stat.positive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-              )}>
-                {stat.change}
+      {(pendingCount > 0 || pendingCancel > 0) && (
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {pendingCount > 0 && (
+            <Link href="/admin/companies/pending" className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 hover:border-amber-300">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-amber-600">
+                <Clock className="size-5" />
               </span>
-            </div>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-extrabold tabular-nums text-[#0B1B33]">
+                  {pendingCount} · {t('admin.pendingCompanies')}
+                </span>
+                <span className="block text-[13px] text-amber-700">{t('company.companyInactive')}</span>
+              </span>
+              <ArrowRight className="size-5 shrink-0 text-amber-600 v2-flip-rtl" />
+            </Link>
+          )}
+          {pendingCancel > 0 && (
+            <Link href="/admin/cancellations" className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 hover:border-red-300">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-red-600">
+                <Ticket className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-extrabold tabular-nums text-[#0B1B33]">
+                  {pendingCancel} · {t('admin.cancellations')}
+                </span>
+                <span className="block text-[13px] text-red-600">{t('company.quickActions')}</span>
+              </span>
+              <ArrowRight className="size-5 shrink-0 text-red-600 v2-flip-rtl" />
+            </Link>
+          )}
+        </div>
+      )}
 
-            <p className="text-2xl font-display font-bold text-white mb-1">{stat.value}</p>
-            <p className="text-xs text-zinc-500">{t(stat.labelKey)}</p>
-          </motion.div>
-        ))}
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <V2StatCard
+          label={t('dashboard.totalBookings')}
+          value={(data?.totalBookings ?? 0).toLocaleString(locale)}
+          icon={<Ticket className="size-5 text-[#1D5BD8]" />}
+        />
+        <V2StatCard
+          label={t('dashboard.totalRevenue')}
+          value={`${(data?.totalRevenue ?? 0).toLocaleString(locale)} ${t('common.currency')}`}
+          icon={<Wallet className="size-5 text-emerald-600" />}
+        />
+        <V2StatCard
+          label={t('dashboard.activeTrips')}
+          value={(data?.activeTrips ?? 0).toLocaleString(locale)}
+          icon={<Bus className="size-5 text-amber-600" />}
+        />
+        <V2StatCard
+          label={t('admin.cancellations')}
+          value={pendingCancel.toLocaleString(locale)}
+          icon={<TrendingUp className="size-5 text-red-500" />}
+        />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Revenue chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="lg:col-span-2 glass rounded-2xl p-6 border border-white/5 hover:border-white/10 transition-all"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="font-semibold text-white">{t('dashboard.revenueTrend')}</h3>
-              <p className="text-xs text-zinc-500">{t('dashboard.last30days')}</p>
-            </div>
-            <div className="flex gap-1.5">
-              {(['7d', '30d', '90d'] as const).map(r => (
-                <button key={r} onClick={() => setDateRange(r)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                    dateRange === r
-                      ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                      : 'text-zinc-500 hover:text-white'
-                  )}>
-                  {r === '7d' ? '7 days' : r === '30d' ? '30 days' : '90 days'}
-                </button>
-              ))}
-            </div>
-            <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-          </div>
-
-          {data?.chartData && data.chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={data.chartData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 10, fill: '#71717a' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: '#71717a' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${v}`}
-                />
+      {(data?.chartData?.length || 0) > 0 && (
+        <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+          <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('dashboard.revenueChart')}</p>
+          <div className="mt-4 h-64" dir="ltr">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data!.chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E6EBF2" />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#5B6B84' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: '#5B6B84' }} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{
-                    background: 'rgba(24,24,27,0.95)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    backdropFilter: 'blur(12px)',
-                  }}
-                  labelStyle={{ color: '#a1a1aa' }}
-                  formatter={(value: any) => [`${Number(value).toLocaleString()} ${t('common.currency')}`, t('dashboard.totalRevenue')]}
+                  contentStyle={{ borderRadius: 12, border: '1px solid #E6EBF2', fontSize: 13 }}
+                  formatter={(value: any) => [`${Number(value).toLocaleString(locale)} ${t('common.currency')}`, t('dashboard.totalRevenue')]}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#3b82f6"
-                  strokeWidth={2.5}
-                  fill="url(#colorRevenue)"
-                />
+                <Area type="monotone" dataKey="revenue" stroke="#1D5BD8" strokeWidth={2.5} fill="rgba(29,91,216,0.10)" />
               </AreaChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="h-[260px] flex items-center justify-center text-zinc-500 text-sm flex-col gap-2">
-              <TrendingUp size={32} className="text-zinc-700" />
-              <span>No revenue data yet</span>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Recent bookings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="glass rounded-2xl p-6 border border-white/5 hover:border-white/10 transition-all"
-        >
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-white">{t('dashboard.recentBookings')}</h3>
-            <Link href="/admin/bookings" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
-              {t('dashboard.viewAll')} <ArrowRight size={12} className={isRTL ? 'rotate-180' : undefined} />
-            </Link>
           </div>
-
-          <div className="space-y-1">
-            {data?.recentBookings?.length ? (
-              data.recentBookings.slice(0, 6).map((b: any) => (
-                <div key={b.id} className="flex items-center justify-between py-3 px-3 rounded-xl hover:bg-white/5 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
-                      {(b.user?.name || 'G').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{b.user?.name || t('common.guest')}</p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        {b.trip?.origin} {isRTL ? '←' : '→'} {b.trip?.destination} • {b.seatLabel}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold text-white">{b.total.toLocaleString()} {isRTL ? 'ج.م' : 'EGP'}</p>
-                    <span className={cn(
-                      'text-[10px] px-2 py-0.5 rounded-full',
-                      b.status === 'PAID' ? 'bg-emerald-500/10 text-emerald-400' :
-                      b.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400' :
-                      'bg-red-500/10 text-red-400'
-                    )}>
-                      {b.status === 'PAID' ? (isRTL ? 'مدفوع' : 'PAID') : t(`common.${b.status?.toLowerCase()}`)}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-zinc-500 text-sm py-12 flex flex-col items-center gap-2">
-                <Ticket size={28} className="text-zinc-700" />
-                <span>{t('bookings.noBookings')}</span>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Quick actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="mt-6 grid sm:grid-cols-3 gap-4"
-      >
-        {[
-          {
-            href: '/admin/buses',
-            icon: Bus,
-            color: 'blue',
-            titleKey: 'dashboard.manageBuses',
-            descKey: 'dashboard.addBuses',
-          },
-          {
-            href: '/admin/trips',
-            icon: Clock,
-            color: 'emerald',
-            titleKey: 'dashboard.manageTrips',
-            descKey: 'dashboard.createTrips',
-          },
-          {
-            href: '/trips',
-            icon: Ticket,
-            color: 'purple',
-            titleKey: 'dashboard.viewTrips',
-            descKey: 'dashboard.seeTrips',
-          },
-          {
-            href: '/admin/companies/pending',
-            icon: Building2,
-            color: 'amber',
-            titleKey: 'admin.pendingCompanies',
-            descKey: 'dashboard.reviewCompanies',
-            badge: pendingCount > 0 ? pendingCount : undefined,
-          },
-        ].map((action, i) => (
-          <motion.div
-            key={action.href}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 + i * 0.08 }}
-            whileHover={{ y: -3, scale: 1.02 }}
-          >
-            <Link
-              href={action.href}
-              className="block glass rounded-2xl p-6 border border-white/5 hover:border-white/10 transition-all duration-200 group"
-            >
-              <div className={cn(
-                'w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 relative',
-                action.color === 'blue' && 'bg-blue-500/10 text-blue-400',
-                action.color === 'emerald' && 'bg-emerald-500/10 text-emerald-400',
-                action.color === 'purple' && 'bg-purple-500/10 text-purple-400',
-                action.color === 'amber' && 'bg-amber-500/10 text-amber-400',
-              )}>
-                <action.icon size={22} />
-                {action.badge && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {action.badge}
-                  </span>
-                )}
-              </div>
-              <h4 className="font-semibold text-white mb-1">{t(action.titleKey)}</h4>
-              <p className="text-xs text-zinc-500">{t(action.descKey)}</p>
-            </Link>
-          </motion.div>
-        ))}
-      </motion.div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

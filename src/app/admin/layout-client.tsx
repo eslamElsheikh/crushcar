@@ -1,221 +1,108 @@
-'use client'
+'use client';
 
-import { useRouter, usePathname } from 'next/navigation'
-import { useState } from 'react'
-import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import Link from 'next/link';
 import {
-  LayoutDashboard,
-  Bus,
-  Route,
-  Ticket,
-  ScanEye,
-  BarChart3,
-  Users,
-  ShieldPlus,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  Armchair,
-  MapPin,
-  HelpCircle,
-  CreditCard,
-  Clock,
-  Calendar,
-  Wallet,
-  XCircle,
-} from 'lucide-react'
-import { signOut } from 'next-auth/react'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
+  LayoutDashboard, Armchair, Bus, Route, Ticket, MapPin, HelpCircle,
+  Calendar, Wallet, ScanEye, BarChart3, Users, Clock, CreditCard,
+  XCircle, ShieldPlus, LogOut, Menu, X,
+} from 'lucide-react';
+import { signOut } from 'next-auth/react';
+import { cn } from '@/lib/utils';
+import { useLangStore } from '@/lib/lang';
+import '@/components/v2/theme.css';
 
 const navItems = [
   { href: '/admin', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
-  { href: '/admin/seats', icon: Armchair, labelKey: 'nav.seats' },
-  { href: '/admin/buses', icon: Bus, labelKey: 'nav.buses' },
   { href: '/admin/trips', icon: Route, labelKey: 'nav.trips' },
+  { href: '/admin/buses', icon: Bus, labelKey: 'nav.buses' },
+  { href: '/admin/seats', icon: Armchair, labelKey: 'nav.seats' },
   { href: '/admin/bookings', icon: Ticket, labelKey: 'nav.bookings' },
   { href: '/admin/stations', icon: MapPin, labelKey: 'nav.stations' },
-  { href: '/admin/faqs', icon: HelpCircle, labelKey: 'nav.faq' },
+  { href: '/admin/customers', icon: Users, labelKey: 'nav.customers' },
+  { href: '/admin/users', icon: ShieldPlus, labelKey: 'nav.users' },
+  { href: '/admin/companies/pending', icon: Clock, labelKey: 'admin.pendingCompanies' },
+  { href: '/admin/verify', icon: ScanEye, labelKey: 'nav.verify' },
   { href: '/admin/trip-requests', icon: Calendar, labelKey: 'admin.tripRequests' },
   { href: '/admin/deposit-requests', icon: Wallet, labelKey: 'admin.depositRequests' },
-  { href: '/admin/verify', icon: ScanEye, labelKey: 'nav.verify' },
-  { href: '/admin/reports', icon: BarChart3, labelKey: 'nav.reports' },
-  { href: '/admin/customers', icon: Users, labelKey: 'nav.customers' },
-  { href: '/admin/companies/pending', icon: Clock, labelKey: 'admin.pendingCompanies' },
-  { href: '/admin/credit-report', icon: CreditCard, labelKey: 'company.creditReport' },
   { href: '/admin/cancellations', icon: XCircle, labelKey: 'admin.cancellations' },
-  { href: '/admin/users', icon: ShieldPlus, labelKey: 'nav.users' },
-]
+  { href: '/admin/credit-report', icon: CreditCard, labelKey: 'company.creditReport' },
+  { href: '/admin/reports', icon: BarChart3, labelKey: 'nav.reports' },
+  { href: '/admin/faqs', icon: HelpCircle, labelKey: 'nav.faq' },
+];
 
+/* V2 admin shell — same guards stay in server layout.tsx (untouched). */
 export default function AdminLayoutClient({ session, children }: { session: any; children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+
+  const nav = (
+    <nav className="grid gap-1 p-4" aria-label="Admin">
+      {navItems.map((item) => {
+        const active = item.href === '/admin' ? pathname === '/admin' : pathname === item.href || pathname.startsWith(item.href + '/');
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={() => setMobileOpen(false)}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'flex items-center gap-3 rounded-xl px-4 py-2.5 text-[14px] font-semibold transition',
+              active ? 'bg-white/10 text-white shadow' : 'text-white/60 hover:bg-white/5 hover:text-white'
+            )}
+          >
+            <item.icon className="size-5 shrink-0" />
+            {t(item.labelKey)}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 
   return (
-    <div className={cn('min-h-screen flex bg-[#030303]', isRTL && 'font-[Cairo]')}>
-      {/* Desktop sidebar */}
-      <motion.aside
-        initial={{ x: isRTL ? 40 : -40, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-        className={cn(
-          'hidden md:flex w-64 flex-col glass border-r border-white/5',
-          isRTL && 'border-r-0 border-l'
-        )}
-      >
-        {/* Logo */}
-        <div className="p-6 border-b border-white/5">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <span className="text-white font-bold text-xs">CC</span>
-              </div>
-              <div className="absolute -inset-1 rounded-xl bg-blue-500/20 blur-lg -z-10 group-hover:bg-blue-500/30 transition-all" />
-            </div>
-            <div>
-              <span className="font-display font-bold text-white block">CrushCar</span>
-              <span className="text-[10px] text-zinc-600 uppercase tracking-wider">{t('nav.admin')}</span>
-            </div>
+    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="flex min-h-dvh">
+        <aside className="hidden w-64 shrink-0 flex-col bg-[#0A1E3C] md:flex">
+          <Link href="/" className="flex items-center gap-2.5 p-6 pb-5" aria-label="Safro">
+            <span className="grid size-9 place-items-center rounded-xl bg-[#1D5BD8] text-[17px] font-black text-white">S</span>
+            <span>
+              <span className="block text-[17px] font-extrabold leading-tight text-white">Safro</span>
+              <span className="block text-[11px] font-semibold uppercase text-white/50">{t('nav.admin')}</span>
+            </span>
           </Link>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item, i) => {
-            const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-            return (
-              <motion.div
-                key={item.href}
-                initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
-              >
-                <Link
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm group',
-                    active
-                      ? 'bg-gradient-to-r from-blue-500/15 to-blue-500/5 text-blue-400 border border-blue-500/20 shadow-lg shadow-blue-500/10'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                  )}
-                >
-                  <item.icon size={18} className={cn('transition-transform group-hover:scale-110', active && 'text-blue-400')} />
-                  <span className="flex-1">{t(item.labelKey)}</span>
-                  {active && (
-                    <ChevronRight size={14} className={cn(isRTL && 'rotate-180')} />
-                  )}
-                </Link>
-              </motion.div>
-            )
-          })}
-        </nav>
-
-        {/* User section */}
-        <div className="p-4 border-t border-white/5 space-y-2">
-          <div className="px-4 py-3 rounded-xl glass">
-            <p className="text-sm font-semibold truncate text-white">{session.user.name}</p>
-            <p className="text-xs text-zinc-500 truncate">{session.user.email}</p>
-          </div>
-          <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:text-red-400 hover:bg-red-500/5 transition text-sm w-full hover-lift"
-          >
-            <LogOut size={16} />
-            {t('nav.signOut')}
-          </button>
-        </div>
-      </motion.aside>
-
-      {/* Mobile overlay */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden"
-              onClick={() => setMobileOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: isRTL ? -280 : -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: isRTL ? -280 : -280 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className={cn(
-                'fixed top-0 bottom-0 w-72 z-50 glass border-r border-white/5 p-6 flex flex-col md:hidden',
-                isRTL && 'border-r-0 border-l'
-              )}
+          <div className="flex-1 overflow-y-auto">{nav}</div>
+          <div className="border-t border-white/10 p-4">
+            <p className="truncate px-2 text-[13.5px] font-bold text-white">{session?.user?.name}</p>
+            <p className="truncate px-2 text-[12px] text-white/50" dir="ltr" style={{ textAlign: 'start' }}>{session?.user?.email}</p>
+            <button
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="mt-3 flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-[14px] font-semibold text-white/60 hover:bg-white/5 hover:text-white"
             >
-              <div className="flex items-center justify-between mb-8">
-                <Link href="/" className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                    <span className="text-white font-bold text-xs">CC</span>
-                  </div>
-                  <span className="font-display font-bold text-white">CrushCar</span>
-                </Link>
-                <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg hover:bg-white/5 transition">
-                  <X size={20} className="text-zinc-400" />
-                </button>
-              </div>
-
-              <nav className="flex-1 space-y-1">
-                {navItems.map((item) => {
-                  const active = pathname === item.href
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm',
-                        active ? 'bg-blue-500/10 text-blue-400' : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                      )}
-                    >
-                      <item.icon size={18} />
-                      {t(item.labelKey)}
-                    </Link>
-                  )
-                })}
-              </nav>
-
-              <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:text-red-400 transition text-sm mt-4 border-t border-white/5 pt-4"
-              >
-                <LogOut size={18} />
-                {t('nav.signOut')}
-              </button>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Mobile header */}
-        <header className={cn(
-          'md:hidden glass border-b border-white/5 px-4 py-3 flex items-center gap-3 sticky top-0 z-40',
-        )}>
-          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-white/5 transition">
-            <Menu size={20} className="text-zinc-400" />
-          </button>
-          <span className="font-display font-bold text-sm text-white">CrushCar</span>
-          <div className="ml-auto flex items-center gap-2">
-            <Link href="/" className="text-xs text-zinc-500 hover:text-white transition">
-              {isRTL ? 'الرئيسية' : 'Home'}
-            </Link>
+              <LogOut className="size-4" /> {isRTL ? 'خروج' : 'Sign Out'}
+            </button>
           </div>
-        </header>
+        </aside>
 
-        <main className="flex-1 p-6 md:p-8">{children}</main>
+        <div className="min-w-0 flex-1">
+          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[#E6EBF2] bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+            <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} className="grid size-10 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]">
+              {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            </button>
+            <span className="flex items-center gap-2 text-[16px] font-extrabold text-[#0B1B33]">
+              <span className="grid size-8 place-items-center rounded-lg bg-[#1D5BD8] text-[14px] font-black text-white">S</span>
+              Safro · {t('nav.admin')}
+            </span>
+          </div>
+          {mobileOpen && (
+            <div className="max-h-[60dvh] overflow-y-auto border-b border-[#E6EBF2] bg-[#0A1E3C] md:hidden">{nav}</div>
+          )}
+          <div className="p-4 md:p-8">{children}</div>
+        </div>
       </div>
     </div>
-  )
+  );
 }

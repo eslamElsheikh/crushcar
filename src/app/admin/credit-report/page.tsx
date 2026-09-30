@@ -1,121 +1,84 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { CreditCard, TrendingUp, Wallet, Pencil } from 'lucide-react'
-import Link from 'next/link'
-import { useLangStore } from '@/lib/lang'
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { CreditCard, Wallet, TrendingUp, Pencil } from 'lucide-react';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2StatCard, V2Table } from '@/components/v2/admin';
+import { V2StatusBadge } from '@/components/v2/ui';
+
+/* V2 credit report — same /api/admin/credit-report data as V1. Edit links to company edit. */
 
 export default function AdminCreditReport() {
-  const t = useLangStore((s) => s.t)
-  const [companies, setCompanies] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/credit-report', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setCompanies(data)
-        }
-        setLoading(false)
-      })
-      .catch(() => {
-        setLoading(false)
-      })
-  }, [])
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/credit-report', { credentials: 'include' });
+        if (res.ok) setCompanies((await res.json()) || []);
+      } catch { /* keep empty */ } finally { setLoading(false); }
+    })();
+  }, []);
 
-  if (loading) return <div className="flex justify-center py-20"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
+  const sum = (k: string) => (companies || []).reduce((s, c) => s + (Number(c[k]) || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-white">{t('company.creditReport')}</h1>
-        <p className="text-zinc-400 mt-1">{(companies || []).length} companies</p>
-      </motion.div>
+    <div>
+      <V2PageHeader title={t('company.creditReport')} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-6 bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/20">
-          <CreditCard size={24} className="text-blue-400" />
-          <p className="text-2xl font-bold text-white mt-4">
-            {(companies || []).reduce((sum, c) => sum + (c.creditLimit || 0), 0).toFixed(2)} EGP
-          </p>
-          <p className="text-sm text-zinc-400 mt-1">Total Credit Limit</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-6 bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/20">
-          <TrendingUp size={24} className="text-amber-400" />
-          <p className="text-2xl font-bold text-white mt-4">
-            {(companies || []).reduce((sum, c) => sum + (c.outstandingBalance || 0), 0).toFixed(2)} EGP
-          </p>
-          <p className="text-sm text-zinc-400 mt-1">Total Outstanding</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-2xl p-6 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20">
-          <Wallet size={24} className="text-emerald-400" />
-          <p className="text-2xl font-bold text-white mt-4">
-            {(companies || []).reduce((sum, c) => sum + (c.walletBalance || 0), 0).toFixed(2)} EGP
-          </p>
-          <p className="text-sm text-zinc-400 mt-1">Total Wallet Balance</p>
-        </motion.div>
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-3">
+        <V2StatCard label={t('company.creditLimit')} value={`${sum('creditLimit').toLocaleString(locale)} EGP`} icon={<CreditCard className="size-5 text-[#1D5BD8]" />} />
+        <V2StatCard label={t('company.outstanding')} value={`${sum('outstandingBalance').toLocaleString(locale)} EGP`} icon={<TrendingUp className="size-5 text-amber-600" />} />
+        <V2StatCard label={t('company.walletBalance')} value={`${sum('walletBalance').toLocaleString(locale)} EGP`} icon={<Wallet className="size-5 text-emerald-600" />} />
       </div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-white/5">
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Company</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Payment Mode</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Credit Limit</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Outstanding</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Wallet</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Usage</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium">Status</th>
-              <th className="text-right px-4 py-3 text-zinc-400 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(companies || []).map((c) => (
-              <tr key={c.id} className="border-b border-white/5 hover:bg-white/5 transition">
-                <td className="px-4 py-3">
-                  <p className="text-white font-medium">{c.name}</p>
-                  <p className="text-xs text-zinc-500">{c.subdomain}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-lg text-xs ${
-                    c.paymentMode === 'CREDIT' ? 'bg-blue-500/20 text-blue-400' :
-                    c.paymentMode === 'PREPAID' ? 'bg-emerald-500/20 text-emerald-400' :
-                    'bg-purple-500/20 text-purple-400'
-                  }`}>
-                    {c.paymentMode}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-white">{c.creditLimit.toFixed(2)}</td>
-                <td className={`px-4 py-3 font-semibold ${c.outstandingBalance > 0 ? 'text-amber-400' : 'text-zinc-400'}`}>
-                  {c.outstandingBalance.toFixed(2)}
-                </td>
-                <td className="px-4 py-3 text-emerald-400">{c.walletBalance.toFixed(2)}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 h-2 rounded-full bg-white/10 overflow-hidden">
-                      <div className={`h-full rounded-full ${c.usagePercent > 80 ? 'bg-red-500' : c.usagePercent > 50 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${c.usagePercent}%` }} />
-                    </div>
-                    <span className="text-xs text-zinc-400">{c.usagePercent}%</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-lg text-xs ${c.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                    {c.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <Link href={`/admin/companies/${c.id}/edit`} className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-blue-400 transition">
-                    <Pencil size={14} />
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </motion.div>
+      <div className="mt-5">
+        <V2Table
+          columns={[t('company.manageCompanies'), t('company.creditLimit'), t('company.outstanding'), t('company.wallet'), '']}
+          rows={companies || []}
+          rowKey={(c) => c.id}
+          loading={loading}
+          emptyTitle={t('company.noBookings')}
+          renderCell={(c, i) => {
+            const cells = [
+              <span key="n">
+                <span className="block font-bold">{c.name}</span>
+                <span className="block text-[12.5px] font-normal text-[#5B6B84]">
+                  {c.subdomain} · <V2StatusBadge tone={c.paymentMode === 'CREDIT' ? 'blue' : c.paymentMode === 'PREPAID' ? 'green' : 'slate'}>{c.paymentMode}</V2StatusBadge>
+                </span>
+              </span>,
+              <span key="l" className="tabular-nums">{Number(c.creditLimit || 0).toLocaleString(locale)}</span>,
+              <span key="o" className="font-bold tabular-nums text-amber-700">{Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>,
+              <span key="w" className="font-bold tabular-nums text-emerald-700">{Number(c.walletBalance || 0).toLocaleString(locale)}</span>,
+              <Link key="e" href={`/admin/companies/${c.id}/edit`} aria-label={t('company.editCompany')} className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                <Pencil className="size-5" />
+              </Link>,
+            ];
+            return cells[i];
+          }}
+          renderMobile={(c) => (
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-[15.5px] font-extrabold text-[#0B1B33]">{c.name}</p>
+                <Link href={`/admin/companies/${c.id}/edit`} aria-label={t('company.editCompany')} className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]">
+                  <Pencil className="size-5" />
+                </Link>
+              </div>
+              <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
+                <span className="rounded-lg bg-[#F6F8FC] px-2 py-2 text-[12px] font-bold tabular-nums">L: {Number(c.creditLimit || 0).toLocaleString(locale)}</span>
+                <span className="rounded-lg bg-amber-50 px-2 py-2 text-[12px] font-bold tabular-nums text-amber-700">O: {Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>
+                <span className="rounded-lg bg-emerald-50 px-2 py-2 text-[12px] font-bold tabular-nums text-emerald-700">W: {Number(c.walletBalance || 0).toLocaleString(locale)}</span>
+              </div>
+            </div>
+          )}
+        />
+      </div>
     </div>
-  )
+  );
 }

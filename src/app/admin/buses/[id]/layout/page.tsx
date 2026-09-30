@@ -1,596 +1,336 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { ArrowLeft, Save, Loader2, Trash2, Plus, Minus, Bus, Map, GripVertical } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowRight, Loader2, Trash2, Plus, Save } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader } from '@/components/v2/admin';
+import { V2Field, V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+import { V2Skeleton } from '@/components/v2/ui';
 
-interface SeatDraft {
-  label: string
-  row: number
-  col: number
-  type: 'NORMAL' | 'VIP' | 'DISABLED'
-  price: number
-}
+/* V2 bus layout + stations editor — same load/save APIs as V1. */
 
-interface StationDraft {
-  id?: string
-  name: string
-  order: number
-}
+const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+const MAX_ROWS = 12;
 
-const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-const MAX_ROWS = 12
+type SeatType = 'NORMAL' | 'VIP' | 'DISABLED';
+interface SeatDraft { label: string; row: number; col: number; type: SeatType; price: number }
 
-const seatTypeStyle: Record<string, string> = {
-  NORMAL: 'seat-available',
-  VIP: 'seat-vip',
-  DISABLED: 'seat-disabled',
-}
-
-const seatTypeConfig: Record<string, { label: string; labelAr: string; price: number }> = {
-  NORMAL: { label: 'Normal', labelAr: 'عادي', price: 0 },
-  VIP: { label: 'VIP', labelAr: 'VIP', price: 50 },
-  DISABLED: { label: 'Disabled', labelAr: 'معاق', price: 0 },
-}
+const TYPE_PRICE: Record<SeatType, number> = { NORMAL: 0, VIP: 50, DISABLED: 0 };
 
 export default function BusLayoutPage() {
-  const params = useParams()
-  const router = useRouter()
-  const busId = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const busId = params.id as string;
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
 
-  const [bus, setBus] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [savingStations, setSavingStations] = useState(false)
-  const [selectedSeat, setSelectedSeat] = useState<SeatDraft | null>(null)
-  const [seats, setSeats] = useState<SeatDraft[]>([])
-  const [totalRows, setTotalRows] = useState(10)
-  const [colsPerRow, setColsPerRow] = useState<Record<string, number>>({})
-  const [aisleAfter, setAisleAfter] = useState(2)
-  const [stations, setStations] = useState<StationDraft[]>([])
-  const [newStationName, setNewStationName] = useState('')
+  const [busName, setBusName] = useState('');
+  const [seats, setSeats] = useState<SeatDraft[]>([]);
+  const [totalRows, setTotalRows] = useState(10);
+  const [colsPerRow, setColsPerRow] = useState<Record<string, number>>({});
+  const [aisleAfter, setAisleAfter] = useState(2);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [stations, setStations] = useState<{ id?: string; name: string; order: number }[]>([]);
+  const [newStation, setNewStation] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savingStations, setSavingStations] = useState(false);
 
   useEffect(() => {
-    loadBus()
-    loadStations()
-  }, [busId])
-
-  async function loadStations() {
-    try {
-      const res = await fetch(`/api/buses/${busId}/stations`)
-      if (res.ok) {
-        const data = await res.json()
-        setStations(data.map((s: any) => ({ id: s.id, name: s.name, order: s.order })))
-      }
-    } catch {}
-  }
-
-  async function saveStations() {
-    setSavingStations(true)
-    try {
-      await fetch(`/api/buses/${busId}/stations`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stations: stations.map((s, i) => ({ name: s.name, order: i + 1 })) }),
-      })
-    } catch {}
-    setSavingStations(false)
-  }
-
-  function addStation() {
-    if (!newStationName.trim()) return
-    setStations([...stations, { name: newStationName.trim(), order: stations.length + 1 }])
-    setNewStationName('')
-  }
-
-  function removeStation(index: number) {
-    setStations(stations.filter((_, i) => i !== index))
-  }
-
-  async function loadBus() {
-    const res = await fetch(`/api/buses/${busId}`)
-    const data = await res.json()
-    setBus(data)
-    if (data.layout?.seats?.length) {
-      // Parse existing layout
-      setTotalRows(data.layout.rows)
-      setAisleAfter(data.layout.aisleAfter || 2)
-
-      // Parse colsPerRow from JSON string
-      let parsedCols: Record<string, number> = {}
-      if (data.layout.colsPerRow) {
-        try {
-          parsedCols = JSON.parse(data.layout.colsPerRow)
-        } catch {
-          // fallback: all rows have same cols
-          const maxCol = Math.max(...data.layout.seats.map((s: any) => s.col))
-          ROWS.forEach((_, i) => {
-            if (i < data.layout.rows) {
-              parsedCols[ROWS[i]] = data.layout.cols
+    (async () => {
+      try {
+        const [busRes, stRes] = await Promise.all([
+          fetch(`/api/buses/${busId}`, { credentials: 'include' }),
+          fetch(`/api/buses/${busId}/stations`, { credentials: 'include' }),
+        ]);
+        if (busRes.ok) {
+          const data = await busRes.json();
+          setBusName(data.name || '');
+          if (data.layout?.seats?.length) {
+            setTotalRows(data.layout.rows);
+            setAisleAfter(data.layout.aisleAfter || 2);
+            let parsed: Record<string, number> = {};
+            if (data.layout.colsPerRow) {
+              try {
+                parsed = JSON.parse(data.layout.colsPerRow);
+              } catch { /* fall through */ }
             }
-          })
-        }
-      } else {
-        // Initialize from existing seats
-        const maxCol = Math.max(...data.layout.seats.map((s: any) => s.col))
-        ROWS.forEach((_, i) => {
-          if (i < data.layout.rows) {
-            parsedCols[ROWS[i]] = data.layout.cols
+            if (Object.keys(parsed).length === 0) {
+              const maxCol = Math.max(...data.layout.seats.map((s: any) => s.col));
+              ROWS.forEach((r, i) => { if (i < data.layout.rows) parsed[r] = maxCol; });
+            }
+            setColsPerRow(parsed);
+            setSeats(data.layout.seats.map((s: any) => ({ label: s.label, row: s.row, col: s.col, type: s.type, price: s.price || 0 })));
+          } else {
+            const def: Record<string, number> = {};
+            ROWS.forEach((r, i) => { if (i < 10) def[r] = 4; });
+            setColsPerRow(def);
           }
-        })
-      }
-      setColsPerRow(parsedCols)
+        }
+        if (stRes.ok) {
+          const data = await stRes.json();
+          const list = Array.isArray(data) ? data : data.stations || [];
+          setStations(list.map((s: any) => ({ id: s.id, name: s.name, order: s.order })));
+        }
+      } catch { /* keep blank */ } finally { setLoading(false); }
+    })();
+  }, [busId]);
 
-      setSeats(
-        data.layout.seats.map((s: any) => ({
-          label: s.label,
-          row: s.row,
-          col: s.col,
-          type: s.type as 'NORMAL' | 'VIP' | 'DISABLED',
-          price: s.price,
-        }))
-      )
-    } else {
-      // Initialize default: 10 rows, 4 seats each
-      const defaultCols: Record<string, number> = {}
-      for (let i = 0; i < 10; i++) {
-        defaultCols[ROWS[i]] = 4
-      }
-      setColsPerRow(defaultCols)
-      setTotalRows(10)
-    }
-    setLoading(false)
-  }
-
-  function getSeatAt(row: number, col: number) {
-    return seats.find((s) => s.row === row && s.col === col)
-  }
-
-  function getRowSeatCount(rowLetter: string): number {
-    return colsPerRow[rowLetter] || 4
+  function colsFor(rowLetter: string): number {
+    return colsPerRow[rowLetter] || 4;
   }
 
   function addSeat(row: number, col: number) {
-    if (getSeatAt(row, col)) return
-    const label = `${ROWS[row]}${col}`
-    const newSeat: SeatDraft = {
-      label,
-      row,
-      col,
-      type: 'NORMAL',
-      price: seatTypeConfig.NORMAL.price,
-    }
-    setSeats([...seats, newSeat])
-    setSelectedSeat(newSeat)
+    const base = `${ROWS[row]}${col}`;
+    let label = base;
+    let n = 2;
+    while (seats.some((s) => s.label === label)) label = `${base}-${n++}`;
+    setSeats([...seats, { label, row, col, type: 'NORMAL', price: 0 }]);
+    setSelected(label);
   }
 
-  function removeSeat(row: number, col: number) {
-    setSeats(seats.filter((s) => !(s.row === row && s.col === col)))
-    if (selectedSeat?.row === row && selectedSeat?.col === col) {
-      setSelectedSeat(null)
-    }
+  function removeSeat(label: string) {
+    setSeats(seats.filter((s) => s.label !== label));
+    setSelected(null);
   }
 
   function updateSeat(label: string, updates: Partial<SeatDraft>) {
-    setSeats(seats.map((s) => (s.label === label ? { ...s, ...updates } : s)))
-    if (selectedSeat?.label === label) {
-      setSelectedSeat({ ...selectedSeat, ...updates })
+    setSeats(seats.map((s) => (s.label === label ? { ...s, ...updates } : s)));
+  }
+
+  // Drop seats that fall outside the current grid
+  function cleanOrphans(next: SeatDraft[], rows: number, cols: Record<string, number>): SeatDraft[] {
+    return next.filter((s) => s.row < rows && s.col <= (cols[ROWS[s.row]] || 4));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/buses/${busId}/layout`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          rows: totalRows,
+          cols: 6,
+          aisleAfter,
+          colsPerRow: JSON.stringify(colsPerRow),
+          seats,
+        }),
+      });
+      if (res.ok) router.push('/admin/buses');
+      else toast.error(t('common.error'));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSaving(false);
     }
   }
 
-  function setRowCount(rowLetter: string, count: number) {
-    const newCount = Math.max(0, Math.min(6, count))
-    const oldCount = colsPerRow[rowLetter] || 4
-
-    // Remove seats that exceed new count
-    setSeats(seats.filter(s => {
-      if (s.row !== ROWS.indexOf(rowLetter)) return true
-      return s.col <= newCount
-    }))
-
-    // Also adjust selected seat if it's beyond new count
-    if (selectedSeat && ROWS[selectedSeat.row] === rowLetter && selectedSeat.col > newCount) {
-      setSelectedSeat(null)
-    }
-
-    setColsPerRow({ ...colsPerRow, [rowLetter]: newCount })
-  }
-
-  function addRow() {
-    if (totalRows >= MAX_ROWS) return
-    const newRow = totalRows
-    setColsPerRow({ ...colsPerRow, [ROWS[newRow]]: 4 })
-    setTotalRows(totalRows + 1)
-  }
-
-  function removeRow() {
-    if (totalRows <= 1) return
-    const removedRow = totalRows - 1
-    // Remove all seats in the last row
-    setSeats(seats.filter(s => s.row !== removedRow))
-    if (selectedSeat && selectedSeat.row === removedRow) {
-      setSelectedSeat(null)
-    }
-    const newCols = { ...colsPerRow }
-    delete newCols[ROWS[removedRow]]
-    setColsPerRow(newCols)
-    setTotalRows(totalRows - 1)
-  }
-
-  async function handleSave() {
-    setSaving(true)
-
-    // Build colsPerRow JSON string
-    const colsPerRowJSON = JSON.stringify(colsPerRow)
-
-    const res = await fetch(`/api/buses/${busId}/layout`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        rows: totalRows,
-        cols: 6, // max columns for grid rendering
-        aisleAfter,
-        colsPerRow: colsPerRowJSON,
-        seats,
-      }),
-    })
-    setSaving(false)
-    if (res.ok) {
-      router.push('/admin/buses')
+  async function saveStations() {
+    setSavingStations(true);
+    try {
+      const res = await fetch(`/api/buses/${busId}/stations`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ stations: stations.map((s, i) => ({ name: s.name, order: i + 1 })) }),
+      });
+      if (res.ok) toast.success(t('common.success'));
+      else toast.error(t('common.error'));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSavingStations(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  const sel = seats.find((s) => s.label === selected);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => router.push('/admin/buses')}
-          className="p-2.5 rounded-xl glass hover:bg-zinc-800/50 border border-white/5 transition"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-            <Bus size={20} className="text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold">{bus?.name}</h1>
-            <p className="text-zinc-400 text-sm">تصميم مقاعد الباص</p>
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg shadow-blue-500/25 transition-all"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? 'جارِ الحفظ...' : 'حفظ التصميم'}
-          </button>
-        </div>
+    <div>
+      <Link href="/admin/buses" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+        <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.buses')}
+      </Link>
+      <div className="mt-3">
+        <V2PageHeader
+          title={busName || (isRTL ? 'تخطيط الباص' : 'Bus layout')}
+          action={
+            <V2Button disabled={saving} onClick={save}>
+              {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />} {t('common.save')}
+            </V2Button>
+          }
+        />
       </div>
 
-      <div className="grid lg:grid-cols-[1fr,300px] gap-6">
-        {/* Seat Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-3xl p-8 border border-white/5 shadow-2xl"
-        >
-          {/* Bus front indicator */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center gap-2 px-5 py-2.5 rounded-full glass border border-white/5">
-              <span className="text-lg">🚌</span>
-              <span className="text-xs font-medium text-zinc-500">الأمام — FRONT</span>
+      {loading ? (
+        <div className="mt-5 grid gap-3" role="status">
+          <V2Skeleton className="h-96 rounded-2xl" />
+        </div>
+      ) : (
+        <div className="mt-5 grid items-start gap-5 xl:grid-cols-[1fr_320px]">
+          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <V2Field label={isRTL ? 'الصفوف' : 'Rows'}>
+                <V2Input
+                  type="number" min="1" max={MAX_ROWS} value={totalRows}
+                  onChange={(e) => {
+                    const r = Math.max(1, Math.min(MAX_ROWS, Number(e.target.value) || 1));
+                    setTotalRows(r);
+                    setSeats((prev) => cleanOrphans(prev, r, colsPerRow));
+                  }}
+                  dir="ltr" className="tabular-nums !min-h-[48px] !w-24"
+                />
+              </V2Field>
+              <V2Field label={isRTL ? 'الممر بعد' : 'Aisle after'}>
+                <V2Input
+                  type="number" min="0" max="6" value={aisleAfter}
+                  onChange={(e) => setAisleAfter(Number(e.target.value) || 0)}
+                  dir="ltr" className="tabular-nums !min-h-[48px] !w-24"
+                />
+              </V2Field>
+              <p className="ms-auto text-[13px] tabular-nums text-[#5B6B84]">
+                {seats.length} {isRTL ? 'مقعد' : 'seats'}
+              </p>
             </div>
-          </div>
 
-          <div className="flex flex-col items-center gap-3 overflow-x-auto">
-            {Array.from({ length: totalRows }, (_, rowIdx) => {
-              const rowLetter = ROWS[rowIdx]
-              const rowSeatCount = getRowSeatCount(rowLetter)
-
-              return (
-                <div key={rowIdx} className="flex items-center gap-2">
-                  {/* Row label */}
-                  <div className="w-8 flex items-center justify-center text-xs text-zinc-600 font-bold">
-                    {rowLetter}
-                  </div>
-
-                  {/* Seats in this row */}
-                  <div className="flex gap-1.5">
-                    {Array.from({ length: rowSeatCount }, (_, colIdx) => {
-                      const col = colIdx + 1
-                      const seat = getSeatAt(rowIdx, col)
-                      const isAisle = rowSeatCount > 3 && col === aisleAfter + 1
-
-                      if (isAisle) {
+            <div className="mt-5 grid gap-1.5 overflow-x-auto pb-2">
+              {Array.from({ length: totalRows }, (_, rowIdx) => {
+                const letter = ROWS[rowIdx];
+                const count = colsFor(letter);
+                return (
+                  <div key={rowIdx} className="flex items-center gap-1.5">
+                    <span className="w-6 shrink-0 text-center text-[11px] font-bold tabular-nums text-[#9AA8BD]">{letter}</span>
+                    <input
+                      type="number" min="1" max="6" value={count}
+                      onChange={(e) => {
+                        const c = Math.max(1, Math.min(6, Number(e.target.value) || 1));
+                        const next = { ...colsPerRow, [letter]: c };
+                        setColsPerRow(next);
+                        setSeats((prev) => cleanOrphans(prev, totalRows, next));
+                      }}
+                      aria-label={`Columns row ${letter}`}
+                      dir="ltr"
+                      className="w-11 shrink-0 rounded-lg border border-slate-200 py-1 text-center text-[12px] tabular-nums"
+                    />
+                    {Array.from({ length: count }, (_, colIdx) => {
+                      const col = colIdx + 1;
+                      const seat = seats.find((s) => s.row === rowIdx && s.col === col);
+                      const isAisle = col === aisleAfter + 1 && count > 3;
+                      if (!seat) {
                         return (
-                          <div key="aisle-gap" className="w-6 shrink-0" />
-                        )
+                          <button
+                            key={colIdx} onClick={() => addSeat(rowIdx, col)}
+                            aria-label={`Add seat ${letter}${col}`}
+                            className={cn('grid size-10 shrink-0 place-items-center rounded-lg border border-dashed border-slate-300 text-slate-300 hover:border-[#1D5BD8]/60 hover:text-[#1D5BD8]', isAisle && 'ms-5')}
+                          >
+                            <Plus className="size-4" />
+                          </button>
+                        );
                       }
-
                       return (
-                        <div key={colIdx}>
-                          {seat ? (
-                            <motion.div
-                              whileHover={{ scale: 1.1, y: -2 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => setSelectedSeat(seat)}
-                              className={cn(
-                                'w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold cursor-pointer transition-all shadow-md',
-                                seatTypeStyle[seat.type] || 'seat-available',
-                                selectedSeat?.label === seat.label && 'ring-2 ring-white ring-offset-2 ring-offset-zinc-900 scale-105'
-                              )}
-                            >
-                              {seat.label}
-                            </motion.div>
-                          ) : (
-                            <button
-                              onClick={() => addSeat(rowIdx, col)}
-                              className="w-12 h-12 rounded-xl border-2 border-dashed border-zinc-700/50 hover:border-blue-500/30 hover:bg-blue-500/5 transition flex items-center justify-center text-zinc-600 hover:text-blue-400 text-lg font-light"
-                              title={`Add seat ${rowLetter}${col}`}
-                            >
-                              +
-                            </button>
+                        <button
+                          key={colIdx} onClick={() => setSelected(seat.label)}
+                          aria-label={`Seat ${seat.label}`}
+                          aria-pressed={selected === seat.label}
+                          className={cn(
+                            'grid size-10 shrink-0 place-items-center rounded-lg border-2 text-[10px] font-extrabold tabular-nums transition',
+                            isAisle && 'ms-5',
+                            selected === seat.label && 'border-[#0A1E3C] bg-[#0A1E3C] text-white',
+                            selected !== seat.label && seat.type === 'VIP' && 'border-amber-300 bg-amber-50 text-amber-700',
+                            selected !== seat.label && seat.type === 'DISABLED' && 'border-slate-100 bg-slate-50 text-slate-300',
+                            selected !== seat.label && seat.type === 'NORMAL' && 'border-slate-200 bg-white text-[#5B6B84]'
                           )}
-                        </div>
-                      )
+                        >
+                          {seat.label}
+                        </button>
+                      );
                     })}
                   </div>
-
-                  {/* Row seat count control */}
-                  <div className="flex items-center gap-1 ml-2">
-                    <button
-                      onClick={() => setRowCount(rowLetter, (colsPerRow[rowLetter] || 4) - 1)}
-                      disabled={(colsPerRow[rowLetter] || 4) <= 0}
-                      className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition disabled:opacity-30 text-xs"
-                    >
-                      <Minus size={12} />
-                    </button>
-                    <span className="text-xs text-zinc-500 w-6 text-center font-mono">
-                      {colsPerRow[rowLetter] || 4}
-                    </span>
-                    <button
-                      onClick={() => setRowCount(rowLetter, (colsPerRow[rowLetter] || 4) + 1)}
-                      disabled={(colsPerRow[rowLetter] || 4) >= 6}
-                      className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition disabled:opacity-30 text-xs"
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Aisle label */}
-          <div className="flex justify-center mt-8">
-            <div className="text-[10px] text-zinc-700 uppercase tracking-widest px-3 py-1 rounded bg-zinc-800/30">
-              الممر — AISLE
+                );
+              })}
             </div>
           </div>
 
-          {/* Row add/remove controls */}
-          <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-white/5">
-            <button
-              onClick={removeRow}
-              disabled={totalRows <= 1}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 text-sm transition disabled:opacity-30"
-            >
-              <Minus size={14} />
-              إزالة صف
-            </button>
-            <div className="px-4 py-2 rounded-xl glass text-sm text-zinc-400">
-              {totalRows} {totalRows === 1 ? 'صف' : 'صفوف'}
-              <span className="mx-2 text-zinc-700">•</span>
-              {seats.length} مقعد
-            </div>
-            <button
-              onClick={addRow}
-              disabled={totalRows >= MAX_ROWS}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl glass border border-blue-500/20 text-blue-400 hover:bg-blue-500/10 text-sm transition disabled:opacity-30"
-            >
-              <Plus size={14} />
-              إضافة صف
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Sidebar */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="space-y-4"
-        >
-          {/* Stats */}
-          <div className="glass rounded-2xl p-6 border border-white/5">
-            <h3 className="font-semibold mb-4 text-sm text-zinc-300">معلومات التصميم</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">عدد الصفوف</span>
-                <span className="font-semibold text-white">{totalRows}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">عدد المقاعد</span>
-                <span className="font-bold text-blue-400 text-lg">{seats.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-500">المقاعد المحجوزة</span>
-                <span className="font-semibold text-zinc-400">—</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Aisle position */}
-          <div className="glass rounded-2xl p-6 border border-white/5">
-            <h3 className="font-semibold mb-4 text-sm text-zinc-300">موضع الممر</h3>
-            <div className="flex gap-2">
-              {[1, 2, 3].map((pos) => (
-                <button
-                  key={pos}
-                  onClick={() => setAisleAfter(pos)}
-                  className={cn(
-                    'flex-1 py-2 rounded-xl text-xs font-medium transition border',
-                    aisleAfter === pos
-                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                      : 'border-zinc-700 hover:border-zinc-600 text-zinc-400'
-                  )}
-                >
-                  بعد المقعد {pos}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="glass rounded-2xl p-6 border border-white/5">
-            <h3 className="font-semibold mb-4 text-sm text-zinc-300">أنواع المقاعد</h3>
-            <div className="space-y-3">
-              {Object.entries(seatTypeConfig).map(([type, cfg]) => (
-                <div key={type} className="flex items-center gap-3">
-                  <div className={cn('w-8 h-8 rounded-lg flex-shrink-0', seatTypeStyle[type])} />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{cfg.labelAr}</span>
-                    <span className="text-xs text-zinc-500 ml-1">/ {cfg.label}</span>
-                  </div>
-                  <span className="text-xs text-zinc-600">+{cfg.price} EGP</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bus stations */}
-          <div className="glass rounded-2xl p-6 border border-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-sm text-zinc-300 flex items-center gap-2">
-                <Map size={14} className="text-blue-400" />
-                المحطات / Stations
-              </h3>
-              {stations.length > 0 && (
-                <button
-                  onClick={saveStations}
-                  disabled={savingStations}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition"
-                >
-                  {savingStations ? '...' : 'حفظ'}
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2 mb-3">
-              {stations.length === 0 ? (
-                <p className="text-xs text-zinc-600 text-center py-4">لا توجد محطات — أضف أول محطة</p>
+          <div className="grid content-start gap-4">
+            <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <p className="text-[15px] font-extrabold text-[#0B1B33]">{isRTL ? 'المقعد المحدد' : 'Selected seat'}</p>
+              {!sel ? (
+                <p className="mt-2 text-[13.5px] text-[#5B6B84]">{isRTL ? 'اضغط على مقعد لتعديله' : 'Tap a seat to edit it'}</p>
               ) : (
-                stations.map((s, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-zinc-800/30 rounded-lg px-3 py-2">
-                    <GripVertical size={12} className="text-zinc-600 flex-shrink-0" />
-                    <span className="text-xs text-zinc-500 w-4">{s.order}</span>
-                    <span className="flex-1 text-sm text-white">{s.name}</span>
-                    <button onClick={() => removeStation(i)} className="text-red-400 hover:text-red-300 transition">
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newStationName}
-                onChange={(e) => setNewStationName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addStation()}
-                placeholder="اسم المحطة"
-                className="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 focus:border-blue-500 focus:outline-none transition text-sm"
-              />
-              <button
-                onClick={addStation}
-                className="px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-          </div>
-
-          {/* Seat editor */}
-          {selectedSeat && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass rounded-2xl p-6 border border-blue-500/10 shadow-xl shadow-blue-500/5"
-            >
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold', seatTypeStyle[selectedSeat.type])}>
-                    {selectedSeat.label}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">تعديل المقعد</h3>
-                    <p className="text-xs text-zinc-500">Edit seat {selectedSeat.label}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeSeat(selectedSeat.row, selectedSeat.col)}
-                  className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Type */}
-                <div>
-                  <label className="text-xs text-zinc-500 mb-2 block uppercase tracking-wider">النوع</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(seatTypeConfig).map(([type, cfg]) => (
+                <div className="mt-3 grid gap-3">
+                  <p className="text-[16px] font-extrabold tabular-nums text-[#0B1B33]">{sel.label}</p>
+                  <div className="flex gap-1.5">
+                    {(['NORMAL', 'VIP', 'DISABLED'] as SeatType[]).map((tp) => (
                       <button
-                        key={type}
-                        onClick={() => updateSeat(selectedSeat.label, { type: type as any, price: cfg.price })}
-                        className={cn(
-                          'px-3 py-2.5 rounded-xl text-xs font-semibold transition border',
-                          selectedSeat.type === type
-                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                            : 'border-zinc-700 hover:border-zinc-600 text-zinc-400'
-                        )}
+                        key={tp}
+                        onClick={() => updateSeat(sel.label, { type: tp, price: TYPE_PRICE[tp] })}
+                        aria-pressed={sel.type === tp}
+                        className={cn('flex-1 rounded-lg px-2 py-2 text-[12.5px] font-bold transition', sel.type === tp ? 'bg-[#0A1E3C] text-white' : 'bg-slate-100 text-[#5B6B84]')}
                       >
-                        {cfg.labelAr}
+                        {tp}
                       </button>
                     ))}
                   </div>
+                  <V2Field label="EGP +">
+                    <V2Input type="number" min="0" value={sel.price} onChange={(e) => updateSeat(sel.label, { price: Number(e.target.value) || 0 })} dir="ltr" className="tabular-nums !min-h-[48px]" />
+                  </V2Field>
+                  <button
+                    onClick={() => removeSeat(sel.label)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-red-50 py-2.5 text-[13.5px] font-bold text-red-600 hover:bg-red-100"
+                  >
+                    <Trash2 className="size-4" /> {t('common.delete')}
+                  </button>
                 </div>
+              )}
+            </div>
 
-                {/* Extra price */}
-                <div>
-                  <label className="text-xs text-zinc-500 mb-2 block uppercase tracking-wider">
-                    السعر الإضافي (EGP)
-                  </label>
-                  <input
-                    type="number"
-                    value={selectedSeat.price}
-                    onChange={(e) => updateSeat(selectedSeat.label, { price: Number(e.target.value) })}
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-800/50 border border-white/10 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition text-white font-medium"
-                    min={0}
-                    placeholder="0"
-                  />
-                </div>
+            <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <p className="text-[15px] font-extrabold text-[#0B1B33]">{isRTL ? 'محطات الباص' : 'Bus stations'}</p>
+              <div className="mt-3 grid gap-2">
+                {stations.map((s, i) => (
+                  <div key={`${s.name}-${i}`} className="flex items-center gap-2 rounded-xl bg-[#F6F8FC] px-3.5 py-2.5 text-[14px] font-semibold text-[#0B1B33]">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[#0A1E3C] text-[11px] font-bold tabular-nums text-white">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                    <button
+                      onClick={() => setStations(stations.filter((_, x) => x !== i))}
+                      aria-label="Remove station"
+                      className="grid size-8 shrink-0 place-items-center rounded-lg text-red-500 hover:bg-white"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
+              <div className="mt-3 flex gap-2">
+                <V2Input
+                  value={newStation} onChange={(e) => setNewStation(e.target.value)}
+                  placeholder={isRTL ? 'اسم المحطة' : 'Station name'}
+                  aria-label={isRTL ? 'اسم المحطة' : 'Station name'}
+                  className="!min-h-[48px]"
+                  onKeyDown={(e) => { if (e.key === 'Enter' && newStation.trim()) { setStations([...stations, { name: newStation.trim(), order: stations.length + 1 }]); setNewStation(''); } }}
+                />
+                <button
+                  onClick={() => { if (newStation.trim()) { setStations([...stations, { name: newStation.trim(), order: stations.length + 1 }]); setNewStation(''); } }}
+                  aria-label="Add station"
+                  className="grid w-12 shrink-0 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8] hover:bg-[#1D5BD8] hover:text-white"
+                >
+                  <Plus className="size-5" />
+                </button>
+              </div>
+              <V2Button disabled={savingStations} onClick={saveStations} className="mt-3 w-full">
+                {savingStations && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
+              </V2Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

@@ -1,375 +1,175 @@
-'use client'
+'use client';
 
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { BarChart3, TrendingUp, Users, MapPin, Download, FileText, PieChart, ArrowUpRight } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { Download, MapPin, Users } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
+import { cn } from '@/lib/utils';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2StatCard, V2Tabs } from '@/components/v2/admin';
+import { V2Skeleton } from '@/components/v2/ui';
+
+/* V2 reports — same /api/reports data + CSV export as V1. */
 
 interface RouteData {
-  tripId: string
-  origin: string
-  destination: string
-  departure: string
-  status: string
-  revenue: number
-  bookedSeats: number
-  totalSeats: number
-  occupancy: number
+  tripId: string; origin: string; destination: string; departure: string;
+  revenue: number; bookedSeats: number; totalSeats: number; occupancy: number;
+}
+interface MonthlyData { month: string; revenue: number }
+interface TopCustomer { userId: string; name: string; email: string; totalRevenue: number }
+interface Report {
+  routeData: RouteData[];
+  monthlyData: MonthlyData[];
+  topCustomers: TopCustomer[];
+  summary: { totalBookings: number; cancelledBookings: number };
 }
 
-interface MonthlyData {
-  month: string
-  revenue: number
-}
-
-interface TopCustomer {
-  userId: string
-  name: string
-  email: string
-  totalRevenue: number
-}
-
-interface ReportData {
-  routeData: RouteData[]
-  monthlyData: MonthlyData[]
-  topCustomers: TopCustomer[]
-  summary: { totalBookings: number; cancelledBookings: number }
-}
-
-const CHART_COLORS = {
-  blue: '#3b82f6',
-  emerald: '#10b981',
-  amber: '#f59e0b',
-  purple: '#8b5cf6',
-  rose: '#f43f5e',
-  cyan: '#06b6d4',
-}
-
-const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4', '#ec4899', '#14b8a6']
-
-export default function ReportsPage() {
-  const { data: session } = useSession()
-  const router = useRouter()
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
-
-  const [data, setData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'routes' | 'revenue' | 'customers'>('routes')
+export default function AdminReports() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
+  const [data, setData] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'routes' | 'revenue' | 'customers'>('routes');
 
   useEffect(() => {
-    if (session?.user?.role === 'CUSTOMER') {
-      router.push('/trips')
-      return
-    }
-    fetchReports()
-  }, [session])
-
-  async function fetchReports() {
-    try {
-      const res = await fetch('/api/reports', { credentials: 'include' })
-      if (res.ok) setData(await res.json())
-    } catch { /* ignore */ }
-    finally { setLoading(false) }
-  }
-
-  function exportCSV() {
-    window.open('/api/reports?format=csv', '_blank')
-  }
-
-  const tabs = [
-    { key: 'routes', label: lang === 'ar' ? 'بال route' : 'By Route', icon: MapPin },
-    { key: 'revenue', label: lang === 'ar' ? 'الإيرادات' : 'Revenue', icon: TrendingUp },
-    { key: 'customers', label: lang === 'ar' ? 'العملاء' : 'Top Customers', icon: Users },
-  ] as const
+    (async () => {
+      try {
+        const res = await fetch('/api/reports', { credentials: 'include' });
+        if (res.ok) setData(await res.json());
+      } catch { /* keep empty */ } finally { setLoading(false); }
+    })();
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full" />
+      <div className="grid gap-4" role="status">
+        <V2Skeleton className="h-10 w-64" />
+        <div className="grid gap-3.5 sm:grid-cols-3">
+          <V2Skeleton className="h-32 rounded-2xl" />
+          <V2Skeleton className="h-32 rounded-2xl" />
+          <V2Skeleton className="h-32 rounded-2xl" />
+        </div>
+        <V2Skeleton className="h-72 rounded-2xl" />
       </div>
-    )
+    );
   }
 
-  if (!data) return null
+  const routes = (data?.routeData || []).slice().sort((a, b) => b.occupancy - a.occupancy);
+  const maxOcc = Math.max(1, ...routes.map((r) => r.occupancy || 0));
 
   return (
-    <div className={cn('max-w-7xl', isRTL && 'font-[Cairo]')}>
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-            <BarChart3 className="text-blue-400" size={20} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold text-white">
-              {lang === 'ar' ? 'التقارير والإحصائيات' : 'Reports & Analytics'}
-            </h1>
-            <p className="text-zinc-400 text-sm">
-              {lang === 'ar' ? 'تحليل الأداء والتوقعات' : 'Performance analysis and insights'}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={exportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition hover-lift"
-        >
-          <Download size={16} />
-          {lang === 'ar' ? 'تصدير CSV' : 'Export CSV'}
-        </button>
-      </motion.div>
-
-      {/* Tabs */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-        className="flex gap-2 mb-6">
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
-              tab === t.key
-                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                : 'text-zinc-400 hover:text-white hover:bg-white/5'
-            )}>
-            <t.icon size={16} />
-            {t.label}
+    <div>
+      <V2PageHeader
+        title={t('nav.reports')}
+        action={
+          <button
+            onClick={() => window.open('/api/reports?format=csv', '_blank')}
+            className="v2-btn-dark inline-flex items-center gap-2 px-5 py-3 text-[14px]"
+          >
+            <Download className="size-4" /> CSV
           </button>
-        ))}
-      </motion.div>
+        }
+      />
 
-      {/* Routes tab */}
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-3">
+        <V2StatCard label={isRTL ? 'إجمالي الحجوزات' : 'Total Bookings'} value={(data?.summary.totalBookings ?? 0).toLocaleString(locale)} icon={<Users className="size-5 text-[#1D5BD8]" />} />
+        <V2StatCard label={isRTL ? 'الحجوزات الملغاة' : 'Cancelled'} value={(data?.summary.cancelledBookings ?? 0).toLocaleString(locale)} icon={<Users className="size-5 text-red-500" />} />
+        <V2StatCard label={isRTL ? 'إجمالي المسارات' : 'Total Routes'} value={(data?.routeData.length ?? 0).toLocaleString(locale)} icon={<MapPin className="size-5 text-emerald-600" />} />
+      </div>
+
+      <div className="mt-5">
+        <V2Tabs
+          active={tab}
+          onChange={setTab}
+          tabs={[
+            { key: 'routes', label: isRTL ? 'المسارات' : 'Routes' },
+            { key: 'revenue', label: isRTL ? 'الإيرادات' : 'Revenue' },
+            { key: 'customers', label: isRTL ? 'العملاء' : 'Customers' },
+          ]}
+        />
+      </div>
+
       {tab === 'routes' && (
-        <div className="space-y-6">
-          {/* Summary cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { label: lang === 'ar' ? 'إجمالي الحجوزات' : 'Total Bookings', value: data.summary.totalBookings, icon: FileText, color: '#3b82f6' },
-              { label: lang === 'ar' ? 'الحجوزات الملغاة' : 'Cancelled', value: data.summary.cancelledBookings, icon: FileText, color: '#f43f5e' },
-              { label: lang === 'ar' ? 'إجمالي المسارات' : 'Total Routes', value: data.routeData.length, icon: MapPin, color: '#10b981' },
-            ].map((card, i) => (
-              <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="rounded-2xl glass border border-white/10 p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${card.color}15` }}>
-                    <card.icon size={18} style={{ color: card.color }} />
-                  </div>
-                  <span className="text-sm text-zinc-400">{card.label}</span>
-                </div>
-                <p className="text-2xl font-bold text-white">{card.value}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Route table */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            className="rounded-2xl glass border border-white/10 overflow-hidden">
-            <div className="p-5 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white">
-                {lang === 'ar' ? 'الأداء حسب المسار' : 'Performance by Route'}
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className={cn('px-5 py-3 text-left text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-right')}>
-                      {lang === 'ar' ? 'المسار' : 'Route'}
-                    </th>
-                    <th className={cn('px-5 py-3 text-right text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-left')}>
-                      {lang === 'ar' ? 'الإيرادات' : 'Revenue'}
-                    </th>
-                    <th className={cn('px-5 py-3 text-right text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-left')}>
-                      {lang === 'ar' ? 'المقاعد' : 'Seats'}
-                    </th>
-                    <th className={cn('px-5 py-3 text-right text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-left')}>
-                      {lang === 'ar' ? 'نسبة الإشغال' : 'Occupancy'}
-                    </th>
-                    <th className={cn('px-5 py-3 text-right text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-left')}>
-                      {lang === 'ar' ? 'الحالة' : 'Status'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.routeData.slice().sort((a, b) => b.occupancy - a.occupancy).map((route, i) => (
-                    <motion.tr key={route.tripId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                      className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                      <td className={cn('px-5 py-4', isRTL && 'text-right')}>
-                        <div>
-                          <p className="font-semibold text-white text-sm">{route.origin} {isRTL ? '←' : '→'} {route.destination}</p>
-                          <p className="text-xs text-zinc-500">{new Date(route.departure).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                        </div>
-                      </td>
-                      <td className={cn('px-5 py-4 text-right font-semibold text-emerald-400', isRTL && 'text-left')}>
-                        {lang === 'ar' ? 'ج.م' : 'EGP'} {route.revenue.toFixed(0)}
-                      </td>
-                      <td className={cn('px-5 py-4 text-right text-zinc-300', isRTL && 'text-left')}>
-                        {route.bookedSeats}/{route.totalSeats}
-                      </td>
-                      <td className={cn('px-5 py-4 text-right', isRTL && 'text-left')}>
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-24 h-2 rounded-full bg-zinc-800 overflow-hidden">
-                            <div className="h-full rounded-full transition-all"
-                              style={{ width: `${route.occupancy}%`, backgroundColor: route.occupancy > 80 ? '#10b981' : route.occupancy > 50 ? '#f59e0b' : '#3b82f6' }} />
-                          </div>
-                          <span className="text-xs font-semibold text-zinc-300 w-10">{route.occupancy}%</span>
-                        </div>
-                      </td>
-                      <td className={cn('px-5 py-4 text-right', isRTL && 'text-left')}>
-                        <span className={cn(
-                          'px-2 py-1 rounded-full text-xs font-semibold',
-                          route.status === 'COMPLETED' ? 'bg-zinc-700/50 text-zinc-400' :
-                          route.status === 'SCHEDULED' ? 'bg-blue-500/10 text-blue-400' :
-                          'bg-amber-500/10 text-amber-400'
-                        )}>
-                          {route.status === 'COMPLETED' ? (lang === 'ar' ? 'مكتمل' : 'Completed') :
-                           route.status === 'SCHEDULED' ? (lang === 'ar' ? 'مجدول' : 'Scheduled') :
-                           (lang === 'ar' ? 'ملغي' : 'Cancelled')}
-                        </span>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-
-          {/* Occupancy chart */}
-          {data.routeData.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-              className="rounded-2xl glass border border-white/10 p-5">
-              <h3 className="text-sm font-semibold text-white mb-6">{lang === 'ar' ? 'نسبة الإشغال لكل مسار' : 'Occupancy Rate by Route'}</h3>
-              <div className="space-y-4">
-                {data.routeData.slice().sort((a, b) => b.occupancy - a.occupancy).map((route, i) => {
-                  const color = route.occupancy > 80 ? '#10b981' : route.occupancy > 50 ? '#f59e0b' : '#3b82f6'
-                  return (
-                    <div key={route.tripId} className="flex items-center gap-4">
-                      <div className="w-52 shrink-0">
-                        <p className="text-sm font-semibold text-white truncate">{route.origin} {isRTL ? '←' : '→'} {route.destination}</p>
-                        <p className="text-xs text-zinc-500">{route.bookedSeats}/{route.totalSeats} {lang === 'ar' ? 'مقعد' : 'seats'}</p>
-                      </div>
-                      <div className="flex-1 relative">
-                        <div className="h-6 rounded-full bg-zinc-800 overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${route.occupancy}%` }}
-                            transition={{ delay: i * 0.05, duration: 0.6, ease: 'easeOut' }}
-                            className="h-full rounded-full flex items-center justify-end pr-3"
-                            style={{ backgroundColor: color, minWidth: route.occupancy > 0 ? '40px' : '0' }}
-                          >
-                            <span className="text-white font-bold text-xs drop-shadow-lg">
-                              {route.occupancy}%
-                            </span>
-                          </motion.div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+        <div className="mt-4 grid gap-3">
+          {routes.map((r) => (
+            <div key={r.tripId} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[15.5px] font-extrabold text-[#0B1B33]">
+                  {isRTL ? `${r.destination} ← ${r.origin}` : `${r.origin} → ${r.destination}`}
+                </p>
+                <span className="ms-auto text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
+                  EGP {r.revenue.toLocaleString(locale)}
+                </span>
               </div>
-            </motion.div>
+              <p className="mt-1 text-[13px] tabular-nums text-[#5B6B84]">
+                {new Date(r.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                {' · '}{r.bookedSeats}/{r.totalSeats} · {Math.round(r.occupancy || 0)}%
+              </p>
+              <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-[#1D5BD8] transition-transform"
+                  style={{ width: `${Math.min(100, ((r.occupancy || 0) / maxOcc) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+          {routes.length === 0 && (
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-[14.5px] text-[#5B6B84]">
+              {t('bookings.noBookings')}
+            </p>
           )}
         </div>
       )}
 
-      {/* Revenue tab */}
       {tab === 'revenue' && (
-        <div className="space-y-6">
-          {data.monthlyData.length > 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="rounded-2xl glass border border-white/10 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-white">{lang === 'ar' ? 'الإيرادات الشهرية' : 'Monthly Revenue'}</h3>
-                <span className="text-xs text-zinc-500">{lang === 'ar' ? 'آخر أشهر' : 'Last months'}</span>
-              </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={data.monthlyData}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="month" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}`} />
-                  <Tooltip
-                    contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
-                    labelStyle={{ color: '#fff' }}
-                    formatter={(v: number) => [`${lang === 'ar' ? 'ج.م' : 'EGP'} ${v.toFixed(0)}`, lang === 'ar' ? 'الإيراد' : 'Revenue']}
-                  />
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#colorRev)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </motion.div>
+        <div className="mt-4 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+          {(data?.monthlyData.length || 0) === 0 ? (
+            <p className="py-10 text-center text-[14.5px] text-[#5B6B84]">{t('bookings.noBookings')}</p>
           ) : (
-            <div className="text-center py-16 text-zinc-600">
-              <TrendingUp size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">{lang === 'ar' ? 'لا توجد بيانات إيرادات بعد' : 'No revenue data yet'}</p>
+            <div className="h-72" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data!.monthlyData} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E6EBF2" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#5B6B84' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: '#5B6B84' }} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, border: '1px solid #E6EBF2', fontSize: 13 }}
+                    formatter={(v: any) => [`${Number(v).toLocaleString(locale)} ${t('common.currency')}`, isRTL ? 'الإيراد' : 'Revenue']}
+                  />
+                  <Bar dataKey="revenue" fill="#1D5BD8" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </div>
       )}
 
-      {/* Customers tab */}
       {tab === 'customers' && (
-        <div className="space-y-6">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="rounded-2xl glass border border-white/10 overflow-hidden">
-            <div className="p-5 border-b border-white/5">
-              <h3 className="text-sm font-semibold text-white">
-                {lang === 'ar' ? 'أفضل العملاء إنتاجية' : 'Top Revenue Customers'}
-              </h3>
+        <div className="mt-4 grid gap-3">
+          {(data?.topCustomers || []).map((c, i) => (
+            <div key={c.userId} className="flex items-center gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-4">
+              <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl text-[15px] font-extrabold tabular-nums', i === 0 ? 'bg-[#1D5BD8] text-white' : 'bg-[#EFF4FF] text-[#1D5BD8]')}>
+                {i + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-extrabold text-[#0B1B33]">{c.name}</span>
+                <span className="block truncate text-[12.5px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</span>
+              </span>
+              <span className="shrink-0 text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">
+                EGP {c.totalRevenue.toLocaleString(locale)}
+              </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className={cn('px-5 py-3 text-left text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-right')}>
-                      #
-                    </th>
-                    <th className={cn('px-5 py-3 text-left text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-right')}>
-                      {lang === 'ar' ? 'الاسم' : 'Name'}
-                    </th>
-                    <th className={cn('px-5 py-3 text-left text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-right')}>
-                      {lang === 'ar' ? 'البريد' : 'Email'}
-                    </th>
-                    <th className={cn('px-5 py-3 text-right text-xs text-zinc-500 uppercase tracking-wider', isRTL && 'text-left')}>
-                      {lang === 'ar' ? 'إجمالي الإيرادات' : 'Total Revenue'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.topCustomers.map((cust, i) => (
-                    <motion.tr key={cust.userId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}
-                      className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                      <td className={cn('px-5 py-4 text-zinc-500', isRTL && 'text-right')}>{i + 1}</td>
-                      <td className={cn('px-5 py-4 font-semibold text-white', isRTL && 'text-right')}>{cust.name}</td>
-                      <td className={cn('px-5 py-4 text-zinc-400', isRTL && 'text-right')}>{cust.email}</td>
-                      <td className={cn('px-5 py-4 text-right font-bold text-emerald-400', isRTL && 'text-left')}>
-                        {lang === 'ar' ? 'ج.م' : 'EGP'} {cust.totalRevenue.toFixed(0)}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
+          ))}
+          {(data?.topCustomers.length || 0) === 0 && (
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-[14.5px] text-[#5B6B84]">
+              {t('bookings.noBookings')}
+            </p>
+          )}
         </div>
       )}
     </div>
-  )
+  );
 }

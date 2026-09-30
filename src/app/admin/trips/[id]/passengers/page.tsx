@@ -1,329 +1,168 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { ArrowLeft, CheckCircle2, Clock, User, Phone, Bus, MapPin, Loader2, XCircle, Search, RefreshCw } from 'lucide-react'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2Table, V2Tabs } from '@/components/v2/admin';
+import { V2StatusBadge } from '@/components/v2/ui';
 
-interface Passenger {
-  id: string
-  reference: string
-  seatLabel: string
-  passengerName: string
-  status: string
-  total: number
-  paidAt: string | null
-  boarded: boolean
-  boardedAt: string | null
-  user: { id: string; name: string; email: string }
-}
-
-interface Trip {
-  id: string
-  origin: string
-  destination: string
-  departure: string
-  arrival: string
-  status: string
-  bus: { id: string; name: string; type: string; seatCount: number }
-  bookings: Passenger[]
-}
+/* V2 per-trip passengers — same trip fetch + BOARDED PATCH as V1. */
 
 export default function TripPassengersPage() {
-  const params = useParams()
-  const router = useRouter()
-  const tripId = params.id as string
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
+  const params = useParams();
+  const tripId = params.id as string;
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
 
-  const [trip, setTrip] = useState<Trip | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [boardingId, setBoardingId] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'boarded' | 'pending'>('all')
+  const [trip, setTrip] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'boarded' | 'pending'>('all');
+  const [boarding, setBoarding] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadTrip()
-  }, [tripId])
-
-  async function loadTrip() {
-    setLoading(true)
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/trips/${tripId}`, { credentials: 'include' })
-      if (res.ok) setTrip(await res.json())
-    } catch {}
-    setLoading(false)
-  }
+      const res = await fetch(`/api/trips/${tripId}`, { credentials: 'include' });
+      if (res.ok) setTrip(await res.json());
+    } catch { /* keep view */ } finally { setLoading(false); }
+  }, [tripId]);
 
-  async function markBoarded(bookingId: string) {
-    setBoardingId(bookingId)
+  useEffect(() => { load(); }, [load]);
+
+  async function markBoarded(bookingId: string, isCompany: boolean) {
+    setBoarding(bookingId);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`, {
+      const url = isCompany ? `/api/company/bookings/${bookingId}` : `/api/bookings/${bookingId}`;
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'BOARDED' }),
         credentials: 'include',
-      })
+        body: JSON.stringify({ status: 'BOARDED' }),
+      });
       if (res.ok) {
-        const updated = await res.json()
-        setTrip(prev => prev ? {
-          ...prev,
-          bookings: prev.bookings.map(b => b.id === bookingId ? { ...b, ...updated, boarded: true } : b)
-        } : null)
+        const updated = await res.json().catch(() => ({}));
+        setTrip((prev: any) => {
+          if (!prev) return prev;
+          const mark = (list: any[]) => (list || []).map((b) => (b.id === bookingId ? { ...b, ...updated, boarded: true } : b));
+          return { ...prev, bookings: mark(prev.bookings), companyBookings: mark(prev.companyBookings) };
+        });
+      } else {
+        toast.error(t('common.error'));
       }
+    } catch {
+      toast.error(t('common.error'));
     } finally {
-      setBoardingId(null)
+      setBoarding(null);
     }
   }
 
-  const allPassengers = trip?.bookings.filter(b => b.status !== 'CANCELLED') || []
-  const boarded = allPassengers.filter(b => b.boarded)
-  const pending = allPassengers.filter(b => !b.boarded && b.status === 'PAID')
-  const cancelled = allPassengers.filter(b => b.status === 'CANCELLED')
+  const all = useMemo(() => {
+    const mine = (list: any[], company: boolean) => (list || [])
+      .filter((b: any) => b.status !== 'CANCELLED')
+      .map((b: any) => ({ ...b, isCompany: company }));
+    return [...mine(trip?.bookings, false), ...mine(trip?.companyBookings, true)];
+  }, [trip]);
 
-  const filtered = filter === 'all'
-    ? allPassengers
-    : filter === 'boarded'
-    ? boarded
-    : pending
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (!trip) return null
-
-  const totalSeats = trip.bus.seatCount
-  const boardingRate = allPassengers.length > 0
-    ? Math.round((boarded.length / allPassengers.length) * 100)
-    : 0
+  const boarded = all.filter((b) => b.boarded || b.status === 'BOARDED');
+  const pending = all.filter((b) => !b.boarded && b.status === 'PAID');
+  const visible = filter === 'boarded' ? boarded : filter === 'pending' ? pending : all;
 
   return (
-    <div className={cn('max-w-5xl mx-auto', isRTL && 'font-[Cairo]')}>
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => router.push('/admin/trips')}
-          className="p-2.5 rounded-xl glass hover:bg-zinc-800/50 border border-white/5 transition"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-            <Bus size={20} className="text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-display font-bold text-white">
-              {trip.origin} {isRTL ? '←' : '→'} {trip.destination}
-            </h1>
-            <p className="text-zinc-400 text-sm">
-              {new Date(trip.departure).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              {' · '}
-              {new Date(trip.departure).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={loadTrip}
-          className="p-2 rounded-xl glass hover:bg-zinc-800/50 border border-white/5 transition text-zinc-400 hover:text-white"
-        >
-          <RefreshCw size={18} />
-        </button>
-      </motion.div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        {[
-          {
-            label: lang === 'ar' ? 'إجمالي الحجوزات' : 'Total Bookings',
-            value: allPassengers.length,
-            sub: `${lang === 'ar' ? 'من' : 'of'} ${totalSeats} ${lang === 'ar' ? 'مقعد' : 'seats'}`,
-            color: '#3b82f6',
-            icon: User,
-          },
-          {
-            label: lang === 'ar' ? 'صعدوا' : 'Boarded',
-            value: boarded.length,
-            sub: `${boardingRate}% ${lang === 'ar' ? 'نسبة الصعود' : 'boarding rate'}`,
-            color: '#10b981',
-            icon: CheckCircle2,
-          },
-          {
-            label: lang === 'ar' ? 'بانتظار الصعود' : 'Waiting',
-            value: pending.length,
-            sub: lang === 'ar' ? 'لم يصعد بعد' : 'not boarded yet',
-            color: '#f59e0b',
-            icon: Clock,
-          },
-          {
-            label: lang === 'ar' ? 'ملغية' : 'Cancelled',
-            value: cancelled.length,
-            sub: '',
-            color: '#f43f5e',
-            icon: XCircle,
-          },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06 }}
-            className="rounded-2xl glass border border-white/10 p-4"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <stat.icon size={16} style={{ color: stat.color }} />
-              <span className="text-xs text-zinc-400">{stat.label}</span>
-            </div>
-            <p className="text-2xl font-bold text-white">{stat.value}</p>
-            {stat.sub && <p className="text-xs text-zinc-500 mt-0.5">{stat.sub}</p>}
-          </motion.div>
-        ))}
+    <div className="mx-auto max-w-4xl">
+      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+        <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.trips')}
+      </Link>
+      <div className="mt-3">
+        <V2PageHeader
+          title={trip ? (isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`) : t('nav.customers')}
+          sub={trip ? `${trip.bus?.name} · ${all.length} · ${boarded.length}/${all.length || 1}` : undefined}
+        />
       </div>
 
-      {/* Boarding progress bar */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-        className="rounded-2xl glass border border-white/10 p-4 mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-zinc-400">{lang === 'ar' ? 'نسبة الصعود' : 'Boarding Progress'}</span>
-          <span className="text-xs font-bold text-white">{boardingRate}%</span>
-        </div>
-        <div className="h-3 rounded-full bg-zinc-800 overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${boardingRate}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="h-full rounded-full"
-            style={{ backgroundColor: boardingRate === 100 ? '#10b981' : '#3b82f6' }}
-          />
-        </div>
-      </motion.div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-4">
-        {(['all', 'pending', 'boarded'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={cn(
-              'px-4 py-2 rounded-xl text-sm font-medium transition-all',
-              filter === f
-                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                : 'text-zinc-400 hover:text-white hover:bg-white/5'
-            )}>
-            {f === 'all' ? (lang === 'ar' ? 'الكل' : 'All') :
-             f === 'boarded' ? (lang === 'ar' ? 'صعدوا' : 'Boarded') :
-             (lang === 'ar' ? 'بانتظار' : 'Waiting')} ({f === 'all' ? allPassengers.length : f === 'boarded' ? boarded.length : pending.length})
-          </button>
-        ))}
+      <div className="mt-5">
+        <V2Tabs
+          active={filter}
+          onChange={setFilter}
+          tabs={[
+            { key: 'all', label: isRTL ? 'الكل' : 'All', count: all.length },
+            { key: 'pending', label: isRTL ? 'بالانتظار' : 'Pending', count: pending.length },
+            { key: 'boarded', label: t('booking.boarded'), count: boarded.length },
+          ]}
+        />
       </div>
 
-      {/* Passenger list */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-zinc-600">
-          <User size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">
-            {filter === 'pending'
-              ? (lang === 'ar' ? 'مفيش حد منتظر الصعود' : 'No passengers waiting')
-              : (lang === 'ar' ? 'مفيش ركاب في الرحلة دي' : 'No passengers in this trip')}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={cn(
-                'rounded-2xl glass border p-4 transition-all',
-                p.boarded
-                  ? 'border-emerald-500/20 bg-emerald-500/5'
-                  : 'border-white/10'
-              )}
-            >
-              <div className="flex items-center gap-4">
-                {/* Avatar */}
-                <div className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0',
-                  p.boarded ? 'bg-emerald-500' : 'bg-blue-500'
-                )}>
-                  {p.user.name.charAt(0).toUpperCase()}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-white text-sm">{p.user.name}</p>
-                    {p.passengerName && (
-                      <span className="text-xs text-amber-400/70 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
-                        {p.passengerName}
-                      </span>
-                    )}
-                    <span className={cn(
-                      'px-2 py-0.5 rounded-full text-xs font-semibold',
-                      p.boarded
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                    )}>
-                      {p.boarded ? (lang === 'ar' ? 'صعد' : 'Boarded') : (lang === 'ar' ? 'منتظر' : 'Waiting')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 mt-1 text-xs text-zinc-500">
-                    <span className="flex items-center gap-1">
-                      <Phone size={10} />
-                      {p.user.email}
-                    </span>
-                    <span className="font-mono text-blue-400 font-semibold">{p.reference}</span>
-                  </div>
-                </div>
-
-                {/* Seat + Price */}
-                <div className="text-center shrink-0">
-                  <p className="text-lg font-bold text-white">{p.seatLabel}</p>
-                  <p className="text-xs text-zinc-500">{lang === 'ar' ? 'مقعد' : 'Seat'}</p>
-                </div>
-                <div className="text-center shrink-0">
-                  <p className="text-sm font-bold text-emerald-400">
-                    {lang === 'ar' ? 'ج.م' : 'EGP'} {p.total?.toFixed?.(0) ?? p.total}
-                  </p>
-                  <p className="text-xs text-zinc-500">{lang === 'ar' ? 'السعر' : 'Price'}</p>
-                </div>
-
-                {/* Action */}
-                {!p.boarded && (
+      <div className="mt-4">
+        <V2Table
+          columns={[
+            isRTL ? 'المسافر' : 'Passenger',
+            isRTL ? 'المقعد' : 'Seat',
+            isRTL ? 'الهاتف' : 'Phone',
+            isRTL ? 'الحالة' : 'Status',
+            '',
+          ]}
+          rows={visible}
+          rowKey={(b) => b.id}
+          loading={loading}
+          emptyTitle={t('bookings.noBookings')}
+          renderCell={(b, i) => {
+            const done = b.boarded || b.status === 'BOARDED';
+            const cells = [
+              <span key="n">
+                <span className="block font-bold">{b.passengerName}</span>
+                {b.isCompany && <span className="block text-[12px] font-normal text-[#5B6B84]">B2B</span>}
+              </span>,
+              <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
+              <span key="p" className="tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>,
+              <V2StatusBadge key="st" tone={done ? 'green' : b.status === 'PAID' ? 'blue' : 'amber'}>
+                {done ? t('booking.boarded') : b.status}
+              </V2StatusBadge>,
+              done ? (
+                <span key="a" className="flex items-center justify-end gap-1 text-[13px] font-bold tabular-nums text-emerald-700">
+                  <Check className="size-4" />
+                  {b.boardedAt ? new Date(b.boardedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : ''}
+                </span>
+              ) : (
+                <span key="a" className="flex justify-end">
                   <button
-                    onClick={() => markBoarded(p.id)}
-                    disabled={boardingId === p.id}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shrink-0 disabled:opacity-50 hover-lift"
+                    onClick={() => markBoarded(b.id, b.isCompany)}
+                    disabled={boarding === b.id}
+                    className="rounded-xl bg-[#EFF4FF] px-4 py-2.5 text-[13.5px] font-bold text-[#1D5BD8] hover:bg-[#1D5BD8] hover:text-white disabled:opacity-50"
                   >
-                    {boardingId === p.id ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <CheckCircle2 size={14} />
-                    )}
-                    {lang === 'ar' ? 'تأكيد الصعود' : 'Board'}
+                    {boarding === b.id ? <Loader2 className="size-4 animate-spin" /> : t('booking.boarded')}
+                  </button>
+                </span>
+              ),
+            ];
+            return cells[i];
+          }}
+          renderMobile={(b) => {
+            const done = b.boarded || b.status === 'BOARDED';
+            return (
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-[#0B1B33]">
+                    {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
+                  </p>
+                  <V2StatusBadge tone={done ? 'green' : 'amber'}>{done ? t('booking.boarded') : b.status}</V2StatusBadge>
+                </div>
+                {!done && (
+                  <button
+                    onClick={() => markBoarded(b.id, b.isCompany)}
+                    disabled={boarding === b.id}
+                    className="mt-3 w-full rounded-xl bg-[#EFF4FF] py-3 text-[14px] font-bold text-[#1D5BD8] disabled:opacity-50"
+                  >
+                    {boarding === b.id ? <Loader2 className="mx-auto size-4 animate-spin" /> : t('booking.boarded')}
                   </button>
                 )}
-                {p.boarded && p.boardedAt && (
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-emerald-500">
-                      {lang === 'ar' ? 'صعد في' : 'Boarded at'}
-                    </p>
-                    <p className="text-xs text-emerald-400 font-mono">
-                      {new Date(p.boardedAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                )}
               </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+            );
+          }}
+        />
+      </div>
     </div>
-  )
+  );
 }

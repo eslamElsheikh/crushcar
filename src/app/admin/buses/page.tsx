@@ -1,222 +1,194 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Bus, Plus, Settings, Trash2, Loader2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, Trash2, Loader2, Bus, Armchair } from 'lucide-react';
+import { toast } from 'sonner';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2Table } from '@/components/v2/admin';
+import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+import { V2Modal } from '@/components/v2/admin';
+import { V2StatusBadge } from '@/components/v2/ui';
 
-interface Bus {
-  id: string
-  name: string
-  type: string
-  seatCount: number
-  layout?: { seats: any[] }
-  company?: { name: string }
-}
+/* V2 buses — same list/create/delete APIs as V1. */
 
 const busTypes = [
   { value: 'MINI_BUS', label: 'Mini Bus' },
   { value: 'COACH_BUS', label: 'Coach Bus' },
-  { value: 'VIP_BUS', label: 'VIP Bus' },
   { value: 'DOUBLE_DECKER', label: 'Double Decker' },
-]
+];
 
-export default function AdminBusesPage() {
-  const router = useRouter()
-  const [buses, setBuses] = useState<Bus[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ name: '', type: 'COACH_BUS' })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+export default function AdminBuses() {
+  const router = useRouter();
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+
+  const [buses, setBuses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ name: '', type: 'COACH_BUS' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBuses()
-  }, [])
+    (async () => {
+      try {
+        const res = await fetch('/api/buses', { credentials: 'include' });
+        if (res.ok) setBuses(await res.json());
+      } catch { /* keep empty */ } finally { setLoading(false); }
+    })();
+  }, []);
 
-  async function loadBuses() {
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
     try {
-      const res = await fetch('/api/buses', { credentials: 'include' })
-      const data = await res.json()
-      setBuses(Array.isArray(data) ? data : [])
-    } catch { setBuses([]) }
-    finally { setLoading(false) }
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
-    const res = await fetch('/api/buses', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, type: form.type, seatCount: 0 }),
-    })
-    const data = await res.json()
-    setSaving(false)
-    if (res.ok) {
-      setShowModal(false)
-      setForm({ name: '', type: 'COACH_BUS' })
-      loadBuses()
-    } else {
-      setError(data.error || 'Failed to create bus')
+      const res = await fetch('/api/buses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: form.name, type: form.type, seatCount: 0 }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBuses((prev) => [...prev, data]);
+        setForm({ name: '', type: 'COACH_BUS' });
+        setModal(false);
+        router.push(`/admin/buses/${data.id}/layout`);
+      } else {
+        setError(data.error || t('common.error'));
+      }
+    } catch {
+      setError(t('common.error'));
+    } finally {
+      setSaving(false);
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this bus?')) return
-    await fetch(`/api/buses/${id}`, { method: 'DELETE' })
-    loadBuses()
+  async function remove(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/buses/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) setBuses((prev) => prev.filter((b) => b.id !== id));
+      else toast.error(t('common.error'));
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold">Buses</h1>
-          <p className="text-zinc-400 mt-1">Manage your fleet</p>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition"
-        >
-          <Plus size={16} /> Add Bus
-        </button>
+      <V2PageHeader
+        title={t('nav.buses')}
+        sub={isRTL ? `${buses.length} باص` : `${buses.length} buses`}
+        action={
+          <V2Button onClick={() => setModal(true)}>
+            <Plus className="size-5" /> {isRTL ? 'باص جديد' : 'New bus'}
+          </V2Button>
+        }
+      />
+
+      <div className="mt-5">
+        <V2Table
+          columns={[
+            isRTL ? 'الباص' : 'Bus',
+            isRTL ? 'النوع' : 'Type',
+            isRTL ? 'المقاعد' : 'Seats',
+            isRTL ? 'الشركة' : 'Company',
+            '',
+          ]}
+          rows={buses}
+          rowKey={(b) => b.id}
+          loading={loading}
+          emptyTitle={isRTL ? 'لا توجد باصات' : 'No buses yet'}
+          renderCell={(b, i) => {
+            const cells = [
+              <span key="n" className="flex items-center gap-2.5 font-bold">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
+                  <Bus className="size-5" />
+                </span>
+                {b.name}
+              </span>,
+              <span key="t" className="text-[#5B6B84]">{busTypes.find((x) => x.value === b.type)?.label || b.type}</span>,
+              <span key="s" className="tabular-nums text-[#5B6B84]">
+                {b.layout?.seats?.length ?? b.seatCount ?? 0}
+              </span>,
+              <span key="c" className="text-[#5B6B84]">{b.company?.name || '—'}</span>,
+              <span key="a" className="flex justify-end gap-1">
+                <button
+                  onClick={() => router.push(`/admin/buses/${b.id}/layout`)}
+                  className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]"
+                  aria-label="Layout"
+                >
+                  <Armchair className="size-5" />
+                </button>
+                <button
+                  onClick={() => remove(b.id)}
+                  disabled={deleting === b.id}
+                  aria-label="Delete"
+                  className="grid size-10 place-items-center rounded-xl text-red-500 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {deleting === b.id ? <Loader2 className="size-5 animate-spin" /> : <Trash2 className="size-5" />}
+                </button>
+              </span>,
+            ];
+            return cells[i];
+          }}
+          renderMobile={(b) => (
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
+                  <Bus className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{b.name}</p>
+                  <p className="text-[13px] tabular-nums text-[#5B6B84]">
+                    {busTypes.find((x) => x.value === b.type)?.label || b.type} · {b.layout?.seats?.length ?? b.seatCount ?? 0}
+                  </p>
+                </div>
+                <V2StatusBadge tone="slate">{b.company?.name || '—'}</V2StatusBadge>
+              </div>
+              <div className="mt-3 flex gap-1.5">
+                <button onClick={() => router.push(`/admin/buses/${b.id}/layout`)} className="flex-1 rounded-xl bg-[#EFF4FF] py-2.5 text-[13.5px] font-bold text-[#1D5BD8]">
+                  {isRTL ? 'التخطيط' : 'Layout'}
+                </button>
+                <button onClick={() => remove(b.id)} disabled={deleting === b.id} className="flex-1 rounded-xl bg-red-50 py-2.5 text-[13.5px] font-bold text-red-600 disabled:opacity-50">
+                  {t('common.delete')}
+                </button>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : buses.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
-          <Bus size={48} className="mx-auto text-zinc-700 mb-4" />
-          <h3 className="text-lg font-medium mb-2">No buses yet</h3>
-          <p className="text-zinc-500 mb-6">Add your first bus to get started</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium transition"
-          >
-            Add First Bus
-          </button>
-        </motion.div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {buses.map((bus, i) => (
-            <motion.div
-              key={bus.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="glass rounded-xl p-6 hover:bg-zinc-800/30 transition group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <Bus size={24} className="text-blue-400" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => router.push(`/admin/buses/${bus.id}/layout`)}
-                    className="p-2 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-blue-500/5 transition"
-                    title="Design layout"
-                  >
-                    <Settings size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(bus.id)}
-                    className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition"
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              <h3 className="font-semibold mb-1">{bus.name}</h3>
-              <p className="text-sm text-zinc-400 mb-3">
-                {busTypes.find((t) => t.value === bus.type)?.label || bus.type}
-              </p>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-zinc-500">
-                  {bus.layout?.seats?.length || 0} seats configured
-                </span>
-                <button
-                  onClick={() => router.push(`/admin/buses/${bus.id}/layout`)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    (bus.layout?.seats?.length || 0) > 0
-                      ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
-                      : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
-                  }`}
-                >
-                  {(bus.layout?.seats?.length || 0) > 0 ? 'Edit Layout' : 'Design Layout'}
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {/* Create Bus Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowModal(false)} />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative glass rounded-2xl p-8 w-full max-w-md"
-          >
-            <h2 className="text-xl font-display font-bold mb-6">Add New Bus</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="text-sm text-zinc-400 mb-2 block">Bus Name</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 focus:border-blue-500 focus:outline-none transition"
-                  placeholder="e.g. Cairo-Alex 01"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm text-zinc-400 mb-2 block">Bus Type</label>
-                <select
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 focus:border-blue-500 focus:outline-none transition"
-                >
-                  {busTypes.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
-              {error && (
-                <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                  {error}
-                </div>
-              )}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 rounded-lg glass hover:bg-zinc-800/50 text-zinc-400 font-medium transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-medium transition flex items-center justify-center gap-2"
-                >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  Create
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
+      <V2Modal open={modal} onClose={() => setModal(false)} title={isRTL ? 'باص جديد' : 'New bus'}>
+        <form onSubmit={create} className="grid gap-3.5">
+          <V2Field label={isRTL ? 'اسم الباص' : 'Bus name'}>
+            <V2Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />
+          </V2Field>
+          <V2Field label={isRTL ? 'النوع' : 'Type'}>
+            <V2Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              {busTypes.map((bt) => (
+                <option key={bt.value} value={bt.value}>{bt.label}</option>
+              ))}
+            </V2Select>
+          </V2Field>
+          {error && (
+            <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-600">
+              {error}
+            </p>
+          )}
+          <V2Button type="submit" size="lg" disabled={saving} className="w-full">
+            {saving && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
+          </V2Button>
+        </form>
+      </V2Modal>
     </div>
-  )
+  );
 }
