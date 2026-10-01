@@ -51,9 +51,8 @@ function LoginForm() {
     if (session?.user?.role === 'SUPER_ADMIN') {
       redirectUrl = '/admin';
     } else if (session?.user?.role === 'COMPANY_ADMIN') {
-      const companyRes = await fetch('/api/company/info');
-      const company = await companyRes.json();
-      redirectUrl = company && company.busesCount > 0 ? '/admin' : '/company/dashboard';
+      // Business rule: every company uses /company. Only SUPER_ADMIN operates /admin.
+      redirectUrl = '/company/dashboard';
     }
 
     router.push(redirectUrl);
