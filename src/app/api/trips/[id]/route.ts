@@ -39,7 +39,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Business rule: only SUPER_ADMIN edits trips. Companies and customers only book.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
     const body = await req.json()
@@ -47,10 +48,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const existing = await prisma.trip.findUnique({ where: { id }, include: { bus: true } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    if (session.user.role === 'COMPANY_ADMIN' && existing.bus.companyId !== null && existing.bus.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     // Update trip in transaction: replace TripStops
     const trip = await prisma.$transaction(async (tx) => {
@@ -98,16 +95,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Business rule: only SUPER_ADMIN deletes trips.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
 
     const existing = await prisma.trip.findUnique({ where: { id }, include: { bus: true } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    if (session.user.role === 'COMPANY_ADMIN' && existing.bus.companyId !== null && existing.bus.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     await prisma.trip.delete({ where: { id } })
     return NextResponse.json({ success: true })

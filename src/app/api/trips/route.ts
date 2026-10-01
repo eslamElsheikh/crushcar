@@ -215,7 +215,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Business rule: only SUPER_ADMIN creates trips. Companies and customers only book.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { busId, origin, destination, departure, arrival, price, stops } = await req.json()
 
@@ -225,13 +226,6 @@ export async function POST(req: NextRequest) {
 
     if (new Date(departure) >= new Date(arrival)) {
       return NextResponse.json({ error: 'Invalid times' }, { status: 400 })
-    }
-
-    if (session.user.role === 'COMPANY_ADMIN' && session.user.companyId) {
-      const bus = await prisma.bus.findUnique({ where: { id: busId } })
-      if (!bus || (bus.companyId !== null && bus.companyId !== session.user.companyId)) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
     }
 
     // Create trip with TripStop records

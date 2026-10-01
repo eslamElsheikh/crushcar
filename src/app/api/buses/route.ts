@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Business rule: only SUPER_ADMIN creates buses. Companies and customers only book.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await req.json()
     const { name, type, companyId } = body
@@ -46,15 +48,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // Resolve target companyId — SUPER_ADMIN can create buses without a company (global)
-    let targetCompanyId: string | null | undefined
-    if (session.user.role === 'COMPANY_ADMIN') {
-      targetCompanyId = session.user.companyId ?? undefined
-    } else if (session.user.role === 'SUPER_ADMIN') {
-      targetCompanyId = companyId || null
-    } else {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // SUPER_ADMIN may create buses without a company (global) or for one
+    const targetCompanyId: string | null = companyId || null
 
     console.error('[buses POST] session:', JSON.stringify({
       role: session.user.role,

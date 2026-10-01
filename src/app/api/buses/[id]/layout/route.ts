@@ -20,6 +20,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Business rule: only SUPER_ADMIN edits seat layouts.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
     const { rows, cols, aisleAfter, colsPerRow, seats } = await req.json()

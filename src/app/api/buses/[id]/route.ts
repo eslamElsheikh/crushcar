@@ -30,17 +30,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Business rule: only SUPER_ADMIN edits buses. Companies and customers only book.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
     const data = await req.json()
 
     const existing = await prisma.bus.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    // COMPANY_ADMIN can only edit their own company's buses (or global buses)
-    if (session.user.role === 'COMPANY_ADMIN' && existing.companyId !== null && existing.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     const bus = await prisma.bus.update({ where: { id }, data })
     return NextResponse.json(bus)
@@ -54,17 +51,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Business rule: only SUPER_ADMIN deletes buses. (Extended from the PUT lock: same fleet rule.)
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
 
     const existing = await prisma.bus.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    // COMPANY_ADMIN can only delete their own company's buses (or global buses)
-    if (session.user.role === 'COMPANY_ADMIN' && existing.companyId !== null && existing.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     await prisma.bus.delete({ where: { id } })
     return NextResponse.json({ success: true })

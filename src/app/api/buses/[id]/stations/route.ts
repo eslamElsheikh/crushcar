@@ -29,7 +29,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Business rule: only SUPER_ADMIN edits bus stations.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
     const { stations } = await req.json()
@@ -37,10 +38,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const bus = await prisma.bus.findUnique({ where: { id } })
     if (!bus) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    if (session.user.role === 'COMPANY_ADMIN' && bus.companyId !== null && bus.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     // Delete all existing stations and recreate
     await prisma.busStation.deleteMany({ where: { busId: id } })
