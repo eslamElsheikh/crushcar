@@ -107,12 +107,12 @@ export function V2SeatMap({
         <span className="text-[12px] font-bold text-[#5B6B84]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
       </div>
 
-      <div className="grid gap-2" role="group" aria-label={isRTL ? 'خريطة المقاعد' : 'Seat map'}>
+      <div className="grid gap-2 overflow-x-auto pb-2" role="group" aria-label={isRTL ? 'خريطة المقاعد' : 'Seat map'}>
         {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
           const rowLetter = ROWS[rowIdx];
           const count = rowSeatCount(layout, rowLetter);
           return (
-            <div key={rowIdx} className="flex items-center justify-center gap-2">
+            <div key={rowIdx} className="flex min-w-fit items-center justify-center gap-2">
               <span className="w-6 shrink-0 text-center text-[12px] font-bold tabular-nums text-[#9AA8BD]">{rowLetter}</span>
               {Array.from({ length: count }, (_, colIdx) => {
                 const col = colIdx + 1;

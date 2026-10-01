@@ -99,12 +99,12 @@ export default function TripSeatsPage() {
             <Bus className="size-5 text-[#1D5BD8]" aria-hidden="true" />
             <span className="text-[12px] font-bold text-[#5B6B84]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2 overflow-x-auto pb-2">
             {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
               const letter = ROWS[rowIdx];
               const count = rowCount(letter);
               return (
-                <div key={rowIdx} className="flex items-center justify-center gap-2">
+                <div key={rowIdx} className="flex min-w-fit items-center justify-center gap-2">
                   <span className="w-6 shrink-0 text-center text-[12px] font-bold tabular-nums text-[#9AA8BD]">{letter}</span>
                   {Array.from({ length: count }, (_, colIdx) => {
                     const col = colIdx + 1;
