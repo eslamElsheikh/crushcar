@@ -119,6 +119,8 @@ function LoginForm() {
         </Link>
       </p>
 
+      {/* Dev-only demo accounts: never rendered in production builds. */}
+      {process.env.NODE_ENV !== 'production' && (
       <div className="mt-6 rounded-2xl border border-slate-200 bg-[#F6F8FC] p-4">
         <p className="text-center text-[12.5px] font-bold text-[#5B6B84]">{t('auth.demoAccounts')}</p>
         <div className="mt-2.5 grid gap-2">
@@ -134,6 +136,7 @@ function LoginForm() {
           ))}
         </div>
       </div>
+      )}
     </V2AuthShell>
   );
 }
