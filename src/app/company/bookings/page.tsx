@@ -99,7 +99,7 @@ export default function CompanyBookingsPage() {
                 <Link key={b.id} href={`/company/bookings/${b.id}`} className="rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40">
                   <div className="flex flex-wrap items-center gap-2">
                     <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
-                      {b.status}
+                      {t(`booking.${String(b.status).toLowerCase()}`)}
                     </V2StatusBadge>
                     <span className="font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr">{b.reference}</span>
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">

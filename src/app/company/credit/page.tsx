@@ -128,7 +128,7 @@ export default function CompanyCreditPage() {
                 <div key={r.id} className="flex items-center gap-2.5 rounded-xl bg-[#F6F8FC] px-4 py-3 text-[13.5px]">
                   <span className="font-extrabold tabular-nums text-[#0B1B33]">EGP {Number(r.amount || 0).toLocaleString(locale)}</span>
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
-                    {r.status}
+                    {r.status === 'APPROVED' ? t('depositRequest.approved') : r.status === 'REJECTED' ? t('depositRequest.rejected') : t('depositRequest.pending')}
                   </V2StatusBadge>
                 </div>
               ))}

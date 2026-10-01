@@ -106,7 +106,7 @@ export default function CompanyTripRequestsPage() {
               <div key={r.id} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
-                    {r.status}
+                    {r.status === 'APPROVED' ? t('tripRequest.approved') : r.status === 'REJECTED' ? t('tripRequest.rejected') : t('tripRequest.pending')}
                   </V2StatusBadge>
                   <span className="ms-auto flex items-center gap-1.5 text-[13px] tabular-nums text-[#5B6B84]">
                     <Users className="size-4" /> {r.passengerCount}

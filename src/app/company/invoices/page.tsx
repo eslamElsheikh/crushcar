@@ -54,7 +54,11 @@ export default function CompanyInvoicesPage() {
             <V2Skeleton className="h-28 rounded-2xl" />
           </div>
         ) : invoices.length === 0 ? (
-          <V2EmptyState title={t('company.noInvoices')} />
+          <V2EmptyState
+            title={t('company.noInvoices')}
+            actionLabel={t('company.credit')}
+            onAction={() => { window.location.href = '/company/credit'; }}
+          />
         ) : (
           <div className="grid gap-3">
             {invoices.map((inv: any) => (
@@ -75,7 +79,7 @@ export default function CompanyInvoicesPage() {
                   </p>
                 </div>
                 <V2StatusBadge tone={inv.status === 'PAID' ? 'green' : inv.status === 'OVERDUE' ? 'red' : 'amber'}>
-                  {inv.status}
+                  {inv.status === 'PAID' ? t('company.invoicePaidStatus') : inv.status === 'OVERDUE' ? t('company.invoiceOverdue') : inv.status === 'PARTIAL' ? t('company.invoicePartial') : t('company.invoicePending')}
                 </V2StatusBadge>
               </div>
             ))}

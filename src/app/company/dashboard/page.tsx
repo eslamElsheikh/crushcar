@@ -136,7 +136,7 @@ export default function CompanyDashboard() {
                   </span>
                 </span>
                 <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
-                  {b.status}
+                  {t(`booking.${String(b.status).toLowerCase()}`)}
                 </V2StatusBadge>
               </Link>
             ))}

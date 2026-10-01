@@ -52,7 +52,11 @@ export default function FaqPage() {
               <V2Skeleton className="h-20 rounded-2xl" />
             </div>
           ) : faqs.length === 0 ? (
-            <V2EmptyState title={t('faq.noFaqs')} />
+            <V2EmptyState
+              title={t('faq.noFaqs')}
+              actionLabel={t('v2.browseTrips')}
+              onAction={() => { window.location.href = '/trips'; }}
+            />
           ) : (
             <div className="grid gap-3">
               {faqs.map((f) => {

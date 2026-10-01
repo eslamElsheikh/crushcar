@@ -44,7 +44,7 @@ export default function AdminCreditReport() {
           rows={companies || []}
           rowKey={(c) => c.id}
           loading={loading}
-          emptyTitle={t('company.noBookings')}
+          emptyTitle={t('company.noCompanies')}
           renderCell={(c, i) => {
             const cells = [
               <span key="n">

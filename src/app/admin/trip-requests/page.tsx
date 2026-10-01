@@ -112,7 +112,11 @@ export default function AdminTripRequests() {
             <V2Skeleton className="h-28 rounded-2xl" />
           </div>
         ) : requests.length === 0 ? (
-          <V2EmptyState title={t('tripRequest.noRequests')} />
+          <V2EmptyState
+            title={t('tripRequest.noRequests')}
+            actionLabel={t('nav.dashboard')}
+            onAction={() => { window.location.href = '/admin'; }}
+          />
         ) : (
           <div className="grid gap-3">
             {requests.map((r: any) => (
@@ -124,7 +128,7 @@ export default function AdminTripRequests() {
                       : `${r.fromStation?.name} → ${r.toStation?.name}`}
                   </p>
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
-                    {r.status}
+                    {r.status === 'APPROVED' ? t('tripRequest.approved') : r.status === 'REJECTED' ? t('tripRequest.rejected') : t('tripRequest.pending')}
                   </V2StatusBadge>
                   <span className="ms-auto text-[12.5px] tabular-nums text-[#5B6B84]">
                     {r.passengerCount} · {r.date && new Date(r.date).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}

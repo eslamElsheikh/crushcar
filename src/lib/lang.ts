@@ -621,7 +621,7 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.newPw': { ar: 'كلمة المرور الجديدة', en: 'New password' },
   'v2.confirmPw': { ar: 'تأكيد كلمة المرور', en: 'Confirm password' },
   'v2.browseTrips': { ar: 'تصفح الرحلات', en: 'Browse trips' },
-  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
+  'company.noCompanies': { ar: 'لا توجد شركات', en: 'No companies found' },  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
   'v2.noBookingsDesc': { ar: 'احجز رحلتك الأولى داخل مصر اليوم.', en: 'Book your first trip across Egypt today.' },
 }
 

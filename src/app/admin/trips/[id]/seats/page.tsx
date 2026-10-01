@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, Armchair, Loader2 } from 'lucide-react';
+import { ArrowRight, Armchair, Bus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
@@ -96,7 +96,7 @@ export default function TripSeatsPage() {
       ) : (
         <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-8">
           <div className="mb-5 flex items-center justify-center gap-2 rounded-xl bg-[#F6F8FC] py-3">
-            <span className="text-base" aria-hidden="true">🚍</span>
+            <Bus className="size-5 text-[#1D5BD8]" aria-hidden="true" />
             <span className="text-[12px] font-bold text-[#5B6B84]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
           </div>
           <div className="grid gap-2">

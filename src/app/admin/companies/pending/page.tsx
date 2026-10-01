@@ -102,7 +102,11 @@ export default function PendingCompaniesPage() {
             <V2Skeleton className="h-28 rounded-2xl" />
           </div>
         ) : companies.length === 0 ? (
-          <V2EmptyState title={isRTL ? 'لا توجد شركات معلقة' : 'No pending companies'} />
+          <V2EmptyState
+            title={isRTL ? 'لا توجد شركات معلقة' : 'No pending companies'}
+            actionLabel={t('nav.dashboard')}
+            onAction={() => { window.location.href = '/admin'; }}
+          />
         ) : (
           <div className="grid gap-3">
             {companies.map((c: any) => (

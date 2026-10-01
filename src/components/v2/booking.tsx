@@ -1,6 +1,6 @@
 'use client';
 
-import { Armchair } from 'lucide-react';
+import { Armchair, Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /* Shared V2 booking building blocks — pure UI over existing booking APIs. */
@@ -103,7 +103,7 @@ export function V2SeatMap({
   return (
     <div>
       <div className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-[#F6F8FC] py-3">
-        <span className="text-base" aria-hidden="true">🚍</span>
+        <Bus className="size-5 text-[#1D5BD8]" aria-hidden="true" />
         <span className="text-[12px] font-bold text-[#5B6B84]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
       </div>
 

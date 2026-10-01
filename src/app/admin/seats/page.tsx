@@ -85,9 +85,12 @@ export default function SeatsDashboardPage() {
             <V2Skeleton className="h-24 rounded-2xl" />
           </div>
         ) : visible.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-[14.5px] text-[#5B6B84]">
-            {t('trips.noTrips')}
-          </p>
+          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-10 text-center">
+            <p className="text-[15.5px] font-extrabold text-[#0B1B33]">{t('trips.noTrips')}</p>
+            <a href="/admin/trips/new" className="v2-btn-ghost mt-4 inline-flex px-6 py-3 text-[14.5px]">
+              {t('trips.addTrip')}
+            </a>
+          </div>
         ) : (
           <div className="grid gap-3">
             {visible.map((tr) => {
