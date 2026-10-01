@@ -14,6 +14,7 @@ import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
 import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
+import { V2DatePicker } from '@/components/v2/DatePicker';
 import {
   V2NoResults, V2ErrorState, V2TripCardSkeleton, V2StatusBadge, V2EmptyState,
 } from '@/components/v2/ui';
@@ -51,9 +52,10 @@ function durationOf(dep: string, arr: string, lang: string): string {
 }
 
 function TripCard({
-  trip, lang, index, linkBase,
+  trip, lang, index, linkBase, selectAction,
 }: {
   trip: Trip; lang: string; index: number; linkBase: (t: Trip) => string;
+  selectAction?: { label: string; onSelect: () => void };
 }) {
   const t = useLangStore((s) => s.t);
   const { left } = seatsOf(trip);
@@ -132,6 +134,10 @@ function TripCard({
             <span className="cursor-not-allowed rounded-xl bg-slate-100 px-6 py-3.5 text-[14.5px] font-bold text-slate-400">
               {t('v2.soldOut')}
             </span>
+          ) : selectAction ? (
+            <button onClick={selectAction.onSelect} className="v2-btn-primary px-6 py-3.5 text-[14.5px]">
+              {selectAction.label}
+            </button>
           ) : (
             <Link href={linkBase(trip)} className="v2-btn-primary px-6 py-3.5 text-[14.5px]">
               {t('v2.selectTrip')} →
@@ -147,6 +153,7 @@ function TripsContent() {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
   const params = useSearchParams();
 
   const [stations, setStations] = useState<Station[]>([]);
@@ -159,9 +166,11 @@ function TripsContent() {
   const [fromStationId, setFromStationId] = useState(params.get('fromStationId') || '');
   const [toStationId, setToStationId] = useState(params.get('toStationId') || '');
   const [date, setDate] = useState(params.get('date') || '');
-  const [roundTrip, setRoundTrip] = useState(false);
+  const [roundTrip, setRoundTrip] = useState(params.get('roundTrip') === '1');
   const [returnDate, setReturnDate] = useState(params.get('returnDate') || '');
   const [selectedReturnTrip, setSelectedReturnTrip] = useState<string | null>(null);
+  const [leg, setLeg] = useState<'out' | 'ret'>('out');
+  const [pickedOut, setPickedOut] = useState<Trip | null>(null);
   const [sort, setSort] = useState<SortKey>('recommended');
   const [directOnly, setDirectOnly] = useState(false);
   const [hideSoldOut, setHideSoldOut] = useState(false);
@@ -196,6 +205,8 @@ function TripsContent() {
       setTrips(Array.isArray(json.data) ? json.data : []);
       setReturnTrips(Array.isArray(json.returnTrips) ? json.returnTrips : []);
       setSelectedReturnTrip(null);
+      setPickedOut(null);
+      setLeg('out');
     } catch {
       setFailed(true);
       setTrips([]);
@@ -258,21 +269,33 @@ function TripsContent() {
           onSubmit={(e) => { e.preventDefault(); loadTrips(); }}
           className="v2-card mt-6 p-4 md:p-5"
         >
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-            <button
-              type="button"
-              onClick={() => { setRoundTrip(!roundTrip); setSelectedReturnTrip(null); if (roundTrip) setReturnDate(''); }}
-              aria-pressed={roundTrip}
-              className={cn(
-                'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[14px] font-bold transition',
-                roundTrip ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 text-[#5B6B84]'
-              )}
-            >
-              <Repeat className="size-4" /> {t('v2.roundTrip')}
-            </button>
-            {roundTrip && (
-              <V2StatusBadge tone="green">{t('v2.oneWay')} + {t('v2.roundTrip')}</V2StatusBadge>
-            )}
+          <div className="flex gap-1 rounded-xl bg-[#F1F4F9] p-1.5" role="tablist" aria-label={t('v2.tripType')}>
+            {(
+              [
+                { key: false, label: t('v2.oneWay') },
+                { key: true, label: t('v2.roundTrip') },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={String(tab.key)}
+                type="button"
+                role="tab"
+                aria-selected={roundTrip === tab.key}
+                onClick={() => {
+                  setRoundTrip(tab.key);
+                  setSelectedReturnTrip(null);
+                  setPickedOut(null);
+                  setLeg('out');
+                  if (!tab.key) setReturnDate('');
+                }}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[14px] font-bold transition',
+                  roundTrip === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]'
+                )}
+              >
+                {tab.key && <Repeat className="size-4" />} {tab.label}
+              </button>
+            ))}
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
@@ -299,13 +322,22 @@ function TripsContent() {
               </span>
             </V2Field>
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-              <V2Field label={t('v2.date')}>
-                <V2Input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('v2.date')} className="tabular-nums" />
-              </V2Field>
+              <div className="grid gap-2">
+                <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.date')}</span>
+                <V2DatePicker
+                  value={date}
+                  onChange={(v) => {
+                    setDate(v);
+                    if (roundTrip && returnDate && returnDate < v) setReturnDate(v);
+                  }}
+                  label={t('v2.date')}
+                />
+              </div>
               {roundTrip && (
-                <V2Field label={t('v2.travelDate')}>
-                  <V2Input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} aria-label={t('v2.travelDate')} className="tabular-nums" />
-                </V2Field>
+                <div className="grid gap-2">
+                  <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.returnDate')}</span>
+                  <V2DatePicker value={returnDate} onChange={setReturnDate} min={date || undefined} label={t('v2.returnDate')} />
+                </div>
               )}
             </div>
             <div className="flex items-end gap-2">
@@ -388,59 +420,60 @@ function TripsContent() {
               actionLabel={t('v2.clearFilters')}
               onAction={() => { setFromStationId(''); setToStationId(''); setDate(''); setReturnDate(''); setDirectOnly(false); setHideSoldOut(false); }}
             />
-          ) : (
+          ) : !roundTrip ? (
             <div className="grid gap-4">
               {visible.map((trip, i) => (
                 <TripCard key={trip.id} trip={trip} lang={lang} index={i} linkBase={linkBase} />
               ))}
             </div>
-          )}
-
-          {/* ── RETURN TRIPS ── */}
-          {!loading && !failed && roundTrip && (
-            <div className="mt-10">
-              <div className="mb-4 flex items-center gap-3">
-                <span className="h-6 w-1 rounded-full bg-emerald-500" />
-                <h2 className="text-[20px] font-extrabold text-[#0B1B33]">
-                  {isRTL ? 'رحلة العودة' : 'Return trip'}
-                </h2>
-                {selectedReturnTrip && <V2StatusBadge tone="green">{isRTL ? 'تم الاختيار' : 'Selected'}</V2StatusBadge>}
+          ) : leg === 'out' ? (
+            <div>
+              <div className="mb-4 flex items-center gap-2" aria-label={t('v2.outboundStep')}>
+                <span className="rounded-full bg-[#0A1E3C] px-3.5 py-2 text-[13px] font-bold tabular-nums text-white">1 · {t('v2.outboundStep')}</span>
+                <span className="rounded-full bg-white px-3.5 py-2 text-[13px] font-bold text-[#5B6B84] ring-1 ring-slate-200">2 · {t('v2.returnStep')}</span>
+              </div>
+              <div className="grid gap-4">
+                {visible.map((trip, i) => (
+                  <TripCard
+                    key={trip.id} trip={trip} lang={lang} index={i} linkBase={linkBase}
+                    selectAction={{
+                      label: t('v2.pickOutbound'),
+                      onSelect: () => {
+                        setPickedOut(trip);
+                        setSelectedReturnTrip(null);
+                        setLeg('ret');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      },
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="mb-4 flex items-center gap-2" aria-label={t('v2.returnStep')}>
+                <button
+                  onClick={() => setLeg('out')}
+                  className="rounded-full bg-emerald-50 px-3.5 py-2 text-[13px] font-bold text-emerald-700 hover:bg-emerald-100"
+                >
+                  ✓ 1 · {t('v2.outboundStep')}
+                </button>
+                <span className="rounded-full bg-[#0A1E3C] px-3.5 py-2 text-[13px] font-bold tabular-nums text-white">2 · {t('v2.returnStep')}</span>
               </div>
               {returnTrips.length > 0 ? (
-                <div className="grid gap-3">
-                  {returnTrips.map((rt) => {
-                    const { left } = seatsOf(rt);
+                <div className="grid gap-4">
+                  {returnTrips.map((rt, i) => {
                     const selected = selectedReturnTrip === rt.id;
                     return (
-                      <button
-                        key={rt.id} type="button" onClick={() => setSelectedReturnTrip(rt.id)}
-                        aria-pressed={selected}
-                        className={cn(
-                          'v2-card flex items-center gap-4 p-5 text-start transition',
-                          selected && 'border-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.4)]'
-                        )}
-                      >
-                        <span className={cn('grid size-6 shrink-0 place-items-center rounded-full border-2', selected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300')}>
-                          {selected && <span className="size-2 rounded-full bg-white" />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15.5px] font-extrabold text-[#0B1B33]">
-                            {isRTL ? `${rt.destination} ← ${rt.origin}` : `${rt.origin} → ${rt.destination}`}
-                          </span>
-                          <span className="mt-1 block text-[13px] tabular-nums text-[#5B6B84]">
-                            {new Date(rt.departure).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' })}
-                            {' · '}
-                            {new Date(rt.departure).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
-                          {(rt.calculatedPrice || rt.price).toLocaleString(isRTL ? 'ar-EG' : 'en-US')}
-                          <span className="ms-1 text-[12px] font-medium text-[#5B6B84]">EGP</span>
-                        </span>
-                        <span className="hidden shrink-0 text-[12.5px] tabular-nums text-[#5B6B84] sm:block">
-                          {left} {t('v2.seatsLeft')}
-                        </span>
-                      </button>
+                      <div key={rt.id} className={cn(selected && 'rounded-2xl ring-2 ring-emerald-500')}>
+                        <TripCard
+                          trip={rt} lang={lang} index={i} linkBase={linkBase}
+                          selectAction={{
+                            label: selected ? (isRTL ? 'تم اختيار العودة ✓' : 'Return picked ✓') : t('v2.pickReturn'),
+                            onSelect: () => setSelectedReturnTrip(rt.id),
+                          }}
+                        />
+                      </div>
                     );
                   })}
                 </div>
@@ -451,6 +484,52 @@ function TripsContent() {
               )}
             </div>
           )}
+
+          {/* ── RT SUMMARY BAR ── */}
+          {roundTrip && pickedOut && !loading && !failed && (
+            <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border border-[#E6EBF2] bg-white/95 p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)] backdrop-blur md:p-5">
+              <div className="grid gap-2.5 text-[13.5px] sm:grid-cols-2">
+                <p className="truncate font-bold text-[#0B1B33]">
+                  <span className="text-[#5B6B84]">{t('v2.outboundStep')}: </span>
+                  {isRTL ? `${pickedOut.destination} ← ${pickedOut.origin}` : `${pickedOut.origin} → ${pickedOut.destination}`}
+                  {' · '}<span className="tabular-nums">EGP {(pickedOut.calculatedPrice || pickedOut.price).toLocaleString(locale)}</span>
+                </p>
+                <p className="truncate font-bold text-[#0B1B33]">
+                  <span className="text-[#5B6B84]">{t('v2.returnStep')}: </span>
+                  {(() => {
+                    const rt = returnTrips.find((x) => x.id === selectedReturnTrip);
+                    return rt
+                      ? `${isRTL ? `${rt.destination} ← ${rt.origin}` : `${rt.origin} → ${rt.destination}`} · EGP ${(rt.calculatedPrice || rt.price).toLocaleString(locale)}`
+                      : '…';
+                  })()}
+                </p>
+              </div>
+              <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3">
+                <p className="text-[18px] font-extrabold tabular-nums text-[#0B1B33]">
+                  {t('v2.total')}: EGP {(
+                    (pickedOut.calculatedPrice || pickedOut.price) +
+                    (() => {
+                      const rt = returnTrips.find((x) => x.id === selectedReturnTrip);
+                      return rt ? (rt.calculatedPrice || rt.price) : 0;
+                    })()
+                  ).toLocaleString(locale)}
+                </p>
+                {selectedReturnTrip ? (
+                  <Link
+                    href={`/trips/${pickedOut.id}?fromStationId=${fromStationId}&toStationId=${toStationId}&returnTripId=${selectedReturnTrip}&returnDate=${returnDate}`}
+                    className="v2-btn-primary ms-auto px-6 py-3.5 text-[14.5px]"
+                  >
+                    {t('v2.continue')} →
+                  </Link>
+                ) : (
+                  <span className="ms-auto rounded-xl bg-slate-100 px-6 py-3.5 text-[14.5px] font-bold text-slate-400">
+                    {t('v2.pickReturn')}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
 
