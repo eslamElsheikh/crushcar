@@ -130,7 +130,7 @@ export default function V2HomePage() {
       {/* ── HERO ── */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <Image src="/v2/hero.jpg" alt="" fill priority className="object-cover" />
+          <Image src="/v2/hero-egypt.png" alt="" fill priority className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#0B1B33]/70 via-[#0B1B33]/35 to-[#0B1B33]/55" />
         </div>
         <div className="v2-container relative pb-12 pt-28 md:pb-16 md:pt-32">

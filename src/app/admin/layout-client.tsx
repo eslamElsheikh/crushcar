@@ -12,6 +12,7 @@ import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import '@/components/v2/theme.css';
+import { V2Logo } from '@/components/v2/Logo';
 
 const navItems = [
   { href: '/admin', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
@@ -67,12 +68,8 @@ export default function AdminLayoutClient({ session, children }: { session: any;
     <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="flex min-h-dvh">
         <aside className="hidden w-64 shrink-0 flex-col bg-[#0A1E3C] md:flex">
-          <Link href="/" className="flex items-center gap-2.5 p-6 pb-5" aria-label="Safro">
-            <span className="grid size-9 place-items-center rounded-xl bg-[#1D5BD8] text-[17px] font-black text-white">S</span>
-            <span>
-              <span className="block text-[17px] font-extrabold leading-tight text-white">Safro</span>
-              <span className="block text-[11px] font-semibold uppercase text-white/50">{t('nav.admin')}</span>
-            </span>
+          <Link href="/" className="p-6 pb-5" aria-label="Safro">
+            <V2Logo height={36} />
           </Link>
           <div className="flex-1 overflow-y-auto">{nav}</div>
           <div className="border-t border-white/10 p-4">
@@ -92,9 +89,9 @@ export default function AdminLayoutClient({ session, children }: { session: any;
             <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} className="grid size-10 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]">
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-            <span className="flex items-center gap-2 text-[16px] font-extrabold text-[#0B1B33]">
-              <span className="grid size-8 place-items-center rounded-lg bg-[#1D5BD8] text-[14px] font-black text-white">S</span>
-              Safro · {t('nav.admin')}
+            <span className="flex items-center gap-2">
+              <V2Logo height={30} />
+              <span className="text-[13px] font-bold text-[#5B6B84]">{t('nav.admin')}</span>
             </span>
           </div>
           {mobileOpen && (

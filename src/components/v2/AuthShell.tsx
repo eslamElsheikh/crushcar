@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Globe } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
+import { V2Logo } from './Logo';
 
 /** Split-screen auth shell: form + Egypt travel visual. Logical props throughout. */
 export function V2AuthShell({
@@ -29,9 +30,8 @@ export function V2AuthShell({
       <div className="grid min-h-dvh lg:grid-cols-[1fr_1fr]">
         <div className="flex flex-col px-5 py-6 sm:px-10">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2.5" aria-label="Safro">
-              <span className="grid size-9 place-items-center rounded-xl bg-[#1D5BD8] text-[17px] font-black text-white">S</span>
-              <span className="text-balance text-[21px] font-extrabold text-[#0B1B33]">Safro</span>
+            <Link href="/" aria-label="Safro">
+              <V2Logo height={40} />
             </Link>
             <button
               onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
@@ -49,7 +49,7 @@ export function V2AuthShell({
         </div>
 
         <div className="relative hidden overflow-hidden lg:block">
-          <Image src="/v2/hero.jpg" alt="" fill priority sizes="50vw" className="object-cover" />
+          <Image src="/v2/hero-egypt.png" alt="" fill priority sizes="50vw" className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B1B33]/85 via-[#0B1B33]/25 to-[#0B1B33]/10" />
           <div className="absolute inset-x-0 bottom-0 p-10">
             <p className="max-w-[420px] text-balance text-[24px] font-extrabold leading-snug text-white">{sideTitle}</p>

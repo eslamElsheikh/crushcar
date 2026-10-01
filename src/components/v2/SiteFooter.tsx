@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Linkedin, Twitter, Instagram, Youtube, ArrowRight, Globe } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
+import { V2Logo } from './Logo';
 
 export function V2SiteFooter() {
   const t = useLangStore((s) => s.t);
@@ -15,9 +16,8 @@ export function V2SiteFooter() {
     <footer className="bg-[#0A1628] text-white">
       <div className="v2-container grid gap-10 py-14 md:grid-cols-[1.2fr_1fr_1fr_1.3fr]">
         <div>
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Safro">
-            <span className="grid size-9 place-items-center rounded-xl bg-[#1D5BD8] text-[17px] font-black text-white">S</span>
-            <span className="text-[21px] font-extrabold">Safro</span>
+          <Link href="/" aria-label="Safro">
+            <V2Logo height={40} />
           </Link>
           <p className="mt-4 max-w-[260px] text-pretty text-[14.5px] leading-relaxed text-white/60">{t('v2.footerTag')}</p>
           <div className="mt-5 flex gap-4 text-white/70">

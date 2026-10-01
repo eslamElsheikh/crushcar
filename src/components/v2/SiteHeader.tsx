@@ -6,6 +6,7 @@ import { Menu, X, Globe, ChevronDown, LogOut, User } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
+import { V2Logo } from './Logo';
 
 /** V2 public header. `overlay` renders white text over the hero image. */
 export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
@@ -39,11 +40,8 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
       {!overlay && <div className="border-b border-[#E6EBF2]" />}
       <div className="v2-container flex items-center justify-between py-4">
         <div className="flex items-center gap-10">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Safro">
-            <span className="grid size-9 place-items-center rounded-xl bg-[#1D5BD8] text-[17px] font-black text-white">S</span>
-            <span className={cn('text-balance text-[21px] font-extrabold', light ? 'text-white' : 'text-[#0B1B33]')}>
-              Safro
-            </span>
+          <Link href="/" className="flex items-center" aria-label="Safro">
+            <V2Logo height={38} />
           </Link>
           <nav className="hidden items-center gap-7 text-[14.5px] font-semibold lg:flex" aria-label="Primary">
             {links}
@@ -59,6 +57,9 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
           >
             <Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'EN'}
           </button>
+          <Link href="/trips" className="v2-btn-primary px-5 py-3 text-[14.5px]">
+            {t('v2.bookTrip')}
+          </Link>
           {session ? (
             <div className="relative">
               <button
@@ -100,13 +101,15 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
               )}
             </div>
           ) : (
-            <Link href="/login" className={cn('px-3 py-2.5 text-[14.5px] font-semibold', light ? 'text-white' : 'text-[#0B1B33]')}>
-              {t('v2.login')}
-            </Link>
+            <>
+              <Link href="/login" className={cn('px-2 py-2.5 text-[14.5px] font-semibold', light ? 'text-white' : 'text-[#0B1B33]')}>
+                {t('v2.login')}
+              </Link>
+              <Link href="/register" className={cn('px-2 py-2.5 text-[14.5px] font-semibold', light ? 'text-white' : 'text-[#0B1B33]')}>
+                {t('auth.createAccount')}
+              </Link>
+            </>
           )}
-          <Link href="/trips" className="v2-btn-primary px-5 py-3 text-[14.5px]">
-            {t('v2.bookTrip')}
-          </Link>
         </div>
         <button
           className={cn(
@@ -127,14 +130,17 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/trips" onClick={() => setOpen(false)}>{t('v2.trips')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/#destinations" onClick={() => setOpen(false)}>{t('v2.destinations')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/#b2b" onClick={() => setOpen(false)}>{t('v2.forBusiness')}</Link>
-            {session ? (
+          {session ? (
               <>
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/bookings" onClick={() => setOpen(false)}>{t('v2.myBookings')}</Link>
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/profile" onClick={() => setOpen(false)}>{t('v2.account')}</Link>
                 <button className="rounded-xl px-4 py-3.5 text-start text-red-600 hover:bg-slate-100" onClick={() => { setOpen(false); signOut({ callbackUrl: '/' }); }}>{lang === 'ar' ? 'خروج' : 'Sign Out'}</button>
               </>
             ) : (
-              <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/login" onClick={() => setOpen(false)}>{t('v2.login')}</Link>
+              <>
+                <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/login" onClick={() => setOpen(false)}>{t('v2.login')}</Link>
+                <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/register" onClick={() => setOpen(false)}>{t('auth.createAccount')}</Link>
+              </>
             )}
           </nav>
           <div className="mt-2 flex items-center gap-2 border-t border-slate-100 pt-3">
