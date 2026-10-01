@@ -1,206 +1,170 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Wallet, Building2, Calendar, CheckCircle, XCircle, Clock, X } from 'lucide-react'
-import { useLangStore } from '@/lib/lang'
+import { useCallback, useEffect, useState } from 'react';
+import { Check, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2Modal } from '@/components/v2/admin';
+import { V2Input } from '@/components/v2/Field';
+import { V2Button } from '@/components/v2/Button';
+import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';
 
-interface DepositRequest {
-  id: string
-  company: { id: string; name: string }
-  amount: number
-  status: string
-  adminNotes: string
-  createdAt: string
-}
+/* V2 deposit requests — same filter/approve/reject APIs as V1. */
 
-export default function AdminDepositRequests() {
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
+type Filter = '' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
-  const [requests, setRequests] = useState<DepositRequest[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('PENDING')
-  const [processing, setProcessing] = useState<string | null>(null)
-  const [rejectModal, setRejectModal] = useState<DepositRequest | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
+export default function DepositRequestsPage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
 
-  useEffect(() => { loadRequests() }, [filter])
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>('');
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<any>(null);
+  const [reason, setReason] = useState('');
 
-  async function loadRequests() {
-    setLoading(true)
-    const res = await fetch(`/api/admin/deposit-requests?status=${filter}`, { credentials: 'include' })
-    const json = await res.json()
-    setRequests(json.data || [])
-    setLoading(false)
-  }
+  const load = useCallback(async (f: Filter) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/deposit-requests?status=${f}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setRequests(Array.isArray(data) ? data : data.data || []);
+      }
+    } catch { /* keep list */ } finally { setLoading(false); }
+  }, []);
 
-  async function handleApprove(req: DepositRequest) {
-    setProcessing(req.id)
-    const res = await fetch(`/api/admin/deposit-requests/${req.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ status: 'APPROVED' }),
-    })
-    setProcessing(null)
-    if (res.ok) {
-      setRequests(prev => prev.filter(r => r.id !== req.id))
+  useEffect(() => { load(filter); }, [load, filter]);
+
+  async function approve(req: any) {
+    setProcessing(req.id);
+    try {
+      const res = await fetch(`/api/admin/deposit-requests/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
+      if (res.ok) {
+        setRequests((prev) => prev.filter((x) => x.id !== req.id));
+        toast.success(t('depositRequest.approvedMsg'));
+      } else {
+        toast.error(t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setProcessing(null);
     }
   }
 
-  async function handleReject() {
-    if (!rejectModal || !rejectReason.trim()) return
-    setProcessing(rejectModal.id)
-    const res = await fetch(`/api/admin/deposit-requests/${rejectModal.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ status: 'REJECTED', adminNotes: rejectReason }),
-    })
-    setProcessing(null)
-    setRejectModal(null)
-    setRejectReason('')
-    if (res.ok) {
-      setRequests(prev => prev.filter(r => r.id !== rejectModal.id))
+  async function reject() {
+    if (!rejecting || !reason.trim()) return;
+    setProcessing(rejecting.id);
+    try {
+      const res = await fetch(`/api/admin/deposit-requests/${rejecting.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'REJECTED', adminNotes: reason }),
+      });
+      if (res.ok) {
+        setRequests((prev) => prev.filter((x) => x.id !== rejecting.id));
+        setRejecting(null);
+        setReason('');
+        toast.success(t('depositRequest.rejectedMsg'));
+      } else {
+        toast.error(t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setProcessing(null);
     }
   }
 
-  const tabs = [
-    { key: 'PENDING', label: t('depositRequest.pending') },
-    { key: 'APPROVED', label: t('depositRequest.approved') },
-    { key: 'REJECTED', label: t('depositRequest.rejected') },
-  ]
+  const filters: Filter[] = ['', 'PENDING', 'APPROVED', 'REJECTED'];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold text-white">{t('admin.depositRequests')}</h1>
-        <p className="text-sm text-zinc-500 mt-1">{t('depositRequest.title')}</p>
-      </div>
+    <div>
+      <V2PageHeader title={t('admin.depositRequests')} sub={isRTL ? `${requests.length} طلب` : `${requests.length} requests`} />
 
-      <div className="flex gap-2">
-        {tabs.map(tab => (
+      <div className="mt-5 flex flex-wrap gap-1.5">
+        {filters.map((f) => (
           <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-              filter === tab.key
-                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
-                : 'bg-white/5 text-zinc-400 hover:text-white border border-transparent'
-            }`}
+            key={f || 'all'}
+            onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
+            className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-white text-[#5B6B84]'}`}
           >
-            {tab.label}
+            {f || (isRTL ? 'الكل' : 'All')}
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-zinc-500">{t('common.loading')}</div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-20">
-          <p className="text-zinc-500">{t('depositRequest.noRequests')}</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((req) => (
-            <motion.div
-              key={req.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl p-5 border border-white/5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="flex items-center gap-2 text-white text-sm">
-                      <Building2 size={14} className="text-blue-400" />
-                      <span className="font-medium">{req.company.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-white text-sm">
-                      <Wallet size={14} className="text-emerald-400" />
-                      <span className="font-semibold">{req.amount.toFixed(2)} EGP</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-zinc-500">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      {new Date(req.createdAt).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US')}
-                    </span>
-                  </div>
-                  {req.adminNotes && (
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                      <p className="text-xs text-zinc-400 mb-1">{t('depositRequest.adminNotes')}</p>
-                      <p className="text-sm text-zinc-300">{req.adminNotes}</p>
-                    </div>
-                  )}
+      <div className="mt-4">
+        {loading ? (
+          <div className="grid gap-3" role="status">
+            <V2Skeleton className="h-28 rounded-2xl" />
+            <V2Skeleton className="h-28 rounded-2xl" />
+          </div>
+        ) : requests.length === 0 ? (
+          <V2EmptyState title={t('depositRequest.noRequests')} />
+        ) : (
+          <div className="grid gap-3">
+            {requests.map((r: any) => (
+              <div key={r.id} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
+                    EGP {Number(r.amount || 0).toLocaleString(locale)}
+                  </p>
+                  <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
+                    {r.status}
+                  </V2StatusBadge>
+                  <span className="ms-auto text-[12.5px] tabular-nums text-[#5B6B84]">
+                    {r.createdAt && new Date(r.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                  </span>
                 </div>
-
-                {filter === 'PENDING' && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleApprove(req)}
-                      disabled={processing === req.id}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-sm font-medium transition disabled:opacity-50"
-                    >
-                      <CheckCircle size={16} />
+                <p className="mt-1.5 text-[14px] font-semibold text-[#0B1B33]">
+                  {r.company?.name || r.companyName || ''}
+                </p>
+                {r.status === 'PENDING' && (
+                  <div className="mt-3.5 flex gap-2">
+                    <V2Button disabled={processing === r.id} onClick={() => approve(r)} className="flex-1">
+                      {processing === r.id ? <Loader2 className="size-5 animate-spin" /> : <Check className="size-5" />}
                       {t('depositRequest.approve')}
-                    </button>
+                    </V2Button>
                     <button
-                      onClick={() => { setRejectModal(req); setRejectReason('') }}
-                      disabled={processing === req.id}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-sm font-medium transition disabled:opacity-50"
+                      onClick={() => { setRejecting(r); setReason(''); }}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-50 py-3 text-[14.5px] font-bold text-red-600 hover:bg-red-100"
                     >
-                      <XCircle size={16} />
-                      {t('depositRequest.reject')}
+                      <X className="size-5" /> {t('depositRequest.reject')}
                     </button>
                   </div>
                 )}
               </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      <AnimatePresence>
-        {rejectModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setRejectModal(null)}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="glass rounded-2xl p-6 border border-white/5 max-w-md w-full mx-4"
-              onClick={e => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-bold text-white mb-4">{t('depositRequest.reject')}</h3>
-              <p className="text-sm text-zinc-400 mb-4">{t('depositRequest.reason')}</p>
-              <textarea
-                value={rejectReason}
-                onChange={e => setRejectReason(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500/50 text-sm resize-none mb-4"
-                placeholder={t('depositRequest.adminNotes')}
-              />
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setRejectModal(null)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-sm transition"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={!rejectReason.trim() || processing === rejectModal.id}
-                  className="px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition disabled:opacity-50"
-                >
-                  {t('depositRequest.reject')}
-                </button>
-              </div>
-            </motion.div>
+            ))}
           </div>
         )}
-      </AnimatePresence>
+      </div>
+
+      <V2Modal open={!!rejecting} onClose={() => setRejecting(null)} title={t('depositRequest.reject')}>
+        <V2Input
+          value={reason} onChange={(e) => setReason(e.target.value)}
+          placeholder={t('depositRequest.reason')} aria-label={t('depositRequest.reason')} autoFocus
+        />
+        <div className="mt-4 grid grid-cols-2 gap-2.5">
+          <button onClick={() => setRejecting(null)} className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]">
+            {t('common.cancel')}
+          </button>
+          <V2Button disabled={processing !== null || !reason.trim()} onClick={reject}>
+            {processing ? <Loader2 className="size-5 animate-spin" /> : null} {t('common.confirm')}
+          </V2Button>
+        </div>
+      </V2Modal>
     </div>
-  )
+  );
 }

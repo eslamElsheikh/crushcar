@@ -1,207 +1,156 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { XCircle, CheckCircle, Clock, MapPin, User, Ticket, Building2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { useLangStore } from '@/lib/lang'
-import { cn } from '@/lib/utils'
+import { useCallback, useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useLangStore } from '@/lib/lang';
+import { V2PageHeader, V2Tabs } from '@/components/v2/admin';
+import { V2StatusBadge, V2Skeleton } from '@/components/v2/ui';
 
-type BookType = 'customer' | 'company'
-type Tier = 'fullRefund' | 'partial50' | 'partial25' | 'noRefund'
+/* V2 cancellations — same tiered refund queue + process API as V1. */
 
-const tierConfig: Record<Tier, { label: { ar: string; en: string }; color: string }> = {
-  fullRefund: { label: { ar: 'استرداد كامل (> 24 ساعة)', en: 'Full Refund (> 24h)' }, color: 'border-emerald-500/20 bg-emerald-500/5' },
-  partial50: { label: { ar: 'استرداد 50% (12-24 ساعة)', en: '50% Refund (12-24h)' }, color: 'border-amber-500/20 bg-amber-500/5' },
-  partial25: { label: { ar: 'استرداد 25% (4-12 ساعة)', en: '25% Refund (4-12h)' }, color: 'border-orange-500/20 bg-orange-500/5' },
-  noRefund: { label: { ar: 'لا استرداد (< 4 ساعة)', en: 'No Refund (< 4h)' }, color: 'border-red-500/20 bg-red-500/5' },
-}
+type Tier = 'fullRefund' | 'partial50' | 'partial25' | 'noRefund';
+type Source = 'customer' | 'company';
 
-export default function AdminCancellationsPage() {
-  const t = useLangStore((s) => s.t)
-  const lang = useLangStore((s) => s.lang)
-  const isRTL = lang === 'ar'
-  const [type, setType] = useState<BookType>('customer')
-  const [data, setData] = useState<{ total: number; tiers: Record<Tier, any[]> } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [processing, setProcessing] = useState<string | null>(null)
+const tierMeta: Record<Tier, { tone: 'green' | 'amber' | 'red'; pct: string }> = {
+  fullRefund: { tone: 'green', pct: '100%' },
+  partial50: { tone: 'amber', pct: '50%' },
+  partial25: { tone: 'amber', pct: '25%' },
+  noRefund: { tone: 'red', pct: '0%' },
+};
 
-  useEffect(() => {
-    setLoading(true)
-    fetch(`/api/admin/cancellations?type=${type}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => setData(d))
-      .catch(() => toast.error('Failed to load'))
-      .finally(() => setLoading(false))
-  }, [type])
+export default function CancellationsPage() {
+  const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
 
-  const processRefund = async (id: string) => {
-    setProcessing(id)
+  const [tiers, setTiers] = useState<Record<Tier, any[]>>({ fullRefund: [], partial50: [], partial25: [], noRefund: [] });
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<Source>('customer');
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  const load = useCallback(async (type: Source) => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/admin/cancellations/${id}`, {
+      const res = await fetch(`/api/admin/cancellations?type=${type}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setTiers(data.tiers || { fullRefund: [], partial50: [], partial25: [], noRefund: [] });
+        setTotal(data.total || 0);
+      }
+    } catch { /* keep view */ } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(source); }, [load, source]);
+
+  const tierLabel = (k: Tier) =>
+    k === 'fullRefund' ? (isRTL ? 'استرداد كامل (> 24 ساعة)' : 'Full Refund (> 24h)')
+    : k === 'partial50' ? (isRTL ? 'استرداد 50% (12-24 ساعة)' : '50% Refund (12-24h)')
+    : k === 'partial25' ? (isRTL ? 'استرداد 25% (4-12 ساعة)' : '25% Refund (4-12h)')
+    : (isRTL ? 'لا استرداد (< 4 ساعات)' : 'No Refund (< 4h)');
+
+  async function process(item: any) {
+    setProcessing(item.id);
+    try {
+      const res = await fetch(`/api/admin/cancellations/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
-      })
+        credentials: 'include',
+        body: JSON.stringify({ type: source }),
+      });
       if (res.ok) {
-        toast.success(isRTL ? 'تم صرف المبلغ' : 'Refund processed')
-        setData(prev => {
-          if (!prev) return prev
-          const tiers = { ...prev.tiers }
-          for (const key of Object.keys(tiers) as Tier[]) {
-            tiers[key] = tiers[key].filter((b: any) => b.id !== id)
-          }
-          return { ...prev, tiers, total: prev.total - 1 }
-        })
+        toast.success(isRTL ? 'تم صرف المبلغ' : 'Refund processed');
+        setTiers((prev) => {
+          const next = { ...prev };
+          (Object.keys(next) as Tier[]).forEach((k) => {
+            next[k] = next[k].filter((b: any) => b.id !== item.id);
+          });
+          return next;
+        });
+        setTotal((x) => Math.max(0, x - 1));
       } else {
-        const err = await res.json()
-        toast.error(err.error || 'Error')
+        toast.error((await res.json()).error || t('common.error'));
       }
     } catch {
-      toast.error('Server error')
+      toast.error(t('common.error'));
     } finally {
-      setProcessing(null)
+      setProcessing(null);
     }
   }
 
+  const shown: Tier[] = ['fullRefund', 'partial50', 'partial25', 'noRefund'];
+
   return (
-    <div className={cn(isRTL && 'font-[Cairo]')}>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">
-            {isRTL ? 'الإلغاءات' : 'Cancellations'}
-          </h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            {data ? `${data.total} ${isRTL ? 'في انتظار المعالجة' : 'pending'}` : ''}
-          </p>
-        </div>
-        <div className="flex gap-2 p-1 rounded-xl bg-zinc-800/50 border border-zinc-700/50">
-          <button
-            onClick={() => setType('customer')}
-            className={cn('px-4 py-2 rounded-lg text-sm font-medium transition', type === 'customer' ? 'bg-blue-500 text-white' : 'text-zinc-400 hover:text-white')}
-          >
-            {isRTL ? 'العملاء' : 'Customers'}
-          </button>
-          <button
-            onClick={() => setType('company')}
-            className={cn('px-4 py-2 rounded-lg text-sm font-medium transition', type === 'company' ? 'bg-blue-500 text-white' : 'text-zinc-400 hover:text-white')}
-          >
-            {isRTL ? 'الشركات' : 'Companies'}
-          </button>
-        </div>
+    <div>
+      <V2PageHeader
+        title={t('admin.cancellations')}
+        sub={isRTL ? `${total} طلب استرداد` : `${total} refund requests`}
+      />
+
+      <div className="mt-5">
+        <V2Tabs
+          active={source}
+          onChange={setSource}
+          tabs={[
+            { key: 'customer', label: isRTL ? 'عملاء' : 'Customers' },
+            { key: 'company', label: isRTL ? 'شركات' : 'Companies' },
+          ]}
+        />
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : data && data.total > 0 ? (
-        <div className="space-y-8">
-          {(Object.entries(tierConfig) as [Tier, typeof tierConfig[Tier]][]).map(([key, cfg]) => {
-            const items = data.tiers[key] || []
-            if (items.length === 0) return null
-            return (
-              <motion.div key={key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <h2 className={cn('text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2', cfg.color.split(' ')[1]?.replace('bg-', 'text-') || 'text-zinc-400')}>
-                  <Clock size={14} />
-                  {cfg.label[lang]} ({items.length})
-                </h2>
-                <div className="space-y-3">
-                  {items.map((item: any) => (
-                    <div key={item.id} className={cn('glass rounded-2xl p-5 border', cfg.color)}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold text-blue-400 bg-blue-500/5 px-2.5 py-1 rounded-lg border border-blue-500/10">
-                              {item.reference}
-                            </span>
-                            {type === 'company' && item.company && (
-                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                <Building2 size={10} />
-                                {item.company.name}
-                              </span>
-                            )}
-                            {type === 'customer' && (
-                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                <User size={10} />
-                                {item.user?.name || '-'}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-400">
-                            <span className="flex items-center gap-1">
-                              <MapPin size={13} className="text-blue-400" />
-                              {item.trip.origin} → {item.trip.destination}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock size={13} className="text-amber-400" />
-                              {new Date(item.trip.departure).toLocaleString()}
-                            </span>
-                            <span className="font-mono text-xs bg-zinc-800 px-2 py-0.5 rounded text-zinc-300">
-                              {item.seatLabel}
-                            </span>
-                            <span className="flex items-center gap-1 text-emerald-400">
-                              <User size={13} />
-                              {item.passengerName || '-'}
-                            </span>
-                          </div>
-
-                          {item.cancellationReason && (
-                            <p className="text-xs text-zinc-500 italic">
-                              {isRTL ? 'السبب' : 'Reason'}: {item.cancellationReason}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-white">{item.total.toFixed(2)} EGP</p>
-                            {item.refundAmount > 0 && (
-                              <p className="text-xs text-emerald-400">
-                                {isRTL ? 'الاسترداد' : 'Refund'}: {item.refundAmount.toFixed(2)} EGP
-                              </p>
-                            )}
-                            {item.cancellationFee > 0 && (
-                              <p className="text-xs text-red-400">
-                                {isRTL ? 'الرسوم' : 'Fee'}: {item.cancellationFee.toFixed(2)} EGP
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => processRefund(item.id)}
-                            disabled={processing === item.id}
-                            className={cn(
-                              'inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition',
-                              'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30',
-                              processing === item.id && 'opacity-50'
-                            )}
-                          >
-                            <CheckCircle size={14} />
-                            {processing === item.id
-                              ? (isRTL ? 'جارٍ...' : 'Processing...')
-                              : (isRTL ? 'تم الدفع' : 'Process Refund')}
-                          </button>
-                        </div>
+      <div className="mt-4">
+        {loading ? (
+          <div className="grid gap-3" role="status">
+            <V2Skeleton className="h-28 rounded-2xl" />
+            <V2Skeleton className="h-28 rounded-2xl" />
+          </div>
+        ) : (
+          <div className="grid gap-5">
+            {shown.map((k) => (
+              <section key={k} aria-label={tierLabel(k)}>
+                <div className="mb-2.5 flex items-center gap-2.5">
+                  <V2StatusBadge tone={tierMeta[k].tone}>{tierMeta[k].pct}</V2StatusBadge>
+                  <p className="text-[14.5px] font-extrabold text-[#0B1B33]">
+                    {tierLabel(k)} · <span className="tabular-nums">{tiers[k]?.length || 0}</span>
+                  </p>
+                </div>
+                <div className="grid gap-2.5">
+                  {(tiers[k] || []).map((b: any) => (
+                    <div key={b.id} className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-[#E6EBF2] bg-white p-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[14.5px] font-extrabold text-[#0B1B33]">
+                          {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
+                          {source === 'company' && b.company ? ` · ${b.company.name || ''}` : ''}
+                        </p>
+                        <p className="mt-0.5 font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                          {b.reference}
+                        </p>
+                        <p className="mt-0.5 text-[13px] font-bold tabular-nums text-emerald-700">
+                          EGP {Number(b.refundAmount || 0).toLocaleString(locale)}
+                        </p>
                       </div>
+                      <button
+                        onClick={() => process(b)}
+                        disabled={processing === b.id}
+                        className="rounded-xl bg-[#EFF4FF] px-5 py-2.5 text-[13.5px] font-bold text-[#1D5BD8] hover:bg-[#1D5BD8] hover:text-white disabled:opacity-50"
+                      >
+                        {processing === b.id ? <Loader2 className="size-4 animate-spin" /> : t('common.confirm')}
+                      </button>
                     </div>
                   ))}
+                  {(tiers[k] || []).length === 0 && (
+                    <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-6 text-center text-[13.5px] text-[#5B6B84]">
+                      —
+                    </p>
+                  )}
                 </div>
-              </motion.div>
-            )
-          })}
-        </div>
-      ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 glass rounded-2xl border border-zinc-800">
-          <CheckCircle size={48} className="mx-auto text-zinc-700 mb-4" />
-          <h3 className="text-lg font-medium text-zinc-400 mb-2">
-            {isRTL ? 'كل الإلغاءات تمت معالجتها' : 'All cancellations processed'}
-          </h3>
-          <p className="text-zinc-500 text-sm">
-            {isRTL ? 'لا توجد إلغاءات في انتظار المعالجة' : 'No pending cancellations'}
-          </p>
-        </motion.div>
-      )}
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }
