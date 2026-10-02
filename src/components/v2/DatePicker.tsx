@@ -95,14 +95,34 @@ export function V2DatePicker({
   }, [value, min ]);
 
   const display = value ? formatFullAr(value) : '';
-  const monthsToShow = isMobile ? 1 : 2;
+
+  // Single month view; navigation is clamped between floor and ceiling months.
+  function ymIndex(y: number, m: number) {
+    return y * 12 + m;
+  }
+  const nowIdx = ymIndex(now.getFullYear(), now.getMonth());
+  function monthIndex(iso?: string) {
+    if (!iso) return null;
+    const d = new Date(iso + 'T12:00:00');
+    return isNaN(d.getTime()) ? null : ymIndex(d.getFullYear(), d.getMonth());
+  }
+  const floorIdx = monthIndex(min) ?? nowIdx;
+  const ceilIdx = monthIndex(max);
+  const viewIdx = ymIndex(view.y, view.m);
 
   function shift(dirn: -1 | 1) {
     setView((v) => {
+      const from = ymIndex(v.y, v.m);
+      const target = from + dirn;
+      if (target < floorIdx) return v;
+      if (ceilIdx !== null && target > ceilIdx) return v;
       const m = v.m + dirn;
       return { y: v.y + Math.floor(m / 12), m: ((m % 12) + 12) % 12 };
     });
   }
+
+  const canPrev = viewIdx > floorIdx;
+  const canNext = ceilIdx === null || viewIdx < ceilIdx;
 
   function pick(iso: string) {
     onChange(iso);
@@ -169,25 +189,30 @@ export function V2DatePicker({
     );
   }
 
-  const months = Array.from({ length: monthsToShow }, (_, i) => {
-    const m = view.m + i;
-    return { y: view.y + Math.floor(m / 12), m: ((m % 12) + 12) % 12 };
-  });
-
   const calendar = (
     <>
       <div className="flex items-center justify-between">
-        <button type="button" onClick={() => shift(1)} aria-label="الشهر التالي" className="grid size-9 place-items-center rounded-xl hover:bg-slate-100">
+        <button
+          type="button"
+          onClick={() => shift(1)}
+          disabled={!canNext}
+          aria-label="الشهر التالي"
+          className="grid size-9 place-items-center rounded-xl hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+        >
           <ChevronRight className="size-5 v2-flip-rtl" />
         </button>
-        <button type="button" onClick={() => shift(-1)} aria-label="الشهر السابق" className="grid size-9 place-items-center rounded-xl hover:bg-slate-100">
+        <button
+          type="button"
+          onClick={() => shift(-1)}
+          disabled={!canPrev}
+          aria-label="الشهر السابق"
+          className="grid size-9 place-items-center rounded-xl hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+        >
           <ChevronLeft className="size-5 v2-flip-rtl" />
         </button>
       </div>
-      <div className={cn('mt-2 grid gap-6', monthsToShow > 1 && 'sm:grid-cols-2')}>
-        {months.map((mm) => (
-          <div key={`${mm.y}-${mm.m}`}>{renderMonth(mm.y, mm.m)}</div>
-        ))}
+      <div className="mt-2">
+        {renderMonth(view.y, view.m)}
       </div>
     </>
   );
@@ -255,7 +280,7 @@ export function V2DatePicker({
             collisionPadding={12}
             role="dialog"
             aria-label={label}
-            className="z-50 w-[min(680px,calc(100vw-24px))] rounded-2xl border border-[#E6EBF2] bg-white p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
+            className="z-50 w-[min(380px,calc(100vw-24px))] rounded-2xl border border-[#E6EBF2] bg-white p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
           >
             {calendar}
           </Popover.Content>
