@@ -311,20 +311,8 @@ export function StationPicker({
                       : 'border-[#E6EBF2] bg-white font-bold text-[#0B1B33] hover:bg-slate-50'
                 )}
               >
-                <span className="min-w-0">
-                  <span className="block truncate">
-                    <Highlight text={s.name} query={query} />
-                  </span>
-                  {s.city && s.city !== s.name && (
-                    <span
-                      className={cn(
-                        'block truncate text-[12.5px] font-semibold',
-                        isSel ? 'text-white/70' : 'text-[#9AA8BD]'
-                      )}
-                    >
-                      <Highlight text={s.city} query={query} />
-                    </span>
-                  )}
+                <span className="min-w-0 truncate">
+                  <Highlight text={s.name} query={query} />
                 </span>
                 <MapPin className={cn('size-4 shrink-0', isSel ? 'text-white/80' : 'text-[#9AA8BD]')} />
               </button>
