@@ -144,7 +144,7 @@ export function V2DatePicker({
         <p className="text-center text-[15px] font-extrabold text-[#0B1B33]">
           {fmtMonthYear.format(new Date(y, m, 1))}
         </p>
-        <div className="mt-3 grid grid-cols-7 gap-1 text-center" aria-hidden="true">
+        <div className="mt-2 grid grid-cols-7 gap-1 text-center" aria-hidden="true">
           {AR_DAYS.map((d) => (
             <span key={d} className="py-1 text-[12px] font-bold text-[#9AA8BD]">{d}</span>
           ))}
@@ -171,7 +171,7 @@ export function V2DatePicker({
                 aria-label={formatFullAr(iso)}
                 onClick={() => pick(iso)}
                 className={cn(
-                  'grid size-10 w-full place-items-center rounded-xl text-[14px] tabular-nums transition',
+                  'grid size-9 w-full place-items-center rounded-lg text-[14px] tabular-nums transition',
                   selected || isEndpoint
                     ? 'bg-[#1D5BD8] font-extrabold text-white'
                     : inRange
@@ -280,7 +280,7 @@ export function V2DatePicker({
             collisionPadding={12}
             role="dialog"
             aria-label={label}
-            className="z-50 w-[min(380px,calc(100vw-24px))] rounded-2xl border border-[#E6EBF2] bg-white p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
+            className="z-50 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-[#E6EBF2] bg-white p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
           >
             {calendar}
           </Popover.Content>
