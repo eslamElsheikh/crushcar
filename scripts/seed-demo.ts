@@ -25,6 +25,45 @@ function at(daysOffset: number, hour = 0, minute = 0) {
 async function main() {
   console.log('🌱 Seeding demo data (idempotent)...')
 
+  // ══════════════════════════════════════════════════════════════
+  // STATIONS — richer coverage (multiple stations per governorate)
+  // ══════════════════════════════════════════════════════════════
+  const extraStations: [string, string][] = [
+    // [name, city/governorate]
+    ['سهل حشيش', 'البحر الأحمر'],
+    ['سوما باي', 'البحر الأحمر'],
+    ['مكادي', 'البحر الأحمر'],
+    ['مرسي علم', 'البحر الأحمر'],
+    ['دهب', 'جنوب سيناء'],
+    ['الطور', 'جنوب سيناء'],
+    ['سانت كاترين', 'جنوب سيناء'],
+    ['العريش', 'شمال سيناء'],
+    ['سموحة', 'الإسكندرية'],
+    ['سيدي بشر', 'الإسكندرية'],
+    ['السويس', 'السويس'],
+    ['العاشر من رمضان', 'الشرقية'],
+    ['أسيوط', 'أسيوط'],
+    ['قنا', 'قنا'],
+    ['سوهاج', 'سوهاج'],
+    ['طنطا', 'الغربية'],
+    ['دمنهور', 'البحيرة'],
+    ['كفر الشيخ', 'كفر الشيخ'],
+    ['بنها', 'القليوبية'],
+    ['شبين الكوم', 'المنوفية'],
+    ['مرسى مطروح', 'مرسى مطروح'],
+    ['الوادي الجديد', 'الوادي الجديد'],
+    ['6 أكتوبر', 'الجيزة'],
+    ['العين السخنة', 'السويس'],
+  ]
+  for (const [name, city] of extraStations) {
+    await prisma.station.upsert({
+      where: { name_city: { name, city } },
+      update: {},
+      create: { name, city },
+    })
+  }
+  console.log(`✅ Stations ensured (${extraStations.length} extra)`)
+
   // ── Resolve existing stations / buses / users / companies ──
   const stations = await prisma.station.findMany()
   const byName = (n: string) => stations.find((s) => s.name === n)!
@@ -52,6 +91,17 @@ async function main() {
   const companies = await prisma.company.findMany()
   const cairoExpress = companies.find((c) => c.subdomain === 'cairoexpress')!
   const monsters = companies.find((c) => c.subdomain === '-mpbt9tij')!
+
+  // ── More demo customers (reuse the demo password hash) ──
+  async function ensureCustomer(email: string, name: string) {
+    const existing = await prisma.user.findUnique({ where: { email } })
+    if (existing) return existing
+    return prisma.user.create({
+      data: { email, name, password: customer.password, role: 'CUSTOMER', phone: '01000000000' },
+    })
+  }
+  const sara = await ensureCustomer('sara@example.com', 'Sara Nabil')
+  const omar = await ensureCustomer('omar@example.com', 'Omar Farid')
 
   // ── Helper: upsert a trip with stops ──
   async function upsertTrip(opts: {
@@ -199,6 +249,153 @@ async function main() {
   })
 
   // ══════════════════════════════════════════════════════════════
+  // EXTRA FUTURE TRIPS — new routes via the richer station list
+  // ══════════════════════════════════════════════════════════════
+  const sahl = byName('سهل حشيش')
+  const soma = byName('سوما باي')
+  const makadi = byName('مكادي')
+  const marsa = byName('مرسي علم')
+  const dahab = byName('دهب')
+  const arish = byName('العريش')
+  const tanta = byName('طنطا')
+  const suez = byName('السويس')
+  const oct6 = byName('6 أكتوبر')
+  const asyut = byName('أسيوط')
+  const qena = byName('قنا')
+  const sohag = byName('سوهاج')
+  const sokhna = byName('العين السخنة')
+  const tenth = byName('العاشر من رمضان')
+
+  // Cairo <-> Hurghada <-> Sahl Hashish (round trip)
+  futureTrips.caiSahlOut = await upsertTrip({
+    key: 'cai-sahl-out-8', busId: coach.id, daysOffset: 2, departHour: 6, status: 'SCHEDULED',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: hurghada, priceFromOrigin: 450, travelMinFromPrev: 330 },
+      { station: sahl, priceFromOrigin: 520, travelMinFromPrev: 75 },
+    ],
+  })
+  futureTrips.sahlCaiRet = await upsertTrip({
+    key: 'sahl-cai-ret-8', busId: coach.id, daysOffset: 4, departHour: 15, status: 'SCHEDULED',
+    stops: [
+      { station: sahl, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: hurghada, priceFromOrigin: 70, travelMinFromPrev: 75 },
+      { station: cairo, priceFromOrigin: 520, travelMinFromPrev: 330 },
+    ],
+  })
+
+  // Red Sea local hops
+  futureTrips.hurSoma = await upsertTrip({
+    key: 'hur-soma-9', busId: mini.id, daysOffset: 3, departHour: 10, status: 'SCHEDULED',
+    stops: [
+      { station: hurghada, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: soma, priceFromOrigin: 60, travelMinFromPrev: 45 },
+    ],
+  })
+  futureTrips.hurMakadi = await upsertTrip({
+    key: 'hur-makadi-10', busId: mini.id, daysOffset: 3, departHour: 15, status: 'SCHEDULED',
+    stops: [
+      { station: hurghada, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: makadi, priceFromOrigin: 50, travelMinFromPrev: 40 },
+      { station: sahl, priceFromOrigin: 90, travelMinFromPrev: 35 },
+    ],
+  })
+  futureTrips.hurMarsa = await upsertTrip({
+    key: 'hur-marsa-11', busId: coach.id, daysOffset: 5, departHour: 8, status: 'SCHEDULED',
+    stops: [
+      { station: hurghada, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: marsa, priceFromOrigin: 220, travelMinFromPrev: 180 },
+    ],
+  })
+
+  // Sharm <-> Dahab
+  futureTrips.sharmDahab = await upsertTrip({
+    key: 'sharm-dahab-out-12', busId: mini.id, daysOffset: 1, departHour: 14, status: 'SCHEDULED',
+    stops: [
+      { station: sharm, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: dahab, priceFromOrigin: 120, travelMinFromPrev: 120 },
+    ],
+  })
+  futureTrips.dahabSharm = await upsertTrip({
+    key: 'dahab-sharm-ret-12', busId: mini.id, daysOffset: 3, departHour: 10, status: 'SCHEDULED',
+    stops: [
+      { station: dahab, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: sharm, priceFromOrigin: 120, travelMinFromPrev: 120 },
+    ],
+  })
+
+  // Cairo -> Asyut -> Sohag -> Qena -> Luxor (long south line)
+  futureTrips.caiLuxSouth = await upsertTrip({
+    key: 'cai-lux-south-13', busId: vip.id, daysOffset: 5, departHour: 6, status: 'SCHEDULED',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: asyut, priceFromOrigin: 220, travelMinFromPrev: 210 },
+      { station: sohag, priceFromOrigin: 320, travelMinFromPrev: 120 },
+      { station: qena, priceFromOrigin: 400, travelMinFromPrev: 90 },
+      { station: luxor, priceFromOrigin: 550, travelMinFromPrev: 110 },
+    ],
+  })
+
+  // Tanta <-> Cairo (round trip)
+  futureTrips.tantaCai = await upsertTrip({
+    key: 'tanta-cai-out-14', busId: mini.id, daysOffset: 1, departHour: 13, status: 'SCHEDULED',
+    stops: [
+      { station: tanta, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: cairo, priceFromOrigin: 100, travelMinFromPrev: 120 },
+    ],
+  })
+  futureTrips.caiTanta = await upsertTrip({
+    key: 'cai-tanta-ret-14', busId: mini.id, daysOffset: 2, departHour: 17, status: 'SCHEDULED',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: tanta, priceFromOrigin: 100, travelMinFromPrev: 120 },
+    ],
+  })
+
+  // Port Said -> El Arish
+  futureTrips.psaidArish = await upsertTrip({
+    key: 'psaid-arish-15', busId: coach.id, daysOffset: 6, departHour: 8, status: 'SCHEDULED',
+    stops: [
+      { station: portsaid, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: arish, priceFromOrigin: 260, travelMinFromPrev: 240 },
+    ],
+  })
+
+  // Cairo -> 10th of Ramadan -> Suez (round trip)
+  futureTrips.caiSuez = await upsertTrip({
+    key: 'cai-suez-out-16', busId: coach.id, daysOffset: 3, departHour: 10, status: 'SCHEDULED',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: tenth, priceFromOrigin: 70, travelMinFromPrev: 90 },
+      { station: suez, priceFromOrigin: 130, travelMinFromPrev: 60 },
+    ],
+  })
+  futureTrips.suezCai = await upsertTrip({
+    key: 'suez-cai-ret-16', busId: coach.id, daysOffset: 4, departHour: 16, status: 'SCHEDULED',
+    stops: [
+      { station: suez, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: tenth, priceFromOrigin: 60, travelMinFromPrev: 60 },
+      { station: cairo, priceFromOrigin: 130, travelMinFromPrev: 90 },
+    ],
+  })
+
+  // Cairo <-> Ain Sokhna (weekend escape)
+  futureTrips.caiSokhna = await upsertTrip({
+    key: 'cai-sokhna-out-17', busId: vip.id, daysOffset: 2, departHour: 8, status: 'SCHEDULED',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: sokhna, priceFromOrigin: 150, travelMinFromPrev: 120 },
+    ],
+  })
+  futureTrips.sokhnaCai = await upsertTrip({
+    key: 'sokhna-cai-ret-17', busId: vip.id, daysOffset: 3, departHour: 18, status: 'SCHEDULED',
+    stops: [
+      { station: sokhna, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: cairo, priceFromOrigin: 150, travelMinFromPrev: 120 },
+    ],
+  })
+
+  // ══════════════════════════════════════════════════════════════
   // PAST TRIPS (completed) — for booking history
   // ══════════════════════════════════════════════════════════════
   const pastTrips: Record<string, any> = {}
@@ -229,6 +426,29 @@ async function main() {
     stops: [
       { station: alex, priceFromOrigin: 0, travelMinFromPrev: 0 },
       { station: cairo, priceFromOrigin: 250, travelMinFromPrev: 210 },
+    ],
+  })
+  pastTrips.pastTantaCai = await upsertTrip({
+    key: 'past-tanta-cai', busId: mini.id, daysOffset: -7, departHour: 13, status: 'COMPLETED',
+    stops: [
+      { station: tanta, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: cairo, priceFromOrigin: 100, travelMinFromPrev: 120 },
+    ],
+  })
+  pastTrips.pastCaiSokhna = await upsertTrip({
+    key: 'past-cai-sokhna', busId: vip.id, daysOffset: -4, departHour: 8, status: 'COMPLETED',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: sokhna, priceFromOrigin: 150, travelMinFromPrev: 120 },
+    ],
+  })
+
+  // In-progress trip (today) — shows live status in admin/dashboard views
+  futureTrips.inProgress = await upsertTrip({
+    key: 'inprog-cai-hur', busId: coach.id, daysOffset: 0, departHour: 5, status: 'IN_PROGRESS',
+    stops: [
+      { station: cairo, priceFromOrigin: 0, travelMinFromPrev: 0 },
+      { station: hurghada, priceFromOrigin: 450, travelMinFromPrev: 330 },
     ],
   })
 
@@ -343,6 +563,65 @@ async function main() {
     status: 'PAID', total: 250, passengerName: 'Mohamed Customer', passengerPhone: '01012345678',
     paidAt: at(0, 9), roundTripGroupId: rtGroup, returnForId: outB.id, createdAt: at(0, 8),
   })
+
+  // Extra bookings on the new routes
+  const extraBk1 = await upsertBooking({
+    key: 'future-3', userId: sara.id, tripId: futureTrips.caiSahlOut.id, seatLabel: 'C2',
+    status: 'PAID', total: 520, passengerName: 'Sara Nabil', passengerPhone: '01098765432',
+    paidAt: at(0, 10), createdAt: at(0, 9),
+  })
+  await upsertBooking({
+    key: 'future-4', userId: ali.id, tripId: futureTrips.sharmDahab.id, seatLabel: 'B1',
+    status: 'PAID', total: 120, passengerName: 'Ali Mahmoud', passengerPhone: '01234567890',
+    paidAt: at(0, 11), createdAt: at(0, 10),
+  })
+  await upsertBooking({
+    key: 'future-5', userId: fatma.id, tripId: futureTrips.tantaCai.id, seatLabel: 'A1',
+    status: 'PENDING', total: 100, passengerName: 'Fatma Hassan', passengerPhone: '01123456789',
+    createdAt: at(0, 12),
+  })
+  await upsertBooking({
+    key: 'future-6', userId: customer.id, tripId: futureTrips.caiLuxSouth.id, seatLabel: 'A3',
+    status: 'PAID', total: 550, passengerName: 'Mohamed Customer', passengerPhone: '01012345678',
+    paidAt: at(0, 13), createdAt: at(0, 12),
+  })
+  const extraBk2 = await upsertBooking({
+    key: 'future-7', userId: omar.id, tripId: futureTrips.caiSokhna.id, seatLabel: 'B2',
+    status: 'PAID', total: 150, passengerName: 'Omar Farid', passengerPhone: '01555555555',
+    paidAt: at(0, 14), createdAt: at(0, 13),
+  })
+  await upsertBooking({
+    key: 'future-cancel-1', userId: ali.id, tripId: futureTrips.hurMarsa.id, seatLabel: 'D1',
+    status: 'CANCELLED', total: 220, passengerName: 'Ali Mahmoud',
+    paidAt: at(-1, 16), cancelledAt: at(0, 9), cancelledBy: 'customer',
+    cancellationReason: 'Schedule conflict', refundAmount: 165, cancellationFee: 55,
+    refundProcessedAt: at(0, 10), refundProcessedBy: 'superadmin', createdAt: at(-1, 16),
+  })
+  // Boarded passenger on today's in-progress trip
+  await upsertBooking({
+    key: 'inprog-1', userId: customer.id, tripId: futureTrips.inProgress.id, seatLabel: 'A5',
+    status: 'BOARDED', total: 450, passengerName: 'Mohamed Customer', passengerPhone: '01012345678',
+    paidAt: at(-1, 17), boarded: true, boardedAt: at(0, 4, 45), createdAt: at(-2, 10),
+  })
+  // More past history
+  await upsertBooking({
+    key: 'past-4', userId: sara.id, tripId: pastTrips.pastCaiSokhna.id, seatLabel: 'A2',
+    status: 'BOARDED', total: 150, passengerName: 'Sara Nabil', passengerPhone: '01098765432',
+    paidAt: at(-5, 12), boarded: true, boardedAt: at(-4, 7, 40), createdAt: at(-5, 12),
+  })
+  await upsertBooking({
+    key: 'past-5', userId: omar.id, tripId: pastTrips.pastTantaCai.id, seatLabel: 'C1',
+    status: 'PAID', total: 100, passengerName: 'Omar Farid', passengerPhone: '01555555555',
+    paidAt: at(-8, 15), createdAt: at(-8, 15),
+  })
+
+  // ══════════════════════════════════════════════════════════════
+  // REMINDERS — for paid future bookings
+  // ══════════════════════════════════════════════════════════════
+  for (const [bk, type] of [[extraBk1, '24H'], [extraBk2, '2H']] as const) {
+    const existingRem = await prisma.reminder.findUnique({ where: { bookingId: bk.id } })
+    if (!existingRem) await prisma.reminder.create({ data: { bookingId: bk.id, type } })
+  }
 
   console.log('✅ Customer bookings seeded')
 
