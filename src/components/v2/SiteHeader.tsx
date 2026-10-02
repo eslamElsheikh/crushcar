@@ -89,7 +89,8 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
   return (
     <header className={cn('inset-inline-0 top-0 z-30', overlay ? 'absolute' : 'sticky bg-white/95 backdrop-blur')}>
       {!overlay && <div className="border-b border-[#E6EBF2]" />}
-      <div className="v2-container flex items-center gap-3 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
+      {/* Two logical groups: main nav (RTL start) + utility (RTL end), separated by justify-between */}
+      <div className="v2-container flex items-center justify-between gap-6 py-4 pt-[max(1rem,env(safe-area-inset-top))] lg:gap-10">
         {/* Right group: logo + wordmark + nav */}
         <div className="flex shrink-0 items-center gap-8 xl:gap-10">
           <Link href="/" className="flex items-center gap-2.5" aria-label={lang === 'ar' ? 'سافرو' : 'Safro'}>
@@ -105,17 +106,14 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
           </nav>
         </div>
 
-        {/* Flexible spacer */}
-        <span className="min-w-2 flex-1" aria-hidden="true" />
-
-        {/* Actions cluster pinned to far edge: language, help, account, CTA */}
+        {/* Utility group: language, help, account, CTA */}
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
           {langBtn}
           <Link href="/faq" className={cn('px-3.5 py-2.5 text-[14px] font-semibold', light ? 'text-white/90 hover:text-white' : 'text-[#0B1B33]/75 hover:bg-slate-100')}>
             {t('v2.help')}
           </Link>
           {accountControl}
-          <Link href="/trips" className="v2-btn-primary ms-1 px-5 py-3 text-[14.5px]">
+          <Link href="/trips" className="v2-btn-primary px-5 py-3 text-[14.5px]">
             {t('v2.bookTrip')}
           </Link>
         </div>
