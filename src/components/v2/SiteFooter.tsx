@@ -32,7 +32,7 @@ export function V2SiteFooter() {
           <ul className="mt-4 grid gap-3 text-[14.5px] text-white/60">
             <li><Link className="hover:text-white" href="/#destinations">{t('v2.explore')}</Link></li>
             <li><Link className="hover:text-white" href="/trips">{t('v2.trips')}</Link></li>
-            <li><Link className="hover:text-white" href="/#destinations">{t('v2.destinations')}</Link></li>
+            <li><Link className="hover:text-white" href="/destinations">{t('v2.destinations')}</Link></li>
             <li><Link className="hover:text-white" href="/#b2b">{t('v2.forBusiness')}</Link></li>
           </ul>
         </nav>

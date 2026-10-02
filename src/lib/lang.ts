@@ -23,6 +23,7 @@ const translations: Record<string, Record<Language, string>> = {
   'nav.verify': { ar: 'التحقق من الصعود', en: 'Verify Boarding' },
   'nav.reports': { ar: 'التقارير', en: 'Reports' },
   'nav.stations': { ar: 'المحطات', en: 'Stations' },
+  'nav.destinations': { ar: 'الوجهات', en: 'Destinations' },
   'nav.faq': { ar: 'الأسئلة الشائعة', en: 'FAQ' },
   'nav.signOut': { ar: 'تسجيل الخروج', en: 'Sign Out' },
   'nav.admin': { ar: 'الإدارة', en: 'Admin' },
@@ -627,6 +628,7 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.pickReturn': { ar: 'اختر رحلة العودة', en: 'Pick return trip' },
   'v2.outboundStep': { ar: 'رحلة الذهاب', en: 'Outbound' },
   'v2.returnStep': { ar: 'رحلة العودة', en: 'Return' },
+  'v2.stepLabel': { ar: 'الخطوة', en: 'Step' },
   'company.noCompanies': { ar: 'لا توجد شركات', en: 'No companies found' },  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
   'v2.noBookingsDesc': { ar: 'احجز رحلتك الأولى داخل مصر اليوم.', en: 'Book your first trip across Egypt today.' },
 }

@@ -299,3 +299,15 @@ model WalletTransaction {
   reference   String?  @default("") // bookingId or invoiceId
   createdAt   DateTime @default(now())
 }
+
+model Destination {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  nameAr    String
+  nameEn    String?
+  imageUrl  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

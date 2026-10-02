@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   MapPin, Users, ArrowLeftRight, Search,
-  Zap, ShieldCheck, Leaf, ArrowRight, Clock, Star, Bus, Armchair,
+  Zap, ShieldCheck, Leaf, ArrowRight, Clock, Star, Bus,
   TicketCheck, Check, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2SectionHeading } from '@/components/v2/ui';
 import { V2DatePicker } from '@/components/v2/DatePicker';
+import { normAr } from '@/lib/arabic';
 
 /* Safro V2 homepage — real backend data only. No mock trips. */
 
@@ -31,19 +32,15 @@ interface Stats {
   totalBookings: number; totalRevenue: number; activeTrips: number;
   totalBuses: number; recentTrips: RecentTrip[];
 }
+interface Destination {
+  id: string; slug: string; nameAr: string; nameEn: string | null;
+  imageUrl: string | null; sortOrder: number;
+}
 
-const CITY_IMAGES: Record<string, string> = {
-  cairo: '/v2/cairo.jpg',
-  alexandria: '/v2/alexandria.jpg',
-  hurghada: '/v2/hurghada.jpg',
-  luxor: '/v2/luxor.jpg',
-};
-
+/* Legacy local fallback (featured-trip headers only, never destinations). */
 function cityImage(city: string): string {
-  const key = city.toLowerCase();
-  for (const [k, img] of Object.entries(CITY_IMAGES)) {
-    if (key.includes(k)) return img;
-  }
+  void city;
+  // Legacy local fallback (kept only for featured-trip headers, never for destinations).
   return '/v2/city.jpg';
 }
 
@@ -82,22 +79,30 @@ export default function V2HomePage() {
     }).catch(() => {});
   }, []);
 
-  const cities = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const s of stations) {
-      const city = (s.city || s.name || '').trim();
-      if (city && !seen.has(city.toLowerCase())) seen.set(city.toLowerCase(), city);
-    }
-    const showcase = ['cairo', 'alexandria', 'hurghada', 'luxor'];
-    const ordered = [
-      ...showcase.flatMap((k) => {
-        const found = [...seen.entries()].find(([low]) => low.includes(k));
-        return found ? [found[1]] : [];
-      }),
-      ...[...seen.values()],
-    ];
-    return [...new Set(ordered)].slice(0, 4);
-  }, [stations]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+
+  useEffect(() => {
+    fetch('/api/destinations').then((r) => r.json()).then((d) => {
+      if (Array.isArray(d.data)) setDestinations(d.data);
+    }).catch(() => {});
+  }, []);
+
+  /** Station whose city matches the destination (Arabic-tolerant). */
+  function stationFor(dest: Destination): Station | undefined {
+    const target = normAr(dest.nameAr);
+    if (!target) return undefined;
+    return stations.find((s) => {
+      const city = normAr(s.city || '');
+      const name = normAr(s.name || '');
+      return (city && (city.includes(target) || target.includes(city))) ||
+        (name && (name.includes(target) || target.includes(name)));
+    });
+  }
+
+  function destLink(dest: Destination): string {
+    const st = stationFor(dest);
+    return st ? `/trips?toStationId=${st.id}` : '/trips';
+  }
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -130,10 +135,20 @@ export default function V2HomePage() {
     { icon: Leaf, title: t('v2.trustGreen'), sub: t('v2.trustGreenSub') },
   ];
 
+  const BusSeatIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-7" aria-hidden="true">
+      <rect x="5" y="2.5" width="5" height="11" rx="2.2" />
+      <path d="M5 6.5h5" />
+      <rect x="5" y="13.5" width="14" height="3.5" rx="1.75" />
+      <path d="M9 17v3.5" />
+      <path d="M6.5 20.5h7" />
+    </svg>
+  );
+
   const steps = [
     { icon: Search, title: t('v2.how1t'), desc: t('v2.how1d') },
     { icon: Bus, title: t('v2.how2t'), desc: t('v2.how2d') },
-    { icon: Armchair, title: t('v2.how3t'), desc: t('v2.how3d') },
+    { icon: Bus, title: t('v2.how3t'), desc: t('v2.how3d'), art: BusSeatIcon },
     { icon: TicketCheck, title: t('v2.how4t'), desc: t('v2.how4d') },
   ];
 
@@ -280,32 +295,41 @@ export default function V2HomePage() {
         </div>
       </section>
 
-      {/* ── DESTINATIONS (cities proven by stations API) ── */}
+      {/* ── DESTINATIONS (DB-driven, hidden when empty) ── */}
+      {destinations.length > 0 && (
       <section id="destinations" className="scroll-mt-20 bg-white py-16 md:py-20">
         <div className="v2-container">
           <V2SectionHeading
             title={t('v2.popularTitle')}
             sub={t('v2.popularSub')}
             action={
-              <Link href="/trips" className="flex items-center gap-1.5 text-[14.5px] font-bold text-[#1D5BD8]">
+              <Link href="/destinations" className="flex items-center gap-1.5 text-[14.5px] font-bold text-[#1D5BD8]">
                 {t('v2.exploreAll')} <ArrowRight className="size-4 v2-flip-rtl" />
               </Link>
             }
           />
           <div className="v2-snap-row mt-8">
-            {cities.map((city, i) => (
+            {destinations.map((dest, i) => (
               <motion.div
-                key={city}
+                key={dest.id}
                 initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                 transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.06 }}
               >
-                <Link href="/trips" className="v2-img-zoom v2-hover-lift group relative block overflow-hidden rounded-2xl">
-                  <div className="relative aspect-[4/3] w-full bg-[#E6EBF2] lg:aspect-[3/3.4]">
-                    <Image src={cityImage(city)} alt={city} fill sizes="(max-width:768px) 82vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
+                <Link href={destLink(dest)} className="v2-img-zoom v2-hover-lift group relative block overflow-hidden rounded-2xl">
+                  <div className="relative aspect-[4/3] w-full bg-[#0A1E3C] lg:aspect-[3/3.4]">
+                    {dest.imageUrl ? (
+                      <Image src={dest.imageUrl} alt={isRTL ? dest.nameAr : (dest.nameEn || dest.nameAr)} fill sizes="(max-width:768px) 82vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
+                    ) : (
+                      <span className="grid size-full place-items-center bg-[#0A1E3C] px-6 text-center text-[19px] font-extrabold leading-snug text-white">
+                        {isRTL ? dest.nameAr : (dest.nameEn || dest.nameAr)}
+                      </span>
+                    )}
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B1B33]/90 via-[#0B1B33]/15 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
-                    <p className="text-balance text-[17px] font-bold leading-snug text-white">{city}</p>
+                    <p className="text-balance text-[17px] font-bold leading-snug text-white">
+                      {isRTL ? dest.nameAr : (dest.nameEn || dest.nameAr)}
+                    </p>
                     <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-[#0B1B33]" aria-hidden="true">
                       <ArrowRight className="size-5 v2-flip-rtl" />
                     </span>
@@ -316,6 +340,7 @@ export default function V2HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── HOW IT WORKS ── */}
       <section className="bg-[#F6F8FC] py-16 md:py-20">
@@ -328,7 +353,11 @@ export default function V2HomePage() {
               {t('v2.howCta')} <ArrowRight className="size-4 v2-flip-rtl" />
             </Link>
           </div>
-          <ol className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          <ol className="relative grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            {/* Vertical connector (mobile) */}
+            <span aria-hidden="true" className="absolute bottom-10 start-1/2 top-10 w-px -translate-x-1/2 bg-[#D7DEE8] rtl:translate-x-1/2 sm:hidden" />
+            {/* Horizontal connector (desktop, follows RTL order) */}
+            <span aria-hidden="true" className="absolute end-[11%] start-[11%] top-9 hidden h-px bg-[#D7DEE8] lg:block" />
             {steps.map((s, i) => (
               <motion.li
                 key={s.title}
@@ -336,14 +365,14 @@ export default function V2HomePage() {
                 transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.07 }}
                 className="relative text-center"
               >
-                <span className="absolute -top-1.5 start-1/2 grid size-6 -translate-x-1/2 place-items-center rounded-full bg-[#1D5BD8] text-[12px] font-bold tabular-nums text-white rtl:translate-x-1/2">
-                  {i + 1}
+                <span className="relative z-10 mx-auto grid size-16 place-items-center rounded-2xl border border-[#D7E4F8] bg-[#EFF4FF] text-[#1D5BD8]">
+                  {s.art ?? <s.icon className="size-7" strokeWidth={2} />}
                 </span>
-                <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-white text-[#1D5BD8] shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
-                  <s.icon className="size-7" />
-                </span>
-                <p className="mt-4 text-balance text-[15.5px] font-extrabold text-[#0B1B33]">{s.title}</p>
-                <p className="mx-auto mt-2 max-w-[220px] text-pretty text-[13.5px] leading-relaxed text-[#5B6B84]">{s.desc}</p>
+                <p className="mt-3 text-[12.5px] font-bold text-[#1D5BD8]">
+                  {t('v2.stepLabel')} {i + 1}
+                </p>
+                <p className="mt-1 text-balance text-[17px] font-semibold text-[#0B1B33]">{s.title}</p>
+                <p className="mx-auto mt-1.5 max-w-[230px] text-pretty text-[14px] leading-relaxed text-slate-600">{s.desc}</p>
               </motion.li>
             ))}
           </ol>

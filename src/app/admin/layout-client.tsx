@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, Armchair, Bus, Route, Ticket, MapPin, HelpCircle,
   Calendar, Wallet, ScanEye, BarChart3, Users, Clock, CreditCard,
-  XCircle, ShieldPlus, LogOut, Menu, X,
+  XCircle, ShieldPlus, LogOut, Menu, X, Image as ImageIcon,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ const navItems = [
   { href: '/admin/seats', icon: Armchair, labelKey: 'nav.seats' },
   { href: '/admin/bookings', icon: Ticket, labelKey: 'nav.bookings' },
   { href: '/admin/stations', icon: MapPin, labelKey: 'nav.stations' },
+  { href: '/admin/destinations', icon: ImageIcon, labelKey: 'nav.destinations' },
   { href: '/admin/customers', icon: Users, labelKey: 'nav.customers' },
   { href: '/admin/users', icon: ShieldPlus, labelKey: 'nav.users' },
   { href: '/admin/companies/pending', icon: Clock, labelKey: 'admin.pendingCompanies' },
