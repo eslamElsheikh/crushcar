@@ -113,26 +113,18 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
             <Link className={linkCls} href="/#destinations">{t('v2.explore')}</Link>
             <Link className={linkCls} href="/trips">{t('v2.trips')}</Link>
             <Link className={linkCls} href="/destinations">{t('v2.destinations')}</Link>
+            <Link className={linkCls} href="/faq">{t('v2.help')}</Link>
           </nav>
         </div>
 
-        {/* Utility group: language, help, account, CTA */}
+        {/* Utility group: language + account */}
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
           {langBtn}
-          <Link href="/faq" className={cn('px-3.5 py-2.5 text-[14px] font-semibold', light ? 'text-white/90 hover:text-white' : 'text-[#0B1B33]/75 hover:bg-slate-100')}>
-            {t('v2.help')}
-          </Link>
           {accountControl}
-          <Link href="/trips" className="v2-btn-primary px-5 py-3 text-[14.5px]">
-            {t('v2.bookTrip')}
-          </Link>
         </div>
 
-        {/* Mobile bar: CTA + hamburger */}
+        {/* Mobile bar: hamburger */}
         <div className="flex shrink-0 items-center gap-2 lg:hidden">
-          <Link href="/trips" onClick={() => setOpen(false)} className="v2-btn-primary px-4 py-2.5 text-[13.5px]">
-            {t('v2.bookTrip')}
-          </Link>
           <button
             className={cn(
               'grid size-11 place-items-center rounded-xl',
