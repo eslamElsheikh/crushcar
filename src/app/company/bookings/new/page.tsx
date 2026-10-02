@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, Loader2, ArrowRight, User, Wallet } from 'lucide-react';
+import { MapPin, Search, Loader2, ArrowRight, User, Wallet, Sparkles, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
@@ -11,7 +11,8 @@ import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge, V2Skeleton, V2NoResults } from '@/components/v2/ui';
 import { V2Trip, unavailableForSegment, segmentPrice, V2SeatMap } from '@/components/v2/booking';
 
-/* V2 company new booking — same 3-step + POST /api/company/bookings as V1. */
+/* V2 company new booking — same 3-step + POST /api/company/bookings as V1,
+   with full-trip booking ("حجز الرحلة كاملة") support. */
 
 interface Station { id: string; name: string; city: string }
 
@@ -82,8 +83,41 @@ export default function CompanyNewBookingPage() {
   const priceOf = (label: string) => seg + (trip?.bus?.layout?.seats.find((s) => s.label === label)?.price || 0);
   const total = seats.reduce((s, l) => s + priceOf(l), 0);
 
+  // Available unbooked seats in the trip
+  const availableSeats = (trip?.bus?.layout?.seats || [])
+    .filter((s: any) => s.type !== 'HIDDEN' && !reserved.has(s.label))
+    .map((s: any) => s.label);
+
+  const isAllSeatsSelected = availableSeats.length > 0 && availableSeats.every((label) => seats.includes(label));
+
+  // "حجز الرحلة كاملة" / Full-Trip Selection toggle
+  function handleSelectEntireTrip() {
+    if (!trip) return;
+    if (isAllSeatsSelected) {
+      setSeats([]);
+    } else {
+      setSeats(availableSeats);
+      // Auto-populate default company passenger values if empty
+      const compName = credit?.company?.name || '';
+      const compPhone = credit?.company?.phone || '';
+      const newNames = { ...names };
+      const newPhones = { ...phones };
+      availableSeats.forEach((label) => {
+        if (!newNames[label]) newNames[label] = compName;
+        if (!newPhones[label]) newPhones[label] = compPhone;
+      });
+      setNames(newNames);
+      setPhones(newPhones);
+      toast.success(
+        isRTL
+          ? `تم تحديد جميع المقاعد المتاحة (${availableSeats.length} مقعد)`
+          : `Selected all ${availableSeats.length} available seats`
+      );
+    }
+  }
+
   async function submit() {
-    if (!trip || seats.length === 0) return;
+    if (!trip || seats.length === 0 || submitting) return;
     setSubmitting(true);
     try {
       const res = await fetch('/api/company/bookings', {
@@ -94,9 +128,9 @@ export default function CompanyNewBookingPage() {
           tripId: trip.id,
           passengers: seats.map((seatLabel) => ({
             seatLabel,
-            passengerName: names[seatLabel] || '',
-            passengerPhone: phones[seatLabel] || '',
-            passengerHotel: hotels[seatLabel] || '',
+            passengerName: (names[seatLabel] || '').trim(),
+            passengerPhone: (phones[seatLabel] || '').trim(),
+            passengerHotel: (hotels[seatLabel] || '').trim(),
           })),
           fromStationId: fromId || null,
           toStationId: toId || null,
@@ -106,9 +140,20 @@ export default function CompanyNewBookingPage() {
       });
       const data = await res.json();
       if (res.ok && data.bookings?.[0]) {
+        toast.success(
+          isRTL
+            ? `تم تسجيل الحجز بنجاح (${data.bookings.length} مقعد)`
+            : `Booking confirmed successfully (${data.bookings.length} seats)`
+        );
         router.push(`/company/bookings/${data.bookings[0].id}`);
       } else {
-        toast.error(data.error || t('common.error'));
+        if (data.error === 'COMPANY_INACTIVE') {
+          toast.error(t('company.companyInactive'));
+        } else if (data.error === 'SEAT_TAKEN' || (data.message && data.message.includes('محجوز'))) {
+          toast.error(data.message || (isRTL ? 'تعذر الحجز لوجود مقاعد محجوزة بالفعل' : 'Some seats are already booked'));
+        } else {
+          toast.error(data.message || data.error || t('common.error'));
+        }
       }
     } catch {
       toast.error(t('common.error'));
@@ -220,6 +265,45 @@ export default function CompanyNewBookingPage() {
               </div>
             ) : (
               <>
+                {/* Full-Trip Booking ("حجز الرحلة كاملة") Action Banner */}
+                {availableSeats.length > 0 && (
+                  <div className="mb-4 rounded-xl border border-[#1D5BD8]/20 bg-[#EFF4FF] p-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="size-4 shrink-0 text-[#1D5BD8]" />
+                        <span className="text-[13.5px] font-extrabold text-[#0B1B33]">
+                          {t('company.bookEntireTrip')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSelectEntireTrip}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition',
+                          isAllSeatsSelected
+                            ? 'bg-white text-red-600 shadow-sm hover:bg-red-50'
+                            : 'bg-[#1D5BD8] text-white shadow-sm hover:bg-[#184bb3]'
+                        )}
+                      >
+                        {isAllSeatsSelected ? (
+                          <>
+                            <Square className="size-3.5" />
+                            {t('company.clearSelection')}
+                          </>
+                        ) : (
+                          <>
+                            <CheckSquare className="size-3.5" />
+                            {t('company.selectAllSeats')} ({availableSeats.length})
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[12px] text-[#5B6B84]">
+                      {t('company.bookEntireTripDesc')}
+                    </p>
+                  </div>
+                )}
+
                 <V2SeatMap
                   trip={trip} reserved={reserved} lang={lang} basePrice={seg}
                   selected={seats}
@@ -233,7 +317,7 @@ export default function CompanyNewBookingPage() {
                   </div>
                 )}
                 <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                  <span className="text-[14px] font-extrabold text-[#0B1B33]">{t('v2.total')}</span>
+                  <span className="text-[14px] font-extrabold text-[#0B1B33]">{t('v2.total')} ({seats.length} {isRTL ? 'مقعد' : 'seats'})</span>
                   <span className="text-[19px] font-extrabold tabular-nums text-[#0B1B33]">EGP {total.toLocaleString(locale)}</span>
                 </div>
               </>
@@ -250,6 +334,33 @@ export default function CompanyNewBookingPage() {
 
       {step === 3 && (
         <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
+            <p className="text-[16px] font-extrabold text-[#0B1B33]">
+              {isRTL ? `بيانات المسافرين (${seats.length} مقعد)` : `Passenger Details (${seats.length} seats)`}
+            </p>
+            {seats.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const compName = credit?.company?.name || '';
+                  const compPhone = credit?.company?.phone || '';
+                  const newNames = { ...names };
+                  const newPhones = { ...phones };
+                  seats.forEach((s) => {
+                    newNames[s] = compName;
+                    newPhones[s] = compPhone;
+                  });
+                  setNames(newNames);
+                  setPhones(newPhones);
+                  toast.success(isRTL ? 'تم ملء البيانات من حساب الشركة' : 'Filled with company info');
+                }}
+                className="text-[13px] font-bold text-[#1D5BD8] hover:underline"
+              >
+                {isRTL ? 'ملء الجميع ببيانات الشركة' : 'Fill all with company info'}
+              </button>
+            )}
+          </div>
+
           <div className="grid gap-3.5">
             {seats.map((s) => (
               <div key={s} className="rounded-2xl border border-slate-200 p-4">

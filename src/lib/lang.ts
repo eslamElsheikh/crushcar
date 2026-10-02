@@ -630,8 +630,14 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.returnStep': { ar: 'رحلة العودة', en: 'Return' },
   'v2.stepLabel': { ar: 'الخطوة', en: 'Step' },
   'company.noCompanies': { ar: 'لا توجد شركات', en: 'No companies found' },
-  'v2.credits': { ar: 'حقوق الصور', en: 'Image credits' },  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
+  'v2.credits': { ar: 'حقوق الصور', en: 'Image credits' },
+  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
   'v2.noBookingsDesc': { ar: 'احجز رحلتك الأولى داخل مصر اليوم.', en: 'Book your first trip across Egypt today.' },
+  'company.bookEntireTrip': { ar: 'حجز الرحلة كاملة', en: 'Book entire trip' },
+  'company.bookEntireTripDesc': { ar: 'تحديد جميع المقاعد المتاحة بالرحلة دفعة واحدة', en: 'Select all available seats at once' },
+  'company.selectAllSeats': { ar: 'تحديد كل المقاعد المتاحة', en: 'Select all available' },
+  'company.clearSelection': { ar: 'إلغاء التحديد', en: 'Clear selection' },
+  'admin.quickActions': { ar: 'إجراءات سريعة', en: 'Quick Actions' },
 }
 
 export const useLangStore = create<LangState>()(
