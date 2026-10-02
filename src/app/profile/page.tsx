@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, Lock, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Phone, Mail, Lock, Loader2, CheckCircle2, Camera } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
@@ -16,7 +16,7 @@ import { V2Skeleton } from '@/components/v2/ui';
 /* V2 profile — same GET/PUT /api/profile flows as V1. */
 
 export default function ProfilePage() {
-  const { status } = useSession();
+  const { status, update } = useSession();
   const router = useRouter();
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
@@ -29,6 +29,9 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ name: '', phone: '', email: '' });
   const [pw, setPw] = useState({ current: '', newPass: '', confirm: '' });
   const [error, setError] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -39,10 +42,63 @@ export default function ProfilePage() {
         if (res.ok) {
           const data = await res.json();
           setForm({ name: data.name || '', phone: data.phone || '', email: data.email || '' });
+          setAvatar(data.image || null);
         }
       } catch { /* keep blank */ } finally { setLoading(false); }
     })();
   }, [status, router]);
+
+  // Persist the avatar URL and refresh the session so the header updates live.
+  async function saveAvatar(url: string | null) {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: url }),
+    });
+    if (res.ok) {
+      setAvatar(url);
+      await update({ image: url });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } else {
+      const err = await res.json();
+      setError(err.error || 'Error saving photo');
+    }
+  }
+
+  async function pickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setUploading(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('image', f);
+      const res = await fetch('/api/profile/upload', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || 'Upload failed');
+        return;
+      }
+      const { url } = await res.json();
+      await saveAvatar(url);
+    } catch {
+      setError('Network error');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setUploading(true);
+    setError('');
+    try {
+      await saveAvatar(null);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -136,6 +192,45 @@ export default function ProfilePage() {
               <p className="flex items-center gap-2 text-[16px] font-extrabold text-[#0B1B33]">
                 <User className="size-5 text-[#1D5BD8]" /> {isRTL ? 'البيانات الأساسية' : 'Personal info'}
               </p>
+              {/* Avatar: photo or initials fallback */}
+              <div className="mt-4 flex items-center gap-4">
+                <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-[#E6EBF2] bg-[#EFF4FF] text-[20px] font-extrabold text-[#1D5BD8]">
+                  {avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatar} alt="" className="size-full object-cover" />
+                  ) : (
+                    (form.name.trim()[0] || '؟')
+                  )}
+                </span>
+                <div className="grid justify-items-start gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="inline-flex w-fit items-center gap-2 rounded-xl border border-[#E6EBF2] bg-white px-4 py-2.5 text-[13.5px] font-bold text-[#0B1B33] hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4 text-[#1D5BD8]" />}
+                    {isRTL ? 'تغيير الصورة' : 'Change photo'}
+                  </button>
+                  {avatar && (
+                    <button
+                      type="button"
+                      onClick={removeAvatar}
+                      disabled={uploading}
+                      className="w-fit text-[12.5px] font-semibold text-red-500 hover:underline disabled:opacity-60"
+                    >
+                      {isRTL ? 'حذف الصورة' : 'Remove photo'}
+                    </button>
+                  )}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={pickAvatar}
+                  />
+                </div>
+              </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <V2Field label={t('auth.fullName')}>
                   <V2Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoComplete="name" />

@@ -88,6 +88,10 @@ async function main() {
   const fatma = users.find((u) => u.email === 'fatma@example.com')!
   const ali = users.find((u) => u.email === 'ali@example.com')!
 
+  const companies0 = await prisma.company.findMany()
+  if (!companies0.some((c) => c.subdomain === '-mpbt9tij')) {
+    await prisma.company.create({ data: { name: 'Monster Travel', subdomain: '-mpbt9tij', plan: 'BASIC' } })
+  }
   const companies = await prisma.company.findMany()
   const cairoExpress = companies.find((c) => c.subdomain === 'cairoexpress')!
   const monsters = companies.find((c) => c.subdomain === '-mpbt9tij')!

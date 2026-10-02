@@ -34,6 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.name,
+          image: user.image ?? null,
           role: user.role,
           companyId: user.companyId ?? undefined,
         }
@@ -49,11 +50,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (new URL(url).origin === baseUrl) return url
       return baseUrl
     },
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
         token.role = (user as { role: string }).role
         token.companyId = (user as { companyId?: string }).companyId
+        token.image = (user as { image?: string | null }).image ?? null
+      }
+      // Live profile updates (e.g. avatar upload) refresh the token without re-login.
+      if (trigger === 'update' && session && typeof (session as { image?: unknown }).image !== 'undefined') {
+        token.image = (session as { image?: string | null }).image ?? null
       }
       return token
     },
@@ -62,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.companyId = token.companyId as string | undefined
+        session.user.image = (token.image as string | null | undefined) ?? null
       }
       return session
     },

@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         phone: true,
+        image: true,
         role: true,
         createdAt: true,
       },
@@ -43,7 +44,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, phone, currentPassword, newPassword } = await req.json()
+    const { name, phone, currentPassword, newPassword, image } = await req.json()
 
     // Get current user with password
     const user = await prisma.user.findUnique({
@@ -52,6 +53,11 @@ export async function PUT(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Avatar URL must come from our own uploads endpoint (or null to clear).
+    if (image !== undefined && image !== null && !(typeof image === 'string' && /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i.test(image))) {
+      return NextResponse.json({ error: 'Invalid image URL' }, { status: 400 })
     }
 
     // If changing password, verify current password
@@ -73,12 +79,14 @@ export async function PUT(req: NextRequest) {
         ...(name && { name }),
         ...(phone !== undefined && { phone }),
         ...(hashedPassword && { password: hashedPassword }),
+        ...(image !== undefined && { image: image || null }),
       },
       select: {
         id: true,
         name: true,
         email: true,
         phone: true,
+        image: true,
         role: true,
         createdAt: true,
       },

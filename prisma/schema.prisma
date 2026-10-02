@@ -15,6 +15,7 @@ model User {
   password  String
   name      String
   phone     String?   @default("")
+  image     String?   // avatar URL (/api/uploads/...)
   role      String    @default("CUSTOMER") // SUPER_ADMIN | COMPANY_ADMIN | CUSTOMER
   companyId String?
   company   Company?  @relation(fields: [companyId], references: [id])

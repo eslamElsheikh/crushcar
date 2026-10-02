@@ -20,6 +20,11 @@ import { V2DatePicker } from '@/components/v2/DatePicker';
 import { StationPicker } from '@/components/v2/StationPicker';
 import { normAr } from '@/lib/arabic';
 import { cairoTodayISO } from '@/lib/search-ar';
+import {
+  HOME_DESTINATIONS_LIMIT, HOME_TRIPS_LIMIT,
+  dedupeDestinations, dedupeTrips,
+  destinationImage, tripImageForDestination,
+} from '@/lib/destinationImages';
 
 /* Safro V2 homepage — real backend data only. No mock trips. */
 
@@ -39,11 +44,9 @@ interface Destination {
   imageUrl: string | null; sortOrder: number;
 }
 
-/* Legacy local fallback (featured-trip headers only, never destinations). */
-function cityImage(city: string): string {
-  void city;
-  // Legacy local fallback (kept only for featured-trip headers, never for destinations).
-  return '/v2/city.jpg';
+/* Homepage display image for a destination: DB upload → governorate map → fallback. */
+function destImage(dest: Destination): string {
+  return destinationImage(dest);
 }
 
 function durationOf(dep: string, arr: string, lang: string): string {
@@ -92,6 +95,18 @@ export default function V2HomePage() {
       if (Array.isArray(d.data)) setDestinations(d.data);
     }).catch(() => {});
   }, []);
+
+  /** Homepage: max 2 rows (8 cards on desktop), duplicates removed by Arabic name. */
+  const homeDestinations = useMemo(
+    () => dedupeDestinations(destinations).slice(0, HOME_DESTINATIONS_LIMIT),
+    [destinations],
+  );
+
+  /** Featured trips: unique routes only, max 2 rows (8 cards on desktop). */
+  const featuredTrips = useMemo(
+    () => dedupeTrips(stats?.recentTrips || []).slice(0, HOME_TRIPS_LIMIT),
+    [stats],
+  );
 
   /** Station whose city matches the destination (Arabic-tolerant). */
   function stationFor(dest: Destination): Station | undefined {
@@ -401,8 +416,8 @@ export default function V2HomePage() {
         </div>
       </section>
 
-      {/* ── DESTINATIONS (DB-driven, hidden when empty) ── */}
-      {destinations.length > 0 && (
+      {/* ── DESTINATIONS (DB-driven, deduped, max 2 rows = 8 cards; rest on /destinations) ── */}
+      {homeDestinations.length > 0 && (
       <section id="destinations" className="scroll-mt-20 bg-white py-16 md:py-20">
         <div className="v2-container">
           <V2SectionHeading
@@ -415,7 +430,7 @@ export default function V2HomePage() {
             }
           />
           <div className="v2-snap-row mt-8">
-            {destinations.map((dest, i) => (
+            {homeDestinations.map((dest, i) => (
               <motion.div
                 key={dest.id}
                 initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -423,13 +438,7 @@ export default function V2HomePage() {
               >
                 <Link href={destLink(dest)} className="v2-img-zoom v2-hover-lift group relative block overflow-hidden rounded-2xl">
                   <div className="relative aspect-[4/3] w-full bg-[#0A1E3C] lg:aspect-[3/3.4]">
-                    {dest.imageUrl ? (
-                      <Image src={dest.imageUrl} alt={isRTL ? dest.nameAr : (dest.nameEn || dest.nameAr)} fill sizes="(max-width:768px) 82vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
-                    ) : (
-                      <span className="grid size-full place-items-center bg-[#0A1E3C] px-6 text-center text-[19px] font-extrabold leading-snug text-white">
-                        {isRTL ? dest.nameAr : (dest.nameEn || dest.nameAr)}
-                      </span>
-                    )}
+                    <Image src={destImage(dest)} alt={isRTL ? dest.nameAr : (dest.nameEn || dest.nameAr)} fill sizes="(max-width:768px) 82vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B1B33]/90 via-[#0B1B33]/15 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
@@ -485,8 +494,8 @@ export default function V2HomePage() {
         </div>
       </section>
 
-      {/* ── FEATURED TRIPS (real: /api/public/stats recentTrips; hidden when none upcoming) ── */}
-      {stats && stats.recentTrips.length > 0 && (
+      {/* ── FEATURED TRIPS (real: /api/public/stats recentTrips, unique routes, max 8; hidden when none upcoming) ── */}
+      {featuredTrips.length > 0 && (
       <section id="featured" className="scroll-mt-20 bg-white py-16 md:py-20">
         <div className="v2-container">
           <V2SectionHeading
@@ -499,7 +508,7 @@ export default function V2HomePage() {
             }
           />
           <div className="v2-snap-row mt-8">
-            {(stats?.recentTrips || []).map((trip, i) => {
+            {featuredTrips.map((trip, i) => {
               const left = trip.totalSeats - trip.bookedSeats;
               const soldOut = left <= 0;
               return (
@@ -510,7 +519,7 @@ export default function V2HomePage() {
                   className="v2-hover-lift flex flex-col overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white"
                 >
                   <div className="relative h-40 overflow-hidden bg-[#E6EBF2]">
-                    <Image src={cityImage(trip.destination)} alt="" fill sizes="(max-width:768px) 82vw, 25vw" className="object-cover" />
+                    <Image src={tripImageForDestination(trip.destination, destinations)} alt={isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`} fill sizes="(max-width:768px) 82vw, 25vw" className="object-cover" />
                     <span className="absolute end-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[12px] font-bold text-[#1D5BD8]">
                       {trip.bus.type || t('v2.direct')}
                     </span>

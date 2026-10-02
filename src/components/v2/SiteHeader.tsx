@@ -60,7 +60,11 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
           light ? 'text-white hover:bg-white/10' : 'text-[#0B1B33] hover:bg-slate-100'
         )}
       >
-        <User className="size-4 shrink-0" />
+        {session.user.image ? (
+          <img src={session.user.image} alt="" className="size-5 shrink-0 rounded-full object-cover" />
+        ) : (
+          <User className="size-4 shrink-0" />
+        )}
         <span className="truncate">{fullName}</span>
         <ChevronDown className={cn('size-4 shrink-0 transition-transform', userOpen && 'rotate-180')} />
       </button>
@@ -69,6 +73,9 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
           <div className="fixed inset-0 z-10" onClick={() => setUserOpen(false)} />
           <div className="absolute end-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white py-1.5 shadow-xl">
             <p className="truncate px-4 pb-1 pt-2.5 text-[13px] font-bold text-[#5B6B84]">{fullName}</p>
+            <Link href="/profile" onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-[14.5px] font-medium text-[#0B1B33] hover:bg-slate-50">
+              <User className="size-4" /> {t('v2.profileTitle')}
+            </Link>
             <Link href={bookingsHref} onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-[14.5px] font-medium text-[#0B1B33] hover:bg-slate-50">
               <User className="size-4" /> {t('v2.myBookings')}
             </Link>
@@ -149,6 +156,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/faq" onClick={() => setOpen(false)}>{t('v2.help')}</Link>
             {session ? (
               <>
+                <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/profile" onClick={() => setOpen(false)}>{t('v2.profileTitle')}</Link>
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href={bookingsHref} onClick={() => setOpen(false)}>{t('v2.myBookings')}</Link>
                 {isAdmin && (
                   <Link className="rounded-xl px-4 py-3.5 text-[#1D5BD8] hover:bg-slate-100" href={dashHref} onClick={() => setOpen(false)}>

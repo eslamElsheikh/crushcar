@@ -12,6 +12,7 @@ import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2SectionHeading } from '@/components/v2/ui';
 import { V2Skeleton, V2EmptyState } from '@/components/v2/ui';
 import { normAr } from '@/lib/arabic';
+import { dedupeDestinations, destinationImage } from '@/lib/destinationImages';
 
 /* Public destinations index — same DB data as the homepage section. */
 
@@ -54,6 +55,9 @@ export default function DestinationsPage() {
 
   const nameOf = (d: Destination) => (isRTL ? d.nameAr : d.nameEn || d.nameAr);
 
+  /** Public list without name duplicates (admin still manages all). */
+  const visibleItems = dedupeDestinations(items);
+
   return (
     <div className="v2 min-h-dvh bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
@@ -76,7 +80,7 @@ export default function DestinationsPage() {
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {items.map((dest, i) => (
+              {visibleItems.map((dest, i) => (
                 <motion.div
                   key={dest.id}
                   initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -84,13 +88,7 @@ export default function DestinationsPage() {
                 >
                   <Link href={linkFor(dest)} className="v2-img-zoom v2-hover-lift group relative block overflow-hidden rounded-2xl">
                     <div className="relative aspect-[4/3] w-full bg-[#0A1E3C] lg:aspect-[3/3.4]">
-                      {dest.imageUrl ? (
-                        <Image src={dest.imageUrl} alt={nameOf(dest)} fill sizes="(max-width:640px) 100vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
-                      ) : (
-                        <span className="grid size-full place-items-center bg-[#0A1E3C] px-6 text-center text-[19px] font-extrabold leading-snug text-white">
-                          {nameOf(dest)}
-                        </span>
-                      )}
+                      <Image src={destinationImage(dest)} alt={nameOf(dest)} fill sizes="(max-width:640px) 100vw, (max-width:1024px) 45vw, 22vw" className="object-cover" />
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0B1B33]/90 via-[#0B1B33]/15 to-transparent" />
                     <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
