@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import * as Popover from '@radix-ui/react-popover';
 import { Building2, ChevronDown, MapPin, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { matchStation, splitHighlight } from '@/lib/search-ar';
-import { useIsMobile } from './useMediaQuery';
 
 export interface PickerStation {
   id: string;
@@ -19,9 +17,9 @@ interface StationPickerProps {
   onChange: (id: string) => void;
   placeholder?: string;
   ariaLabel?: string;
-  /** DOM id of the trigger (for validation focus). */
+  /** DOM id of the input (for validation focus). */
   id?: string;
-  /** DOM id of the next field trigger — focused automatically after pick. */
+  /** DOM id of the next field — focused automatically after pick. */
   nextId?: string;
   /** Hide this station id from the list (e.g. the other field's selection). */
   excludeId?: string;
@@ -50,6 +48,11 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
+/**
+ * Inline autocomplete: a text input with an attached in-flow list right
+ * below it. The list is part of the layout (pushes the card down), so it
+ * can never be clipped by ancestor overflow or float detached from the field.
+ */
 export function StationPicker({
   value,
   onChange,
@@ -63,9 +66,6 @@ export function StationPicker({
   className,
 }: StationPickerProps) {
   const t = useLangStore((s) => s.t);
-  const lang = useLangStore((s) => s.lang);
-  const dir = lang === 'ar' ? 'rtl' : 'ltr';
-  const isMobile = useIsMobile();
   const baseId = useId().replace(/:/g, '');
   const listId = `${baseId}-listbox`;
 
@@ -75,7 +75,8 @@ export function StationPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Stations that actually have trips in the DB (server-filtered).
@@ -98,27 +99,31 @@ export function StationPicker({
     load();
   }, []);
 
-  // Refetch on open when empty (a failed first load must not stick forever).
-  function handleOpenChange(next: boolean) {
-    setOpen(next);
-    if (next) {
-      setQuery('');
-      setActiveId(null);
-      if (stations.length === 0 && !loading) load();
-    }
-  }
-
-  // Escape closes the mobile sheet (Radix handles it on desktop).
+  // Close on outside click / Escape.
   useEffect(() => {
-    if (!open || !isMobile) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        inputRef.current?.blur();
+      }
+    };
+    document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, isMobile ]);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open ]);
 
   const selected = stations.find((s) => s.id === value);
+
+  // When closed, the input shows the selected station name; while open it
+  // shows the live search query.
+  const inputValue = open ? query : selected?.name ?? '';
 
   const groups: Group[] = useMemo(() => {
     const list = stations.filter((s) => {
@@ -157,29 +162,48 @@ export function StationPicker({
 
   function pick(stationId: string) {
     onChange(stationId);
+    setQuery('');
+    setActiveId(null);
     setOpen(false);
     focusNext();
+  }
+
+  function clear() {
+    onChange('');
+    setQuery('');
+    setActiveId(null);
+    setOpen(false);
+    inputRef.current?.focus();
+  }
+
+  function openList() {
+    setOpen(true);
+    setActiveId(null);
+    if (stations.length === 0 && !loading) load();
   }
 
   function moveActive(delta: 1 | -1) {
     if (flatIds.length === 0) return;
     setActiveId((cur) => {
-      const i = cur ? flatIds.indexOf(cur) : -1;
+      const i = cur !== null ? flatIds.indexOf(cur) : -1;
       const n = (i + delta + flatIds.length) % flatIds.length;
       return flatIds[n];
     });
   }
 
-  function onSearchKey(e: React.KeyboardEvent) {
+  function onInputKey(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      moveActive(1);
+      if (!open) openList();
+      else moveActive(1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       moveActive(-1);
-    } else if (e.key === 'Enter' && activeId !== null && flatIds.includes(activeId)) {
-      e.preventDefault();
-      pick(activeId);
+    } else if (e.key === 'Enter') {
+      if (open && activeId !== null && flatIds.includes(activeId)) {
+        e.preventDefault();
+        pick(activeId);
+      }
     }
   }
 
@@ -280,150 +304,102 @@ export function StationPicker({
     );
   }
 
-  const listBody = (
-    <>
-      {loading ? (
-        <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
-          {t('v2.stationsLoading')}
-        </p>
-      ) : failed ? (
-        <div className="grid gap-2 px-2 py-6 text-center">
-          <p className="text-[14px] font-semibold text-[#5B6B84]">{t('v2.stationsFailed')}</p>
-          <button
-            type="button"
-            onClick={load}
-            className="mx-auto rounded-xl bg-[#EFF4FF] px-5 py-2.5 text-[13.5px] font-bold text-[#1D5BD8]"
-          >
-            {t('v2.retry')}
-          </button>
-        </div>
-      ) : (
-        <>
-          {renderEmptyRow()}
-          {groups.map(renderGroup)}
-          {totalCount === 0 && (
-            <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
-              {t('v2.noStations')}
-            </p>
-          )}
-          {totalCount > 0 && (
-            <p className="px-2 pb-1 pt-3 text-center text-[12.5px] font-semibold text-[#9AA8BD]">
-              {t('v2.stationResults').replace('{n}', String(totalCount))}
-            </p>
-          )}
-        </>
-      )}
-    </>
-  );
-
-  const searchBox = (
-    <div className="shrink-0 border-b border-[#E6EBF2] p-2.5">
+  return (
+    <div ref={rootRef} className={cn('min-w-0', className)}>
       <span className="relative block">
-        <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-[#1D5BD8]" />
+        <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
         <input
-          ref={searchRef}
-          value={query}
+          ref={inputRef}
+          id={id}
+          value={inputValue}
           onChange={(e) => {
-            setQuery(e.target.value);
+            const v = e.target.value;
+            // Typing always searches; clearing the text clears the selection.
+            if (!open) openList();
+            setQuery(v);
             setActiveId(null);
+            if (v === '' && value !== '') onChange('');
           }}
-          onKeyDown={onSearchKey}
-          placeholder={t('v2.stationSearchPh')}
-          aria-label={t('v2.stationSearchPh')}
+          onFocus={() => {
+            // Focus shows the current value; reopen list with full stations.
+            setQuery('');
+            setActiveId(null);
+            openList();
+          }}
+          onKeyDown={onInputKey}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          autoComplete="off"
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
           aria-activedescendant={activeId !== null ? optDomId(activeId) : undefined}
-          autoComplete="off"
-          className="w-full rounded-xl border border-[#1D5BD8] bg-white py-3 pe-4 ps-10 text-[14.5px] font-medium text-[#0B1B33] outline-none placeholder:text-[#9AA8BD]"
+          aria-invalid={invalid || undefined}
+          className="v2-input h-12 min-h-0 w-full pe-16 ps-11 text-[15px] font-semibold text-[#0B1B33] placeholder:font-medium placeholder:text-[#9AA8BD]"
         />
+        {value ? (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label={t('v2.close')}
+            className="absolute end-10 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-[#9AA8BD] hover:bg-slate-100 hover:text-[#0B1B33]"
+          >
+            <X className="size-4" />
+          </button>
+        ) : null}
+        <span className="pointer-events-none absolute end-3.5 top-1/2 -translate-y-1/2 text-[#9AA8BD]">
+          <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
+        </span>
       </span>
-    </div>
-  );
 
-  const trigger = (
-    <button
-      id={id}
-      type="button"
-      aria-label={ariaLabel}
-      aria-haspopup="listbox"
-      aria-expanded={open}
-      aria-invalid={invalid || undefined}
-      onClick={() => handleOpenChange(!open)}
-      className={cn(
-        'v2-input flex h-12 min-h-0 w-full items-center gap-2 text-start',
-        !selected && 'text-[#9AA8BD]'
-      )}
-    >
-      <MapPin className="size-5 shrink-0 text-[#9AA8BD]" />
-      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-inherit">
-        {selected ? selected.name : placeholder}
-      </span>
-      <ChevronDown className={cn('size-4 shrink-0 text-[#9AA8BD] transition-transform', open && 'rotate-180')} />
-    </button>
-  );
-
-  // ── Mobile: bottom sheet ──────────────────────────────────────
-  if (isMobile) {
-    return (
-      <div dir={dir} className={className}>
-        {trigger}
-        {open && (
-          <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={ariaLabel}>
-            <div className="absolute inset-0 bg-[#0B1B33]/55" onClick={() => setOpen(false)} />
-            <div className="absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_-12px_48px_rgba(11,27,51,0.25)]">
-              <div className="flex shrink-0 items-center justify-between px-4 pb-1 pt-3">
-                <span className="text-[14px] font-extrabold text-[#0B1B33]">{t('v2.chooseGovStation')}</span>
+      {/* Attached in-flow list: part of the layout, pushes the card down. */}
+      {open && (
+        <div className="mt-2 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_16px_40px_rgba(11,27,51,0.12)]">
+          <div className="flex items-center gap-1.5 border-b border-[#E6EBF2] px-3.5 py-2.5 text-[13px]">
+            <Search className="size-4 text-[#1D5BD8]" />
+            <span className="font-bold text-[#5B6B84]">{t('v2.chooseGovStation')}</span>
+          </div>
+          <div
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-label={ariaLabel}
+            className="v2-thin-scroll max-h-[320px] overflow-y-auto p-2.5"
+          >
+            {loading ? (
+              <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
+                {t('v2.stationsLoading')}
+              </p>
+            ) : failed ? (
+              <div className="grid gap-2 px-2 py-6 text-center">
+                <p className="text-[14px] font-semibold text-[#5B6B84]">{t('v2.stationsFailed')}</p>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label={t('v2.close')}
-                  className="grid size-9 place-items-center rounded-full bg-slate-100 text-[#0B1B33]"
+                  onClick={load}
+                  className="mx-auto rounded-xl bg-[#EFF4FF] px-5 py-2.5 text-[13.5px] font-bold text-[#1D5BD8]"
                 >
-                  <X className="size-5" />
+                  {t('v2.retry')}
                 </button>
               </div>
-              {searchBox}
-              <div ref={listRef} id={listId} role="listbox" className="v2-thin-scroll min-h-0 flex-1 overflow-y-auto p-3">
-                {listBody}
-              </div>
-            </div>
+            ) : (
+              <>
+                {renderEmptyRow()}
+                {groups.map(renderGroup)}
+                {totalCount === 0 && (
+                  <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
+                    {t('v2.noStations')}
+                  </p>
+                )}
+                {totalCount > 0 && (
+                  <p className="px-2 pb-1 pt-3 text-center text-[12.5px] font-semibold text-[#9AA8BD]">
+                    {t('v2.stationResults').replace('{n}', String(totalCount))}
+                  </p>
+                )}
+              </>
+            )}
           </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Desktop: Radix popover ────────────────────────────────────
-  return (
-    <div dir={dir} className={className}>
-      <Popover.Root open={open} onOpenChange={handleOpenChange}>
-        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            side="bottom"
-            align="end"
-            sideOffset={8}
-            avoidCollisions
-            collisionPadding={12}
-            onOpenAutoFocus={(e) => {
-              e.preventDefault();
-              searchRef.current?.focus();
-            }}
-            className="z-50 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
-          >
-            {searchBox}
-            <div
-              ref={listRef}
-              id={listId}
-              role="listbox"
-              className="v2-thin-scroll max-h-[min(360px,60vh)] overflow-y-auto p-2.5"
-            >
-              {listBody}
-            </div>
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
+        </div>
+      )}
     </div>
   );
 }
