@@ -629,7 +629,8 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.outboundStep': { ar: 'رحلة الذهاب', en: 'Outbound' },
   'v2.returnStep': { ar: 'رحلة العودة', en: 'Return' },
   'v2.stepLabel': { ar: 'الخطوة', en: 'Step' },
-  'company.noCompanies': { ar: 'لا توجد شركات', en: 'No companies found' },  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
+  'company.noCompanies': { ar: 'لا توجد شركات', en: 'No companies found' },
+  'v2.credits': { ar: 'حقوق الصور', en: 'Image credits' },  'v2.noBookingsYet': { ar: 'لا توجد حجوزات بعد', en: 'No bookings yet' },
   'v2.noBookingsDesc': { ar: 'احجز رحلتك الأولى داخل مصر اليوم.', en: 'Book your first trip across Egypt today.' },
 }
 

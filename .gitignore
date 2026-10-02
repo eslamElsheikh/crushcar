@@ -11,4 +11,5 @@ vercel.json
 *.pem
 .vercel
 
-data/
+# Runtime uploads (never commit user uploads)
+/data/

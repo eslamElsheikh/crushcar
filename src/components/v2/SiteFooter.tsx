@@ -69,7 +69,10 @@ export function V2SiteFooter() {
       <div className="border-t border-white/10">
         <div className="v2-container flex items-center justify-between py-5 text-[13px] text-white/45">
           <span>{t('v2.rights')}</span>
-          <span className="flex items-center gap-1.5"><Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'English'}</span>
+          <span className="flex items-center gap-4">
+            <Link href="/credits" className="hover:text-white">{t('v2.credits')}</Link>
+            <span className="flex items-center gap-1.5"><Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'English'}</span>
+          </span>
         </div>
       </div>
     </footer>
