@@ -491,6 +491,7 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.destinations': { ar: 'الوجهات', en: 'Destinations' },
   'v2.forBusiness': { ar: 'للشركات', en: 'For Businesses' },
   'v2.login': { ar: 'تسجيل الدخول', en: 'Login' },
+  'v2.help': { ar: 'المساعدة', en: 'Help' },
   'v2.bookTrip': { ar: 'احجز رحلة', en: 'Book a trip' },
   'v2.myBookings': { ar: 'حجوزاتي', en: 'My Bookings' },
   'v2.account': { ar: 'حسابي', en: 'Account' },

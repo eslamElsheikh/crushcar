@@ -90,10 +90,13 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
     <header className={cn('inset-inline-0 top-0 z-30', overlay ? 'absolute' : 'sticky bg-white/95 backdrop-blur')}>
       {!overlay && <div className="border-b border-[#E6EBF2]" />}
       <div className="v2-container flex items-center gap-3 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        {/* Right group: logo + nav */}
-        <div className="flex shrink-0 items-center gap-10">
-          <Link href="/" className="flex items-center" aria-label="Safro">
-            <V2Logo height={38} />
+        {/* Right group: logo + wordmark + nav */}
+        <div className="flex shrink-0 items-center gap-8 xl:gap-10">
+          <Link href="/" className="flex items-center gap-2.5" aria-label={lang === 'ar' ? 'سافرو' : 'Safro'}>
+            <V2Logo height={34} />
+            <span className={cn('text-[21px] font-extrabold leading-none tracking-tight', light ? 'text-white' : 'text-[#0B1B33]')}>
+              {lang === 'ar' ? 'سافرو' : 'safro'}
+            </span>
           </Link>
           <nav className="hidden items-center gap-7 text-[14.5px] font-semibold lg:flex" aria-label="Primary">
             <Link className={linkCls} href="/#destinations">{t('v2.explore')}</Link>
@@ -105,9 +108,12 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
         {/* Flexible spacer */}
         <span className="min-w-2 flex-1" aria-hidden="true" />
 
-        {/* Actions cluster pinned to far edge */}
+        {/* Actions cluster pinned to far edge: language, help, account, CTA */}
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
           {langBtn}
+          <Link href="/faq" className={cn('px-3.5 py-2.5 text-[14px] font-semibold', light ? 'text-white/90 hover:text-white' : 'text-[#0B1B33]/75 hover:bg-slate-100')}>
+            {t('v2.help')}
+          </Link>
           {accountControl}
           <Link href="/trips" className="v2-btn-primary ms-1 px-5 py-3 text-[14.5px]">
             {t('v2.bookTrip')}
@@ -140,6 +146,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/#destinations" onClick={() => setOpen(false)}>{t('v2.explore')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/trips" onClick={() => setOpen(false)}>{t('v2.trips')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/destinations" onClick={() => setOpen(false)}>{t('v2.destinations')}</Link>
+            <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/faq" onClick={() => setOpen(false)}>{t('v2.help')}</Link>
             {session ? (
               <>
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href={bookingsHref} onClick={() => setOpen(false)}>{t('v2.myBookings')}</Link>
