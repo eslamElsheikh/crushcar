@@ -13,8 +13,9 @@ import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
-import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
+import { V2Field } from '@/components/v2/Field';
 import { V2DatePicker } from '@/components/v2/DatePicker';
+import { StationPicker } from '@/components/v2/StationPicker';
 import {
   V2NoResults, V2ErrorState, V2TripCardSkeleton, V2StatusBadge, V2EmptyState,
 } from '@/components/v2/ui';
@@ -300,26 +301,24 @@ function TripsContent() {
 
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
             <V2Field label={t('v2.from')}>
-              <span className="relative block">
-                <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-                <V2Select value={fromStationId} onChange={(e) => setFromStationId(e.target.value)} aria-label={t('v2.from')} className="appearance-none ps-11">
-                  <option value="">{t('v2.allStations')}</option>
-                  {stations.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
-                  ))}
-                </V2Select>
-              </span>
+              <StationPicker
+                value={fromStationId}
+                onChange={setFromStationId}
+                placeholder={t('v2.allStations')}
+                emptyLabel={t('v2.allStations')}
+                ariaLabel={t('v2.from')}
+                excludeId={toStationId || undefined}
+              />
             </V2Field>
             <V2Field label={t('v2.to')}>
-              <span className="relative block">
-                <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-                <V2Select value={toStationId} onChange={(e) => setToStationId(e.target.value)} aria-label={t('v2.to')} className="appearance-none ps-11">
-                  <option value="">{t('v2.allStations')}</option>
-                  {stations.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
-                  ))}
-                </V2Select>
-              </span>
+              <StationPicker
+                value={toStationId}
+                onChange={setToStationId}
+                placeholder={t('v2.allStations')}
+                emptyLabel={t('v2.allStations')}
+                ariaLabel={t('v2.to')}
+                excludeId={fromStationId || undefined}
+              />
             </V2Field>
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
               <div className="grid gap-2">

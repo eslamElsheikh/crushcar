@@ -17,6 +17,7 @@ import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2SectionHeading } from '@/components/v2/ui';
 import { V2DatePicker } from '@/components/v2/DatePicker';
+import { StationPicker } from '@/components/v2/StationPicker';
 import { normAr } from '@/lib/arabic';
 
 /* Safro V2 homepage — real backend data only. No mock trips. */
@@ -221,15 +222,13 @@ export default function V2HomePage() {
               <form onSubmit={submitSearch} className="grid gap-3 p-2.5 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
                 <label className="grid gap-2">
                   <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.from')}</span>
-                  <span className="relative">
-                    <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-                    <select value={fromId} onChange={(e) => setFromId(e.target.value)} aria-label={t('v2.from')} className="v2-input appearance-none ps-11">
-                      <option value="">{t('v2.fromPh')}</option>
-                      {stations.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
-                      ))}
-                    </select>
-                  </span>
+                  <StationPicker
+                    value={fromId}
+                    onChange={setFromId}
+                    placeholder={t('v2.fromPh')}
+                    ariaLabel={t('v2.from')}
+                    excludeId={toId || undefined}
+                  />
                 </label>
                 <label className="grid gap-2">
                   <span className="flex items-center justify-between px-1 text-[13px] font-bold text-[#0B1B33]">
@@ -242,15 +241,13 @@ export default function V2HomePage() {
                       <ArrowLeftRight className="size-4 v2-flip-rtl" />
                     </button>
                   </span>
-                  <span className="relative">
-                    <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-                    <select value={toId} onChange={(e) => setToId(e.target.value)} aria-label={t('v2.to')} className="v2-input appearance-none ps-11">
-                      <option value="">{t('v2.toPh')}</option>
-                      {stations.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ''}</option>
-                      ))}
-                    </select>
-                  </span>
+                  <StationPicker
+                    value={toId}
+                    onChange={setToId}
+                    placeholder={t('v2.toPh')}
+                    ariaLabel={t('v2.to')}
+                    excludeId={fromId || undefined}
+                  />
                 </label>
                 <div className={cn('grid gap-3', tripKind === 'roundTrip' && 'sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2')}>
                   <div className="grid gap-2">

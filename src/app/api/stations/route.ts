@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const q = searchParams.get('q') || ''
     const city = searchParams.get('city') || ''
+    const onlyWithTrips = searchParams.get('onlyWithTrips') === '1'
 
     const where: any = {}
     if (q) {
@@ -17,6 +18,9 @@ export async function GET(req: NextRequest) {
     }
     if (city) {
       where.city = city
+    }
+    if (onlyWithTrips) {
+      where.tripStops = { some: {} }
     }
 
     const stations = await prisma.station.findMany({
