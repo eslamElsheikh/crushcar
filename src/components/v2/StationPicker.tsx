@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Building2, ChevronDown, MapPin, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
@@ -38,11 +39,17 @@ export function StationPicker({
   className,
 }: StationPickerProps) {
   const t = useLangStore((s) => s.t);
+  const lang = useLangStore((s) => s.lang);
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
   const [stations, setStations] = useState<PickerStation[]>([]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(-1);
+  // Fixed panel coords (portal) — null until measured on open (client-only).
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -57,11 +64,32 @@ export function StationPicker({
       .catch(() => {});
   }, []);
 
-  // Close on outside click / Escape.
+  // Measure the button and position the fixed portal panel (with flip).
+  function updatePos() {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 8;
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    const flip = spaceBelow < 240 && spaceAbove > spaceBelow;
+    const maxH = Math.max(200, Math.min(400, flip ? spaceAbove : spaceBelow));
+    setPos({
+      top: flip ? Math.max(gap, r.top - gap - maxH) : r.bottom + gap,
+      left: Math.max(gap, Math.min(r.left, window.innerWidth - r.width - gap)),
+      width: r.width,
+      maxH,
+    });
+  }
+
+  // Close on outside click / Escape. Panel lives in a portal, so check both refs.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -71,6 +99,21 @@ export function StationPicker({
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
+    };
+  }, [open ]);
+
+  // Position + keep positioned on scroll/resize while open.
+  useEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
     };
   }, [open ]);
 
@@ -135,12 +178,16 @@ export function StationPicker({
     }
   }
 
-  // Keep the active row visible.
+  // Keep the active row visible (list-local scroll only — never scrolls the page).
   useEffect(() => {
     if (!open || activeIdx < 0) return;
-    listRef.current
-      ?.querySelector(`[data-opt="${activeIdx}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
+    const list = listRef.current;
+    const opt = list?.querySelector(`[data-opt="${activeIdx}"]`) as HTMLElement | null;
+    if (!list || !opt) return;
+    const lr = list.getBoundingClientRect();
+    const or = opt.getBoundingClientRect();
+    if (or.top < lr.top) list.scrollTop -= lr.top - or.top;
+    else if (or.bottom > lr.bottom) list.scrollTop += or.bottom - lr.bottom;
   }, [activeIdx, open ]);
 
   let optCursor = -1;
@@ -152,6 +199,7 @@ export function StationPicker({
   return (
     <div ref={rootRef} className={cn('relative', className)}>
       <button
+        ref={btnRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
@@ -169,8 +217,14 @@ export function StationPicker({
         <ChevronDown className={cn('size-4 shrink-0 text-[#9AA8BD] transition-transform', open && 'rotate-180')} />
       </button>
 
-      {open && (
-        <div className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_24px_64px_rgba(11,27,51,0.18)]">
+      {/* Portal to body: immune to ancestor overflow clipping (e.g. hero section). */}
+      {open && pos && createPortal(
+        <div
+          ref={panelRef}
+          dir={dir}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 50 }}
+          className="overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
+        >
           {/* Search */}
           <div className="border-b border-[#E6EBF2] p-2.5">
             <span className="relative block">
@@ -188,7 +242,7 @@ export function StationPicker({
           </div>
 
           {/* List */}
-          <div ref={listRef} role="listbox" onKeyDown={onListKey} className="max-h-[320px] overflow-y-auto p-2.5">
+          <div ref={listRef} role="listbox" onKeyDown={onListKey} style={{ maxHeight: pos.maxH }} className="overflow-y-auto p-2.5">
             <div className="flex items-center justify-between px-2 pb-2 pt-1 text-[13px]">
               <span className="font-bold text-[#5B6B84]">{t('v2.chooseGovStation')}</span>
               <span className="font-bold text-[#0B1B33]">
@@ -265,7 +319,8 @@ export function StationPicker({
               </p>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
