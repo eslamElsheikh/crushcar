@@ -286,6 +286,7 @@ export default function V2HomePage() {
                       ariaLabel={t('v2.from')}
                       excludeId={toId || undefined}
                       invalid={!!errors.fromId}
+                      alwaysUp
                     />
                     {errors.fromId && (
                       <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.fromId}</p>
@@ -312,6 +313,7 @@ export default function V2HomePage() {
                       ariaLabel={t('v2.to')}
                       excludeId={fromId || undefined}
                       invalid={!!errors.toId}
+                      alwaysUp
                     />
                     {errors.toId && (
                       <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.toId}</p>

@@ -27,6 +27,8 @@ interface StationPickerProps {
   emptyLabel?: string;
   /** Field-level validation state (red ring via .v2-input[aria-invalid]). */
   invalid?: boolean;
+  /** Always open the list above the field (home page), never below. */
+  alwaysUp?: boolean;
   className?: string;
 }
 
@@ -63,6 +65,7 @@ export function StationPicker({
   excludeId,
   emptyLabel,
   invalid,
+  alwaysUp,
   className,
 }: StationPickerProps) {
   const t = useLangStore((s) => s.t);
@@ -180,19 +183,22 @@ export function StationPicker({
   }
 
   function openList() {
+    // Measure placement BEFORE first paint so the list never flashes below.
+    updatePlacement();
     setOpen(true);
     setActiveId(null);
     if (stations.length === 0 && !loading) load();
   }
 
-  // Measure room around the field; flip above it when space below is tight.
+  // Measure room around the field; flip above it when space below is tight
+  // (or always when `alwaysUp` is set — e.g. the home page).
   function updatePlacement() {
     const el = rootRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom - 8;
     const spaceAbove = r.top - 8;
-    const shouldFlip = spaceBelow < 240 && spaceAbove > spaceBelow;
+    const shouldFlip = alwaysUp ? true : spaceBelow < 240 && spaceAbove > spaceBelow;
     setFlip(shouldFlip);
     setMaxH(Math.max(200, Math.min(320, shouldFlip ? spaceAbove : spaceBelow)));
   }
