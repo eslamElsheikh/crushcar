@@ -82,12 +82,12 @@ export function StationPicker({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Stations that actually have trips in the DB (server-filtered).
+  // All stations from the DB (grouped by governorate in the list).
   async function load() {
     setLoading(true);
     setFailed(false);
     try {
-      const r = await fetch('/api/stations?onlyWithTrips=1');
+      const r = await fetch('/api/stations');
       const d = await r.json();
       const list: PickerStation[] = d.stations || [];
       setStations(Array.isArray(list) ? list : []);
@@ -276,8 +276,7 @@ export function StationPicker({
   }
 
   function renderGroup(g: Group) {
-    // Governorate header always shows (even for a single station),
-    // followed by that governorate's stations that have trips.
+    // Governorate header always shows, followed by all its DB stations.
     return (
       <div key={g.city} role="group" aria-label={g.city}>
         <div className="flex items-center justify-between px-2 pb-1.5 pt-3 text-[13px]">
@@ -312,8 +311,20 @@ export function StationPicker({
                       : 'border-[#E6EBF2] bg-white font-bold text-[#0B1B33] hover:bg-slate-50'
                 )}
               >
-                <span className="min-w-0 truncate">
-                  <Highlight text={s.name} query={query} />
+                <span className="min-w-0">
+                  <span className="block truncate">
+                    <Highlight text={s.name} query={query} />
+                  </span>
+                  {s.city && s.city !== s.name && (
+                    <span
+                      className={cn(
+                        'block truncate text-[12.5px] font-semibold',
+                        isSel ? 'text-white/70' : 'text-[#9AA8BD]'
+                      )}
+                    >
+                      <Highlight text={s.city} query={query} />
+                    </span>
+                  )}
                 </span>
                 <MapPin className={cn('size-4 shrink-0', isSel ? 'text-white/80' : 'text-[#9AA8BD]')} />
               </button>
