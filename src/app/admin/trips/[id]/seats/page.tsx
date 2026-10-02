@@ -3,14 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, Armchair, Bus, Loader2 } from 'lucide-react';
+import { ArrowRight, Armchair, Bus, Loader2, CheckCircle2, Clock, User, Building2, Hash, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
-import { V2PageHeader } from '@/components/v2/admin';
-import { V2Skeleton } from '@/components/v2/ui';
+import { V2PageHeader, V2Modal } from '@/components/v2/admin';
+import { V2Skeleton, V2StatusBadge } from '@/components/v2/ui';
+import { V2Button } from '@/components/v2/Button';
 
-/* V2 per-trip seat ops — same trip fetch + BOARDED endpoints as V1. */
+/* V2 per-trip seat ops — same trip fetch + BOARDED endpoints + seat detail inspection as V1. */
 
 const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 
@@ -20,10 +21,12 @@ export default function TripSeatsPage() {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [boarding, setBoarding] = useState<string | null>(null);
+  const [inspectSeat, setInspectSeat] = useState<any>(null);
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +53,13 @@ export default function TripSeatsPage() {
           const mark = (list: any[]) => (list || []).map((b) => (b.id === bookingId ? { ...b, status: 'BOARDED', boarded: true, boardedAt: new Date().toISOString() } : b));
           return { ...prev, bookings: mark(prev.bookings), companyBookings: mark(prev.companyBookings) };
         });
+        if (inspectSeat?.booking?.id === bookingId) {
+          setInspectSeat((prev: any) => ({
+            ...prev,
+            booking: { ...prev.booking, status: 'BOARDED', boarded: true, boardedAt: new Date().toISOString() }
+          }));
+        }
+        toast.success(isRTL ? 'تم تأكيد الصعود بنجاح' : 'Boarding confirmed');
       } else {
         toast.error(t('common.error'));
       }
@@ -78,7 +88,7 @@ export default function TripSeatsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.trips')}
       </Link>
@@ -116,27 +126,23 @@ export default function TripSeatsPage() {
                     return (
                       <button
                         key={colIdx}
-                        disabled={!b || boarded || boarding === b?.id}
-                        onClick={() => b && markBoarded(b.id, companyIds.has(b.id))}
+                        type="button"
+                        onClick={() => setInspectSeat({ seat, booking: b })}
                         title={b ? `${seat.label} · ${b.passengerName || ''}` : `${seat.label} · ${isRTL ? 'فارغ' : 'Empty'}`}
                         className={cn(
                           'grid size-12 shrink-0 place-items-center rounded-xl border-2 transition',
                           isAisle && 'ms-6',
-                          !b && 'border-slate-200 bg-white text-slate-300',
-                          b && !boarded && 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500',
-                          b && boarded && 'cursor-default border-emerald-300 bg-emerald-50 text-emerald-700'
+                          !b && 'border-slate-200 bg-white text-slate-300 hover:border-slate-300 hover:bg-slate-50',
+                          b && !boarded && 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:shadow-sm',
+                          b && boarded && 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400'
                         )}
                       >
-                        {boarding === b?.id ? (
-                          <Loader2 className="size-5 animate-spin" />
-                        ) : (
-                          <span className="text-center">
-                            <Armchair className="mx-auto size-4" />
-                            <span className="block max-w-[40px] truncate text-[9px] font-bold leading-tight">
-                              {b ? (b.passengerName || '').split(' ')[0] : seat.label}
-                            </span>
+                        <span className="text-center">
+                          <Armchair className="mx-auto size-4" />
+                          <span className="block max-w-[40px] truncate text-[9px] font-bold leading-tight">
+                            {b ? (b.passengerName || '').split(' ')[0] : seat.label}
                           </span>
-                        )}
+                        </span>
                       </button>
                     );
                   })}
@@ -146,11 +152,98 @@ export default function TripSeatsPage() {
           </div>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[#5B6B84]">
             <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-slate-200 bg-white" /> {isRTL ? 'فارغ' : 'Empty'}</span>
-            <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-amber-300 bg-amber-50" /> {isRTL ? 'محجوز — اضغط للترحيل' : 'Booked — tap to board'}</span>
+            <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-amber-300 bg-amber-50" /> {isRTL ? 'محجوز' : 'Booked'}</span>
             <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-emerald-300 bg-emerald-50" /> {t('booking.boarded')}</span>
           </div>
         </div>
       )}
+
+      {/* Seat Details Modal / Inspection Drawer (Restored from V1) */}
+      <V2Modal
+        open={!!inspectSeat}
+        onClose={() => setInspectSeat(null)}
+        title={inspectSeat ? `${isRTL ? 'مقعد' : 'Seat'} ${inspectSeat.seat?.label}` : ''}
+      >
+        {inspectSeat && (
+          <div className="grid gap-4">
+            {!inspectSeat.booking ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-[#F6F8FC] p-6 text-center">
+                <Armchair className="mx-auto size-8 text-slate-400" />
+                <p className="mt-2 text-[15px] font-extrabold text-[#0B1B33]">
+                  {isRTL ? 'المقعد متاح' : 'Seat Available'}
+                </p>
+                <p className="mt-1 text-[13px] text-[#5B6B84]">
+                  {isRTL ? 'لم يتم حجز هذا المقعد بعد' : 'Not booked for this trip'}
+                </p>
+                <p className="mt-3 text-[14.5px] font-extrabold text-[#1D5BD8]">
+                  EGP {Number(inspectSeat.seat?.price || trip?.price || 0).toLocaleString(locale)}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between rounded-xl bg-[#F6F8FC] p-3.5">
+                  <span className="text-[13px] font-bold text-[#5B6B84]">{t('tripRequest.status')}</span>
+                  <V2StatusBadge tone={inspectSeat.booking.status === 'BOARDED' || inspectSeat.booking.status === 'PAID' ? 'green' : 'amber'}>
+                    {inspectSeat.booking.status}
+                  </V2StatusBadge>
+                </div>
+
+                <div className="rounded-xl border border-[#E6EBF2] p-4 text-[13.5px]">
+                  <div className="flex items-center gap-2 font-bold text-[#0B1B33]">
+                    <User className="size-4 text-[#1D5BD8]" />
+                    <span>{inspectSeat.booking.passengerName || inspectSeat.booking.user?.name || t('common.guest')}</span>
+                  </div>
+                  {inspectSeat.booking.passengerPhone && (
+                    <p className="mt-1 text-[#5B6B84] tabular-nums" dir="ltr">{inspectSeat.booking.passengerPhone}</p>
+                  )}
+                  {inspectSeat.booking.company?.name && (
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-[#5B6B84]">
+                      <Building2 className="size-3.5 text-[#1D5BD8]" />
+                      <span>{inspectSeat.booking.company.name}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[13px]">
+                  <div className="rounded-xl bg-[#F6F8FC] p-3">
+                    <span className="block text-[#5B6B84]">{isRTL ? 'كود الحجز' : 'Ref'}</span>
+                    <span className="font-mono font-bold text-[#0B1B33]" dir="ltr">{inspectSeat.booking.reference}</span>
+                  </div>
+                  <div className="rounded-xl bg-[#F6F8FC] p-3">
+                    <span className="block text-[#5B6B84]">{isRTL ? 'السعر' : 'Price'}</span>
+                    <span className="font-bold text-[#0B1B33] tabular-nums">
+                      EGP {Number(inspectSeat.booking.total || 0).toLocaleString(locale)}
+                    </span>
+                  </div>
+                </div>
+
+                {inspectSeat.booking.paidAt && (
+                  <p className="text-[12px] text-[#5B6B84]">
+                    {isRTL ? 'وقت الدفع' : 'Paid at'}: {new Date(inspectSeat.booking.paidAt).toLocaleString(locale)}
+                  </p>
+                )}
+
+                {inspectSeat.booking.status !== 'BOARDED' && (
+                  <div className="mt-2">
+                    <V2Button
+                      disabled={boarding === inspectSeat.booking.id}
+                      onClick={() => markBoarded(inspectSeat.booking.id, companyIds.has(inspectSeat.booking.id))}
+                      className="w-full"
+                    >
+                      {boarding === inspectSeat.booking.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="size-4" />
+                      )}
+                      {isRTL ? 'تأكيد الصعود للباص' : 'Confirm Boarding'}
+                    </V2Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </V2Modal>
     </div>
   );
 }

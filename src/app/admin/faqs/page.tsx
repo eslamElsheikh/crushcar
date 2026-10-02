@@ -126,7 +126,7 @@ export default function AdminFaqs() {
   async function reorder(f: Faq, direction: 'up' | 'down') {
     try {
       const res = await fetch(`/api/faqs/${f.id}/reorder`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ direction }),
