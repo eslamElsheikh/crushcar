@@ -319,7 +319,7 @@ export default function BookingDetailPage() {
                 <Banknote size={16} className="text-zinc-500" />
                 <div>
                   <p className="text-xs text-zinc-500">{isRTL ? 'التحصيل' : 'Collect Amount'}</p>
-                  <p className="text-sm font-semibold text-white">{booking.collectAmount.toLocaleString()} EGP</p>
+                  <p className="text-sm font-semibold text-white">{Number(booking.collectAmount || 0).toLocaleString()} EGP</p>
                 </div>
               </div>
             )}

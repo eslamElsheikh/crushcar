@@ -442,16 +442,16 @@ function TripDetailPageContent() {
   const fromStop = tripStops.find(s => s.stationId === fromStationId) || tripStops[0]
   const toStop = tripStops.find(s => s.stationId === toStationId) || tripStops[tripStops.length - 1]
   const segmentPrice = (fromStop && toStop && toStop.stopOrder > fromStop.stopOrder)
-    ? toStop.priceFromOrigin - fromStop.priceFromOrigin
-    : (trip?.price || 0)
+    ? (toStop.priceFromOrigin ?? 0) - (fromStop.priceFromOrigin ?? 0)
+    : (trip?.price ?? 0)
 
   const totalPrice = selectedSeats.reduce((sum, label) => {
-    const seat = layout?.seats.find((s) => s.label === label)
+    const seat = layout?.seats?.find((s) => s.label === label)
     return sum + (segmentPrice || trip?.price || 0) + (seat?.price || 0)
   }, 0)
 
   const returnTotalPrice = returnSelectedSeats.reduce((sum, label) => {
-    const seat = returnLayout?.seats.find((s) => s.label === label)
+    const seat = returnLayout?.seats?.find((s) => s.label === label)
     return sum + (returnTrip?.price || 0) + (seat?.price || 0)
   }, 0)
 
@@ -634,7 +634,7 @@ function TripDetailPageContent() {
                 <span className="text-zinc-600">{isRTL ? '←' : '→'}</span>
                 <span className="text-white font-medium">{toStop.station?.name || toStationId}</span>
                 <span className="text-zinc-600 mx-2">•</span>
-                <span className="text-emerald-400 font-semibold">{segmentPrice.toLocaleString()} {t('common.currency')}</span>
+                <span className="text-emerald-400 font-semibold">{Number(segmentPrice || 0).toLocaleString()} {t('common.currency')}</span>
                 <button
                   onClick={() => { setShowStopSelector(false) }}
                   className="ml-auto text-blue-400 hover:text-blue-300 text-xs font-medium"
@@ -658,7 +658,7 @@ function TripDetailPageContent() {
             <span className="text-zinc-600">{isRTL ? '←' : '→'}</span>
             <span className="text-white font-medium">{trip.destination}</span>
             <span className="text-zinc-600 mx-2">•</span>
-            <span className="text-emerald-400 font-semibold">{trip.price.toLocaleString()} {t('common.currency')}</span>
+            <span className="text-emerald-400 font-semibold">{Number(trip?.price || 0).toLocaleString()} {t('common.currency')}</span>
           </motion.div>
         )}
 
@@ -674,7 +674,7 @@ function TripDetailPageContent() {
             <span className="text-zinc-600">{isRTL ? '←' : '→'}</span>
             <span className="text-white font-medium">{toStop.station?.name || toStationId}</span>
             <span className="text-zinc-600 mx-2">•</span>
-            <span className="text-emerald-400 font-semibold">{segmentPrice.toLocaleString()} {t('common.currency')}</span>
+            <span className="text-emerald-400 font-semibold">{Number(segmentPrice || 0).toLocaleString()} {t('common.currency')}</span>
             {tripStops.length > 2 && (
               <button
                 onClick={() => setShowStopSelector(true)}
@@ -921,7 +921,7 @@ function TripDetailPageContent() {
                   <div className="flex flex-wrap gap-2">
                     <AnimatePresence>
                       {selectedSeats.map((label) => {
-                        const seat = layout?.seats.find((s) => s.label === label)
+                        const seat = layout?.seats?.find((s) => s.label === label)
                         const price = (segmentPrice || trip?.price || 0) + (seat?.price || 0)
                         return (
                           <motion.div
@@ -934,7 +934,7 @@ function TripDetailPageContent() {
                           >
                             <span className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-sm font-mono font-semibold">
                               {label}
-                              <span className="text-xs text-blue-400/60 ml-1">+{price.toLocaleString()}</span>
+                              <span className="text-xs text-blue-400/60 ml-1">+{Number(price || 0).toLocaleString()}</span>
                             </span>
                             <button
                               onClick={() => toggleSeat(label)}
@@ -1033,7 +1033,7 @@ function TripDetailPageContent() {
                     className="border-t border-white/5 pt-4 mb-6 space-y-2 text-sm"
                   >
                     {selectedSeats.map((label) => {
-                      const seat = layout?.seats.find((s) => s.label === label)
+                      const seat = layout?.seats?.find((s) => s.label === label)
                       const price = (segmentPrice || trip?.price || 0) + (seat?.price || 0)
                       return (
                         <motion.div
@@ -1048,13 +1048,13 @@ function TripDetailPageContent() {
                               <span className="ml-2 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">VIP</span>
                             )}
                           </span>
-                          <span className="text-white font-medium">{price.toLocaleString()} {t('common.currency')}</span>
+                          <span className="text-white font-medium">{Number(price || 0).toLocaleString()} {t('common.currency')}</span>
                         </motion.div>
                       )
                     })}
                     <div className="flex justify-between font-semibold border-t border-white/10 pt-2 text-white">
                       <span>{t('seat.total')}</span>
-                      <span className="text-blue-400 text-lg">{totalPrice.toLocaleString()} {t('common.currency')}</span>
+                      <span className="text-blue-400 text-lg">{Number(totalPrice || 0).toLocaleString()} {t('common.currency')}</span>
                     </div>
                   </motion.div>
                 )}
@@ -1253,7 +1253,7 @@ function TripDetailPageContent() {
                         {passenger.phone && <span className="text-zinc-500">· {passenger.phone}</span>}
                         {passenger.hotel && <span className="text-zinc-500">· {passenger.hotel}</span>}
                         {passenger.collectAmount && (
-                          <span className="text-emerald-400">· {t('booking.collectedFor')}: {Number(passenger.collectAmount).toLocaleString()}</span>
+                          <span className="text-emerald-400">· {t('booking.collectedFor')}: {Number(passenger.collectAmount || 0).toLocaleString()}</span>
                         )}
                       </div>
                     </div>
@@ -1264,15 +1264,15 @@ function TripDetailPageContent() {
                     <div className="border-t border-white/5 pt-4 space-y-1 text-sm">
                       <div className="flex justify-between text-zinc-400">
                         <span>{t('roundtrip.outboundTrip')}</span>
-                        <span>{totalPrice.toLocaleString()} {t('common.currency')}</span>
+                        <span>{Number(totalPrice || 0).toLocaleString()} {t('common.currency')}</span>
                       </div>
                       <div className="flex justify-between text-zinc-400">
                         <span>{t('roundtrip.returnTrip')}</span>
-                        <span>{returnTotalPrice.toLocaleString()} {t('common.currency')}</span>
+                        <span>{Number(returnTotalPrice || 0).toLocaleString()} {t('common.currency')}</span>
                       </div>
                       <div className="flex justify-between font-bold text-white border-t border-white/10 pt-2">
                         <span>{t('roundtrip.totalBoth')}</span>
-                        <span className="text-blue-400 text-lg">{(totalPrice + returnTotalPrice).toLocaleString()} {t('common.currency')}</span>
+                        <span className="text-blue-400 text-lg">{Number((totalPrice || 0) + (returnTotalPrice || 0)).toLocaleString()} {t('common.currency')}</span>
                       </div>
                     </div>
                   )}
@@ -1325,7 +1325,7 @@ function SeatButton({ seat, isSelected, isReserved, onToggle, tripPrice, t }: an
           ? 'seat-vip cursor-pointer'
           : 'seat-available cursor-pointer'
       )}
-      title={isToilet ? '🚻 دورة مياه' : `${seat.label}${seat.type === 'VIP' ? ' (VIP)' : ''} — ${(tripPrice + (seat.price || 0)).toLocaleString()} ${t('common.currency')}`}
+      title={isToilet ? '🚻 دورة مياه' : `${seat.label}${seat.type === 'VIP' ? ' (VIP)' : ''} — ${Number((tripPrice || 0) + (seat?.price || 0)).toLocaleString()} ${t('common.currency')}`}
       data-segment-price={tripPrice}
     >
       {isToilet ? '🚻' : seat.label}
@@ -1415,7 +1415,7 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
                   </span>
                 </div>
                 <span className="text-white font-semibold text-base">
-                  {Math.round(booking.total ?? 0).toLocaleString()} {t('common.currency')}
+                  {Math.round(booking?.total ?? 0).toLocaleString()} {t('common.currency')}
                 </span>
               </div>
             ))}
