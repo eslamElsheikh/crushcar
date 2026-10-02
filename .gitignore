@@ -13,3 +13,6 @@ vercel.json
 
 # Runtime uploads (never commit user uploads)
 /data/
+.scratch/
+tsconfig.tsbuildinfo
+.opencode/
