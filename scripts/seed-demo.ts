@@ -831,6 +831,70 @@ async function main() {
   console.log('✅ Deposit requests seeded')
 
   // ══════════════════════════════════════════════════════════════
+  // EXTRA COMPANY DATA — bookings, customers, invoice, wallet, requests
+  // ══════════════════════════════════════════════════════════════
+  await upsertCompanyBooking({
+    key: 'cb-5', companyId: cairoExpress.id, tripId: futureTrips.caiSahlOut.id, seatLabel: 'A1',
+    status: 'PAID', total: 520, bookingType: 'FOR_EMPLOYEE', paidFromWallet: 520,
+    passengerName: 'Khaled Said', paidAt: at(0, 9), createdAt: at(0, 8),
+  })
+  await upsertCompanyBooking({
+    key: 'cb-6', companyId: cairoExpress.id, tripId: futureTrips.caiSuez.id, seatLabel: 'B2',
+    status: 'PENDING', total: 130, bookingType: 'FOR_CLIENT', paidOnCredit: 130,
+    passengerName: 'Acme Visitor', createdAt: at(0, 11),
+  })
+  await upsertCompanyBooking({
+    key: 'cb-7', companyId: monsters.id, tripId: futureTrips.dahabSharm.id, seatLabel: 'A2',
+    status: 'BOARDED', total: 120, bookingType: 'FOR_EMPLOYEE', paidFromWallet: 120,
+    passengerName: 'Monster Driver', paidAt: at(-1, 9), createdAt: at(-1, 9),
+  })
+  await upsertCompanyBooking({
+    key: 'cb-8', companyId: monsters.id, tripId: futureTrips.caiLuxSouth.id, seatLabel: 'C1',
+    status: 'CANCELLED', total: 550, bookingType: 'FOR_EMPLOYEE', paidFromWallet: 550,
+    passengerName: 'Monster Staff', createdAt: at(-2, 9),
+    paidAt: at(-2, 9),
+  })
+
+  await upsertCompanyCustomer({ key: 'cc-4', companyId: cairoExpress.id, name: 'Delta Trading', email: 'ops@delta.com', phone: '01000000004', notes: 'VIP route requests' })
+  await upsertCompanyCustomer({ key: 'cc-5', companyId: monsters.id, name: 'Monster Client B', email: 'b@monster.com', phone: '01000000005' })
+
+  await upsertInvoice({
+    key: 'inv-5', companyId: cairoExpress.id, periodStart: at(-60), periodEnd: at(-31),
+    totalAmount: 950, paidAmount: 0, status: 'PENDING', dueDate: at(-25), notes: 'Late invoice',
+  })
+  await upsertInvoice({
+    key: 'inv-6', companyId: monsters.id, periodStart: at(-1), periodEnd: at(29),
+    totalAmount: 600, paidAmount: 100, status: 'PARTIAL', dueDate: at(10),
+  })
+
+  await upsertWalletTx({ key: 'wt-7', companyId: cairoExpress.id, type: 'DEPOSIT', amount: 2500, description: 'Cash deposit at office', createdAt: at(-7) })
+  await upsertWalletTx({ key: 'wt-8', companyId: cairoExpress.id, type: 'BOOKING_CHARGE', amount: -520, description: 'Booking charge', reference: DEMO.companyBooking('cb-5'), createdAt: at(0) })
+  await upsertWalletTx({ key: 'wt-9', companyId: monsters.id, type: 'REFUND', amount: 550, description: 'Cancelled booking refund', reference: DEMO.companyBooking('cb-8'), createdAt: at(-1) })
+  await upsertWalletTx({ key: 'wt-10', companyId: monsters.id, type: 'DEPOSIT', amount: 1500, description: 'Top-up', createdAt: at(-2) })
+
+  await upsertTripRequest({ key: 'tr-5', companyId: cairoExpress.id, fromStationId: cairo.id, toStationId: sahl.id, passengerCount: 12, date: at(12), notes: 'Red Sea retreat shuttle', status: 'PENDING' })
+  await upsertTripRequest({ key: 'tr-6', companyId: monsters.id, fromStationId: sharm.id, toStationId: dahab.id, passengerCount: 6, date: at(8), status: 'APPROVED', adminNotes: 'Weekly staff transfer' })
+
+  await upsertDepositRequest({ key: 'dr-4', companyId: monsters.id, amount: 1200, status: 'PENDING' })
+
+  console.log('✅ Extra company data seeded')
+
+  // ══════════════════════════════════════════════════════════════
+  // BUS ROUTES (BusStation) — named stops in service order
+  // ══════════════════════════════════════════════════════════════
+  async function ensureBusStops(busId: string, names: string[]) {
+    for (let i = 0; i < names.length; i++) {
+      const existing = await prisma.busStation.findFirst({ where: { busId, order: i } })
+      if (!existing) await prisma.busStation.create({ data: { busId, name: names[i], order: i } })
+    }
+  }
+  await ensureBusStops(coach.id, ['القاهرة', 'الجيزة', 'طنطا', 'الإسكندرية', 'الغردقة', 'سهل حشيش'])
+  await ensureBusStops(vip.id, ['القاهرة', 'العين السخنة', 'الغردقة', 'مرسي علم', 'أسوان'])
+  await ensureBusStops(mini.id, ['المنصورة', 'طنطا', 'الإسكندرية', 'بورسعيد'])
+
+  console.log('✅ Bus routes seeded')
+
+  // ══════════════════════════════════════════════════════════════
   // FAQS (only if empty)
   // ══════════════════════════════════════════════════════════════
   const faqCount = await prisma.faq.count()
@@ -851,6 +915,16 @@ async function main() {
     console.log(`ℹ️  FAQs already exist (${faqCount}), skipping`)
   }
 
+  // Two extra FAQs (added after the base 8)
+  const extraFaqs = [
+    { questionAr: 'عملية حجوزي اتأجلت — أعمل إيه؟', questionEn: 'My trip was delayed — what should I do?', answerAr: 'هنبلغك بالرسائل على طول لو الرحلة اتأجلت أو اتلغيت، ولو دفعت هتوصلك خطة الاسترجاع أو إعادة الحجز تلقائياً.', answerEn: 'You will be notified by SMS if your trip is delayed or cancelled. If you paid, refund or rebooking options arrive automatically.' },
+    { questionAr: 'فين ألاقي بيانات حجوزاتي وإيصالاتي؟', questionEn: 'Where can I find my bookings and receipts?', answerAr: 'من صفحة "حجوزاتي" بعد تسجيل الدخول هتلاقي كل حجوزاتك مع إيصالات قابلة للطباعة وحالة الدفع والصعود.', answerEn: 'From the My Bookings page after login you will find all your bookings with printable receipts, payment and boarding status.' },
+  ]
+  for (let i = 0; i < extraFaqs.length; i++) {
+    const exists = await prisma.faq.findFirst({ where: { questionAr: extraFaqs[i].questionAr } })
+    if (!exists) await prisma.faq.create({ data: { ...extraFaqs[i], order: 9 + i } })
+  }
+
   // ══════════════════════════════════════════════════════════════
   // DESTINATIONS (add a few more if room)
   // ══════════════════════════════════════════════════════════════
@@ -861,6 +935,9 @@ async function main() {
     { slug: 'demo-dest-luxor', nameAr: 'الأقصر', nameEn: 'Luxor', sortOrder: 6 },
     { slug: 'demo-dest-sharm', nameAr: 'شرم الشيخ', nameEn: 'Sharm El Sheikh', sortOrder: 7 },
     { slug: 'demo-dest-hurghada', nameAr: 'الغردقة', nameEn: 'Hurghada', sortOrder: 8 },
+    { slug: 'demo-dest-sahl-hashish', nameAr: 'سهل حشيش', nameEn: 'Sahl Hashish', sortOrder: 9 },
+    { slug: 'demo-dest-sokhna', nameAr: 'العين السخنة', nameEn: 'Ain Sokhna', sortOrder: 10 },
+    { slug: 'demo-dest-dahab', nameAr: 'دهب', nameEn: 'Dahab', sortOrder: 11 },
   ]
   for (const d of newDests) {
     if (existingSlugs.has(d.slug)) continue
@@ -871,8 +948,12 @@ async function main() {
   // ── Summary ──
   console.log('')
   console.log('📊 Final counts:')
+  console.log(`   Stations: ${await prisma.station.count()}`)
+  console.log(`   Users: ${await prisma.user.count()}`)
   console.log(`   Trips: ${await prisma.trip.count()} (future scheduled: ${await prisma.trip.count({ where: { status: 'SCHEDULED', departure: { gt: new Date() } } })})`)
   console.log(`   Bookings: ${await prisma.booking.count()}`)
+  console.log(`   Reminders: ${await prisma.reminder.count()}`)
+  console.log(`   BusRoutes: ${await prisma.busStation.count()}`)
   console.log(`   CompanyBookings: ${await prisma.companyBooking.count()}`)
   console.log(`   CompanyCustomers: ${await prisma.companyCustomer.count()}`)
   console.log(`   Invoices: ${await prisma.invoice.count()}`)
