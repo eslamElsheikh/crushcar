@@ -1,68 +1,411 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { useLangStore } from '@/lib/lang';
+import { useState, useEffect, useRef } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, QrCode, CheckCircle, Loader2, Building2, FileText, Banknote } from 'lucide-react'
+import { useLangStore } from '@/lib/lang'
+import { cn } from '@/lib/utils'
 
-/* V2 print ticket — same ticket API, print-optimized sheet, auto print. */
+interface PairedBooking {
+  id: string
+  reference: string
+  seatLabel: string
+  total: number
+  passengerName: string
+  passengerHotel: string | null
+  qrCode: string
+  trip: { id: string; origin: string; destination: string; departure: string }
+}
+
+interface TicketData {
+  id: string
+  reference: string
+  seatLabel: string
+  status: string
+  total: number
+  paidAt: string | null
+  createdAt: string
+  qrCode: string
+  showLogoOnTicket: boolean
+  companyLogoUrl?: string | null
+  actualOrigin?: string
+  actualDestination?: string
+  actualDeparture?: string
+  fromStopOrder?: number
+  toStopOrder?: number
+  passengerName?: string
+  passengerPhone?: string
+  passengerHotel?: string
+  passengerNotes?: string
+  collectAmount?: number | null
+  roundTripGroupId?: string | null
+  returnForId?: string | null
+  pairedBooking?: PairedBooking | null
+  user: { name: string; email: string; phone: string }
+  trip: {
+    id: string
+    origin: string
+    destination: string
+    departure: string
+    arrival: string
+    status: string
+    bus: {
+      name: string
+      type: string
+      company: { name: string } | null
+    }
+  }
+  tripStops?: Array<{
+    id: string
+    stationId: string
+    stopOrder: number
+    priceFromOrigin: number
+    station?: { name: string }
+  }>
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr)
+  return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+}
 
 export default function PrintTicketPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const lang = useLangStore((s) => s.lang);
-  const isRTL = lang === 'ar';
-  const locale = isRTL ? 'ar-EG' : 'en-US';
-  const [ticket, setTicket] = useState<any>(null);
+  const params = useParams()
+  const router = useRouter()
+  const bookingId = params.id as string
+  const lang = useLangStore((s) => s.lang)
+  const isRTL = lang === 'ar'
+  const t = useLangStore((s) => s.t)
+  const [ticket, setTicket] = useState<TicketData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`/api/bookings/${id}/ticket`);
-        if (res.ok) {
-          setTicket(await res.json());
-          setTimeout(() => window.print(), 600);
-        }
-      } catch { /* show empty sheet */ }
-    })();
-  }, [id]);
+    loadTicket()
+  }, [bookingId])
 
-  const origin = ticket?.actualOrigin || ticket?.trip?.origin || '';
-  const dest = ticket?.actualDestination || ticket?.trip?.destination || '';
-  const dep = ticket?.actualDeparture || ticket?.trip?.departure || '';
+  async function loadTicket() {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/ticket`)
+      if (res.ok) {
+        const data = await res.json()
+        setTicket(data)
+      } else {
+        router.push('/bookings')
+      }
+    } catch {
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handlePrint() {
+    window.print()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <Loader2 size={32} className="animate-spin text-blue-500" />
+      </div>
+    )
+  }
+
+  if (!ticket) return null
+
+  const isPaid = ticket.status === 'PAID'
+  const isReturnFor = !!ticket.returnForId
+  const isRoundTrip = !!ticket.roundTripGroupId
 
   return (
-    <div dir={isRTL ? 'rtl' : 'ltr'} className="min-h-dvh bg-white p-6 font-sans text-[#0B1B33] print:p-0">
-      <style>{`@media print { button { display: none !important; } }`}</style>
-      <div className="mx-auto max-w-[640px] rounded-2xl border-2 border-dashed border-slate-300 p-8">
-        <div className="flex items-center justify-between">
-          <p className="text-[22px] font-extrabold">Safro</p>
-          <p className="font-mono text-[13px] tabular-nums text-slate-500" dir="ltr">{ticket?.reference}</p>
-        </div>
-        <p className="mt-4 text-[26px] font-extrabold">
-          {isRTL ? `${dest} ← ${origin}` : `${origin} → ${dest}`}
-        </p>
-        <p className="mt-1 text-[15px] tabular-nums text-slate-600">
-          {dep && new Date(dep).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
-          {' · '}
-          {dep && new Date(dep).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-        </p>
-        <div className="mt-5 grid grid-cols-2 gap-3 text-[14.5px]">
-          <p><strong>{isRTL ? 'المسافر' : 'Passenger'}:</strong> {ticket?.passengerName}</p>
-          <p><strong>{isRTL ? 'المقعد' : 'Seat'}:</strong> <span className="tabular-nums">{ticket?.seatLabel}</span></p>
-          <p><strong>{isRTL ? 'الباص' : 'Bus'}:</strong> {ticket?.trip?.bus?.name}</p>
-          <p><strong>{isRTL ? 'الإجمالي' : 'Total'}:</strong> <span className="tabular-nums">EGP {ticket?.total}</span></p>
-        </div>
-        {ticket?.qrCode && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ticket.qrCode} alt="QR" className="mx-auto mt-6 size-44" />
-        )}
+    <div className={cn('min-h-screen bg-zinc-100', isRTL && 'font-[Cairo]')} dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Controls - hidden when printing */}
+      <div className="no-print sticky top-0 z-50 glass border-b border-white/10 bg-white/90 backdrop-blur px-6 py-4 flex items-center gap-4 shadow-md">
         <button
-          onClick={() => window.print()}
-          className="mt-8 w-full rounded-xl bg-[#1D5BD8] py-3.5 text-[15px] font-bold text-white"
+          onClick={() => router.push('/bookings')}
+          className="p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white transition shadow"
         >
-          {isRTL ? 'طباعة' : 'Print'}
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1">
+          <h1 className="font-semibold text-white">
+            {isRTL ? 'تذكرة الرحلة' : 'Trip Ticket'}
+          </h1>
+          <p className="text-xs text-zinc-400">
+            {ticket.reference} — {isPaid ? (isRTL ? 'مؤكد' : 'Confirmed') : (isRTL ? 'ملغي' : 'Cancelled')}
+          </p>
+        </div>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm shadow-lg transition"
+        >
+          <Printer size={16} />
+          {isRTL ? 'اطبع التذكرة' : 'Print Ticket'}
         </button>
       </div>
+
+      {/* Ticket - visible when printing */}
+      <div className="max-w-2xl mx-auto p-6" ref={printRef}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-3xl shadow-2xl overflow-hidden print:shadow-none print:rounded-none"
+        >
+          {/* Header bar */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-blue-200 uppercase tracking-wider">
+                  {isRTL ? 'تذكرة إلكترونية' : 'Electronic Ticket'}
+                </p>
+                <div className="flex items-center gap-3 mt-1">
+                  {ticket.showLogoOnTicket && ticket.companyLogoUrl && (
+                    <div className="w-10 h-10 rounded-lg bg-white/10 p-1.5 flex items-center justify-center shrink-0">
+                      <img src={ticket.companyLogoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  )}
+                  <h2 className="text-2xl font-bold">{ticket.trip.bus.company?.name || 'Safro Travel'}</h2>
+                </div>
+                <p className="text-blue-200 text-sm mt-1">
+                  {isRTL ? 'Safro Travel - نظام حجز الباصات' : 'Safro Travel - Bus Booking System'}
+                </p>
+              </div>
+              <div className="text-right space-y-2">
+                {isRoundTrip && (
+                  <div className={cn(
+                    'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold bg-amber-400/20 text-amber-200 border border-amber-400/30',
+                    isRTL ? 'ml-2' : 'mr-2'
+                  )}>
+                    {isRTL ? 'ذهاب وعودة' : 'ROUND TRIP'}
+                  </div>
+                )}
+                <div className={cn(
+                  'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold',
+                  isPaid ? 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/30' : 'bg-red-400/20 text-red-200 border border-red-400/30'
+                )}>
+                  {isPaid && <CheckCircle size={12} />}
+                  {t(`booking.${ticket.status.toLowerCase()}`) || ticket.status}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Route & time */}
+          <div className="px-8 py-6 border-b bg-blue-50 border-blue-100">
+            {isRoundTrip && ticket.pairedBooking ? (
+              /* Merged round-trip route */
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br from-blue-600 to-amber-600">
+                  <Bus size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xl font-bold text-gray-800">{ticket.actualOrigin || ticket.trip.origin}</span>
+                    <span className="text-gray-400">{isRTL ? '←' : '→'}</span>
+                    <span className="text-xl font-bold text-blue-600">{(ticket.actualDestination || ticket.trip.destination)}</span>
+                    <span className="text-gray-400">{isRTL ? '←' : '→'}</span>
+                    <span className="text-xl font-bold text-amber-600">{ticket.pairedBooking.trip.destination}</span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
+                    <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg font-medium text-xs">
+                      {formatDate(ticket.actualDeparture || ticket.trip.departure)} {formatTime(ticket.actualDeparture || ticket.trip.departure)}
+                      <span className="font-bold ml-1">{ticket.seatLabel}</span>
+                    </span>
+                    <span className="text-gray-300 font-bold">{isRTL ? '←' : '→'}</span>
+                    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg font-medium text-xs">
+                      {formatDate(ticket.pairedBooking.trip.departure)} {formatTime(ticket.pairedBooking.trip.departure)}
+                      <span className="font-bold ml-1">{ticket.pairedBooking.seatLabel}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Single trip route */
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-blue-600">
+                  <Bus size={20} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xl font-bold text-gray-800">{ticket.actualOrigin || ticket.trip.origin}</span>
+                    <span className="text-gray-400">{isRTL ? '←' : '→'}</span>
+                    <span className="text-xl font-bold text-gray-800">{ticket.actualDestination || ticket.trip.destination}</span>
+                    <span className="text-xs text-gray-500 mx-1">· {formatDate(ticket.actualDeparture || ticket.trip.departure)} {formatTime(ticket.actualDeparture || ticket.trip.departure)}</span>
+                    <span className="font-mono text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{ticket.seatLabel}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Booking details */}
+          <div className="px-8 py-6">
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left - passenger info */}
+              <div className="space-y-4">
+                <h3 className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                  {isRTL ? 'معلومات المسافر' : 'Passenger Information'}
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                      <User size={14} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">{isRTL ? 'الاسم' : 'Name'}</p>
+                      <p className="font-semibold text-gray-800">{ticket.passengerName || ticket.user.name}</p>
+                    </div>
+                  </div>
+                  {(ticket.passengerPhone || ticket.user.phone) && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                        <Phone size={14} className="text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">{isRTL ? 'الموبايل' : 'Phone'}</p>
+                        <p className="font-semibold text-gray-800">{ticket.passengerPhone || ticket.user.phone}</p>
+                      </div>
+                    </div>
+                  )}
+                  {ticket.passengerHotel && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                        <Building2 size={14} className="text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">{isRTL ? 'الفندق' : 'Hotel'}</p>
+                        <p className="font-semibold text-gray-800">{ticket.passengerHotel}</p>
+                      </div>
+                    </div>
+                  )}
+                  {ticket.collectAmount != null && ticket.collectAmount > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                        <Banknote size={14} className="text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">{isRTL ? 'التحصيل' : 'Collect Amount'}</p>
+                        <p className="font-semibold text-gray-800">{ticket.collectAmount.toLocaleString()} <span className="text-xs text-gray-400">EGP</span></p>
+                      </div>
+                    </div>
+                  )}
+                  {ticket.passengerNotes && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                        <FileText size={14} className="text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">{isRTL ? 'ملاحظات' : 'Notes'}</p>
+                        <p className="font-semibold text-gray-800 text-sm leading-relaxed">{ticket.passengerNotes}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right - booking info */}
+              <div className="space-y-4">
+                <h3 className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                  {isRTL ? 'معلومات الحجز' : 'Booking Details'}
+                </h3>
+
+                {isRoundTrip && ticket.pairedBooking ? (
+                  /* Unified two-column card for round trip */
+                  <div className="bg-blue-50 rounded-2xl border border-blue-100 overflow-hidden">
+                    <div className="grid grid-cols-2 divide-x divide-blue-200">
+                      {/* Outbound leg */}
+                      <div className="p-4 text-center">
+                        <p className="text-[10px] text-blue-500 uppercase tracking-wider mb-2 font-semibold">{isRTL ? 'ذهاب' : 'OUTBOUND'}</p>
+                        <p className="text-sm font-mono font-bold text-blue-600 tracking-wider">{ticket.reference}</p>
+                        <p className="text-xs text-gray-400 mt-2">{isRTL ? 'مقعد' : 'Seat'}: <span className="font-bold text-gray-800">{ticket.seatLabel}</span></p>
+                        {ticket.passengerHotel && <p className="text-[10px] text-emerald-600 mt-0.5 font-medium">{ticket.passengerHotel}</p>}
+                        <p className="text-[10px] text-gray-400 mt-1">{formatDate(ticket.actualDeparture || ticket.trip.departure)}</p>
+                        <div className="flex justify-center mt-2">
+                          <img src={ticket.qrCode} alt="QR" className="w-16 h-16 rounded-lg shadow-sm" />
+                        </div>
+                      </div>
+                      {/* Return leg */}
+                      <div className="p-4 text-center">
+                        <p className="text-[10px] text-amber-500 uppercase tracking-wider mb-2 font-semibold">{isRTL ? 'عودة' : 'RETURN'}</p>
+                        <p className="text-sm font-mono font-bold text-amber-600 tracking-wider">{ticket.pairedBooking.reference}</p>
+                        <p className="text-xs text-gray-400 mt-2">{isRTL ? 'مقعد' : 'Seat'}: <span className="font-bold text-gray-800">{ticket.pairedBooking.seatLabel}</span></p>
+                        {ticket.pairedBooking.passengerHotel && <p className="text-[10px] text-emerald-600 mt-0.5 font-medium">{ticket.pairedBooking.passengerHotel}</p>}
+                        <p className="text-[10px] text-gray-400 mt-1">{formatDate(ticket.pairedBooking.trip.departure)}</p>
+                        <div className="flex justify-center mt-2">
+                          <img src={ticket.pairedBooking.qrCode} alt="QR" className="w-16 h-16 rounded-lg shadow-sm" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-blue-200 bg-blue-100/50 p-3 text-center hidden">
+                      <p className="text-xs text-gray-500">{isRTL ? 'الإجمالي' : 'Total'}: <span className="text-lg font-bold text-emerald-600">{Math.round(ticket.total + ticket.pairedBooking.total).toLocaleString()} <span className="text-xs font-normal text-gray-400">EGP</span></span></p>
+                    </div>
+                    {ticket.paidAt && (
+                      <div className="p-2 text-center border-t border-blue-200/50">
+                        <p className="text-[10px] text-gray-400">{isRTL ? 'تم الدفع في' : 'Paid at'} {formatDate(ticket.paidAt)} {formatTime(ticket.paidAt)}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Single booking reference card */
+                  <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100 text-center">
+                    <p className="text-xs text-blue-500 uppercase tracking-wider mb-2">{isRTL ? 'كود الحجز' : 'Booking Reference'}</p>
+                    <p className="text-2xl font-mono font-bold text-blue-600 tracking-wider">{ticket.reference}</p>
+                    <div className="mt-4 flex items-center justify-center gap-4">
+                      <div className="text-center">
+                        <p className="text-xs text-gray-400 mb-1">{isRTL ? 'المقعد' : 'Seat'}</p>
+                        <p className="text-xl font-bold text-gray-800">{ticket.seatLabel}</p>
+                      </div>
+                    </div>
+                    {ticket.paidAt && (
+                      <p className="text-xs text-gray-400 mt-3">{isRTL ? 'تم الدفع في' : 'Paid at'} {formatDate(ticket.paidAt)} {formatTime(ticket.paidAt)}</p>
+                    )}
+                    {/* QR Code for single trip */}
+                    <div className="flex items-center justify-center gap-4 pt-4">
+                      <div className="relative">
+                        <img src={ticket.qrCode} alt="QR Code" className="w-20 h-20 rounded-xl shadow-sm" />
+                        <div className="absolute -inset-1 rounded-xl bg-blue-500/5 -z-10" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs text-gray-400">QR Code</p>
+                        <p className="text-xs text-gray-500">{ticket.reference}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-xs text-gray-400">
+              {isRTL ? 'احتفظ بهذه التذكرة للمراجعة عند الصعود' : 'Keep this ticket for inspection at boarding'}
+            </p>
+            <p className="text-xs text-gray-400">
+              {isRTL ? 'Safro Travel © 2025' : 'Safro Travel © 2025'} • www.safrotravel.com
+            </p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          .min-h-screen { min-height: auto !important; }
+          .max-w-2xl { max-width: none !important; }
+          .p-6 { padding: 0 !important; }
+          .shadow-2xl { box-shadow: none !important; }
+          .rounded-3xl { border-radius: 0 !important; }
+        }
+      `}</style>
     </div>
-  );
+  )
 }

@@ -142,7 +142,9 @@ export function V2SeatMap({
                       vip && !isSel && !isRes && 'border-amber-300 bg-amber-50 text-amber-700'
                     )}
                   >
-                    <Armchair className="size-5" />
+                    <span className="font-mono text-xs font-bold leading-none">
+                      {seat.type === 'TOILET' ? '🚻' : seat.label}
+                    </span>
                   </button>
                 );
               })}

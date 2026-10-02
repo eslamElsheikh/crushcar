@@ -49,9 +49,9 @@ function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * Inline autocomplete: a text input with an attached in-flow list right
- * below it. The list is part of the layout (pushes the card down), so it
- * can never be clipped by ancestor overflow or float detached from the field.
+ * Inline autocomplete: a text input with an attached overlay list right
+ * below it (same width, flips above when room is tight). The overlay floats
+ * above content so it never resizes the card or gets clipped by layout flow.
  */
 export function StationPicker({
   value,
@@ -75,6 +75,9 @@ export function StationPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Overlay placement: flip above the field when room below is tight.
+  const [flip, setFlip] = useState(false);
+  const [maxH, setMaxH] = useState(320);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -182,6 +185,30 @@ export function StationPicker({
     if (stations.length === 0 && !loading) load();
   }
 
+  // Measure room around the field; flip above it when space below is tight.
+  function updatePlacement() {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom - 8;
+    const spaceAbove = r.top - 8;
+    const shouldFlip = spaceBelow < 240 && spaceAbove > spaceBelow;
+    setFlip(shouldFlip);
+    setMaxH(Math.max(200, Math.min(320, shouldFlip ? spaceAbove : spaceBelow)));
+  }
+
+  // Re-measure while open (scroll / resize / open).
+  useEffect(() => {
+    if (!open) return;
+    updatePlacement();
+    window.addEventListener('scroll', updatePlacement, true);
+    window.addEventListener('resize', updatePlacement);
+    return () => {
+      window.removeEventListener('scroll', updatePlacement, true);
+      window.removeEventListener('resize', updatePlacement);
+    };
+  }, [open ]);
+
   function moveActive(delta: 1 | -1) {
     if (flatIds.length === 0) return;
     setActiveId((cur) => {
@@ -249,20 +276,19 @@ export function StationPicker({
   }
 
   function renderGroup(g: Group) {
-    const multi = g.stations.length > 1;
+    // Governorate header always shows (even for a single station),
+    // followed by that governorate's stations that have trips.
     return (
       <div key={g.city} role="group" aria-label={g.city}>
-        {multi && (
-          <div className="flex items-center justify-between px-2 pb-1.5 pt-3 text-[13px]">
-            <span className="flex items-center gap-1.5 font-bold text-[#5B6B84]">
-              <Building2 className="size-4" />
-              <Highlight text={g.city} query={query} />
-            </span>
-            <span className="font-semibold text-[#9AA8BD]">
-              {t('v2.stationCount').replace('{n}', String(g.stations.length))}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center justify-between px-2 pb-1.5 pt-3 text-[13px]">
+          <span className="flex items-center gap-1.5 font-bold text-[#5B6B84]">
+            <Building2 className="size-4" />
+            <Highlight text={g.city} query={query} />
+          </span>
+          <span className="font-semibold text-[#9AA8BD]">
+            {t('v2.stationCount').replace('{n}', String(g.stations.length))}
+          </span>
+        </div>
         <div className="grid gap-1.5">
           {g.stations.map((s) => {
             const isSel = s.id === value;
@@ -288,12 +314,6 @@ export function StationPicker({
               >
                 <span className="min-w-0 truncate">
                   <Highlight text={s.name} query={query} />
-                  {!multi && s.city && s.city !== s.name && (
-                    <span className={cn('font-semibold', isSel ? 'text-white/70' : 'text-[#9AA8BD]')}>
-                      {' · '}
-                      <Highlight text={s.city} query={query} />
-                    </span>
-                  )}
                 </span>
                 <MapPin className={cn('size-4 shrink-0', isSel ? 'text-white/80' : 'text-[#9AA8BD]')} />
               </button>
@@ -305,7 +325,7 @@ export function StationPicker({
   }
 
   return (
-    <div ref={rootRef} className={cn('min-w-0', className)}>
+    <div ref={rootRef} className={cn('relative min-w-0', className)}>
       <span className="relative block">
         <MapPin className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
         <input
@@ -352,9 +372,14 @@ export function StationPicker({
         </span>
       </span>
 
-      {/* Attached in-flow list: part of the layout, pushes the card down. */}
+      {/* Attached overlay list: floats above content, never resizes the card. */}
       {open && (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_16px_40px_rgba(11,27,51,0.12)]">
+        <div
+          className={cn(
+            'absolute inset-x-0 z-50 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_24px_64px_rgba(11,27,51,0.18)]',
+            flip ? 'bottom-full mb-2' : 'top-full mt-2'
+          )}
+        >
           <div className="flex items-center gap-1.5 border-b border-[#E6EBF2] px-3.5 py-2.5 text-[13px]">
             <Search className="size-4 text-[#1D5BD8]" />
             <span className="font-bold text-[#5B6B84]">{t('v2.chooseGovStation')}</span>
@@ -364,7 +389,8 @@ export function StationPicker({
             id={listId}
             role="listbox"
             aria-label={ariaLabel}
-            className="v2-thin-scroll max-h-[320px] overflow-y-auto p-2.5"
+            style={{ maxHeight: maxH }}
+            className="v2-thin-scroll overflow-y-auto p-2.5"
           >
             {loading ? (
               <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
