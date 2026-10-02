@@ -27,6 +27,7 @@ const navItems = [
   { href: '/admin/companies/pending', icon: Clock, labelKey: 'admin.pendingCompanies' },
   { href: '/admin/verify', icon: ScanEye, labelKey: 'nav.verify' },
   { href: '/admin/trip-requests', icon: Calendar, labelKey: 'admin.tripRequests' },
+  { href: '/admin/charter-bookings', icon: Bus, labelKey: 'admin.charterBookings' },
   { href: '/admin/deposit-requests', icon: Wallet, labelKey: 'admin.depositRequests' },
   { href: '/admin/cancellations', icon: XCircle, labelKey: 'admin.cancellations' },
   { href: '/admin/credit-report', icon: CreditCard, labelKey: 'company.creditReport' },
@@ -69,8 +70,11 @@ export default function AdminLayoutClient({ session, children }: { session: any;
     <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="flex min-h-dvh">
         <aside className="hidden w-64 shrink-0 flex-col bg-[#0A1E3C] md:flex">
-          <Link href="/" className="p-6 pb-5" aria-label="Safro">
+          <Link href="/" className="flex items-center gap-2.5 p-6 pb-5" aria-label="Safro">
             <V2Logo height={36} />
+            <span className="text-[21px] font-extrabold leading-none tracking-tight text-white">
+              {isRTL ? 'سافرو' : 'safro'}
+            </span>
           </Link>
           <div className="flex-1 overflow-y-auto">{nav}</div>
           <div className="border-t border-white/10 p-4">

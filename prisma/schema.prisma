@@ -10,17 +10,20 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String
-  phone     String?   @default("")
-  image     String?   // avatar URL (/api/uploads/...)
-  role      String    @default("CUSTOMER") // SUPER_ADMIN | COMPANY_ADMIN | CUSTOMER
-  companyId String?
-  company   Company?  @relation(fields: [companyId], references: [id])
-  createdAt DateTime  @default(now())
-  bookings  Booking[]
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  phone         String?   @default("")
+  image         String?   // avatar URL (/api/uploads/...)
+  role          String    @default("CUSTOMER") // SUPER_ADMIN | COMPANY_ADMIN | CUSTOMER
+  permissions   String    @default("")
+  companyId     String?
+  company       Company?  @relation(fields: [companyId], references: [id])
+  isActive      Boolean   @default(true)
+  emailVerified DateTime? @map("email_verified")
+  createdAt     DateTime  @default(now())
+  bookings      Booking[]
 }
 
 model Company {
@@ -35,6 +38,8 @@ model Company {
   billingCycle     String   @default("MONTHLY") // MONTHLY | WEEKLY
   lastBillingDate  DateTime?
   isActive         Boolean  @default(true)
+  logoUrl          String?
+  showLogoOnTicket Boolean  @default(false)
   users            User[]
   buses            Bus[]
   companyCustomers CompanyCustomer[]
@@ -43,6 +48,9 @@ model Company {
   walletTransactions WalletTransaction[]
   tripRequests     TripRequest[]
   depositRequests  DepositRequest[]
+  creditLogs       CreditLog[]
+  charterBookings  CharterBooking[]
+  reservedTrips    Trip[]   @relation("CompanyReservedTrips")
   createdAt        DateTime @default(now())
 }
 
@@ -115,12 +123,19 @@ model Trip {
   departure   DateTime
   arrival     DateTime
   price       Float
+  seatPrice           Float?
+  busPrice            Float?
+  bookingMode         String     @default("SEAT") // SEAT | BUS | BOTH
+  reservedByCompanyId String?
+  reservedByCompany   Company?   @relation("CompanyReservedTrips", fields: [reservedByCompanyId], references: [id])
   status      String     @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
   stopsJson   String     @default("[]") // JSON: [{stationId, name, order, arrivalTime?, departureTime?, price?}]
   bookings    Booking[]
   companyBookings CompanyBooking[]
+  charterBookings CharterBooking[]
   tripStops   TripStop[]
   seatHolds   SeatHold[]
+  seatBlocks  SeatBlock[]
   createdAt   DateTime   @default(now())
 }
 
@@ -226,6 +241,8 @@ model CompanyBooking {
   passengerName   String   @default("")
   passengerPhone  String   @default("")
   passengerHotel  String   @default("")
+  passengerNotes  String   @default("")
+  collectAmount   Float?
   bookingType     String   @default("FOR_EMPLOYEE") // FOR_CLIENT | FOR_EMPLOYEE
   status          String   @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
   total           Float
@@ -233,6 +250,7 @@ model CompanyBooking {
   paidOnCredit    Float    @default(0)
   fromStopOrder   Int      @default(1)
   toStopOrder     Int      @default(1)
+  expiresAt       DateTime? @map("expires_at")
   createdAt         DateTime @default(now())
   paidAt            DateTime?
   cancelledAt       DateTime?
@@ -283,11 +301,13 @@ model DepositRequest {
   id         String   @id @default(cuid())
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  amount     Float
-  status     String   @default("PENDING")
-  adminNotes String   @default("")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  amount         Float
+  status         String   @default("PENDING")
+  adminNotes     String   @default("")
+  attachmentUrl  String   @default("")
+  attachmentName String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model WalletTransaction {
@@ -312,3 +332,76 @@ model Destination {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model CharterBooking {
+  id              String   @id @default(cuid())
+  tripId          String
+  trip            Trip     @relation(fields: [tripId], references: [id])
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  price           Float
+  status          String   @default("requested") // requested | confirmed | cancel_requested | cancelled
+  paidFromWallet  Float    @default(0)
+  paidOnCredit    Float    @default(0)
+  requestedAt     DateTime @default(now())
+  notes           String   @default("")
+  createdAt       DateTime @default(now())
+
+  @@index([tripId])
+  @@index([companyId])
+  @@index([status])
+  @@index([companyId, status])
+}
+
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entity     String
+  entityId   String   @default("")
+  userId     String   @default("")
+  userEmail  String   @default("")
+  companyId  String   @default("")
+  metadata   String   @default("{}")
+  ip         String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([companyId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model CreditLog {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  previousLimit  Float
+  newLimit       Float
+  changeAmount   Float
+  reason         String   @default("")
+  createdById    String
+  createdByEmail String   @default("")
+  createdAt      DateTime @default(now())
+
+  @@index([companyId])
+  @@index([createdAt])
+}
+
+model SeatBlock {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  seatLabel String
+  createdAt DateTime @default(now())
+
+  @@unique([tripId, seatLabel])
+  @@index([tripId])
+}
+

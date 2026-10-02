@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard, Ticket, Users, CreditCard, FileText,
-  LogOut, Menu, X, Calendar, Plus,
+  LogOut, Menu, X, Calendar, Plus, Bus,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/company/dashboard', icon: LayoutDashboard, labelKey: 'company.dashboard' },
   { href: '/company/bookings', icon: Ticket, labelKey: 'company.bookings' },
   { href: '/company/bookings/new', icon: Plus, labelKey: 'company.newBooking' },
+  { href: '/company/charter', icon: Bus, labelKey: 'company.charter' },
   { href: '/company/trip-requests', icon: Calendar, labelKey: 'company.tripRequests' },
   { href: '/company/customers', icon: Users, labelKey: 'company.customers' },
   { href: '/company/credit', icon: CreditCard, labelKey: 'company.credit' },
