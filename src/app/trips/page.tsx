@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
+import { cairoTodayISO } from '@/lib/search-ar';
 import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
@@ -175,6 +176,49 @@ function TripsContent() {
   const [sort, setSort] = useState<SortKey>('recommended');
   const [directOnly, setDirectOnly] = useState(false);
   const [hideSoldOut, setHideSoldOut] = useState(false);
+  const [errors, setErrors] = useState<{ returnDate?: string }>({});
+  const [returnNotice, setReturnNotice] = useState('');
+  const [returnOpen, setReturnOpen] = useState(false);
+  const todayISO = useMemo(() => cairoTodayISO(), []);
+
+  function focusField(id: string) {
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
+  }
+
+  /** Departure change: a return can never precede it — clear + notice + auto-open return. */
+  function setDeparture(v: string) {
+    setDate(v);
+    if (v && returnDate && returnDate < v) {
+      setReturnDate('');
+      setErrors({});
+      setReturnNotice(t('v2.returnAutoCleared'));
+    }
+    if (roundTrip && v) setReturnOpen(true);
+  }
+
+  function swapStations() {
+    setFromStationId(toStationId);
+    setToStationId(fromStationId);
+  }
+
+  function submitForm(e: React.FormEvent) {
+    e.preventDefault();
+    // Empty from/to/date = browse all (valid here). Only the return leg is validated.
+    if (roundTrip) {
+      if (!returnDate) {
+        setErrors({ returnDate: t('v2.required') });
+        focusField('trips-return');
+        return;
+      }
+      if (date && returnDate < date) {
+        setErrors({ returnDate: t('v2.returnAutoCleared') });
+        focusField('trips-return');
+        return;
+      }
+    }
+    setErrors({});
+    loadTrips();
+  }
 
   useEffect(() => {
     fetch('/api/stations').then((r) => r.json()).then((d) => {
@@ -267,8 +311,9 @@ function TripsContent() {
 
         {/* ── SEARCH CARD ── */}
         <form
-          onSubmit={(e) => { e.preventDefault(); loadTrips(); }}
-          className="v2-card mt-6 p-4 md:p-5"
+          onSubmit={submitForm}
+          dir="rtl"
+          className="v2-card mt-6 min-w-0 p-4 md:p-5"
         >
           <div className="flex gap-1 rounded-xl bg-[#F1F4F9] p-1.5" role="tablist" aria-label={t('v2.tripType')}>
             {(
@@ -287,7 +332,12 @@ function TripsContent() {
                   setSelectedReturnTrip(null);
                   setPickedOut(null);
                   setLeg('out');
-                  if (!tab.key) setReturnDate('');
+                  if (!tab.key) {
+                    setReturnDate('');
+                    setReturnNotice('');
+                    setReturnOpen(false);
+                    setErrors({});
+                  }
                 }}
                 className={cn(
                   'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[14px] font-bold transition',
@@ -299,9 +349,20 @@ function TripsContent() {
             ))}
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+          <div
+            className={cn(
+              'mt-4 grid min-w-0 gap-3 md:items-end',
+              roundTrip
+                ? 'md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                : 'md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_auto]'
+            )}
+          >
+          {/* From / swap / to: stacked on mobile, flattened into the grid on desktop */}
+          <div className="relative grid min-w-0 gap-3 md:contents">
             <V2Field label={t('v2.from')}>
               <StationPicker
+                id="trips-from"
+                nextId="trips-to"
                 value={fromStationId}
                 onChange={setFromStationId}
                 placeholder={t('v2.allStations')}
@@ -310,8 +371,21 @@ function TripsContent() {
                 excludeId={toStationId || undefined}
               />
             </V2Field>
+            {/* Desktop swap column: fixed 40px, bottom-aligned with the fields */}
+            <div className="hidden min-w-0 md:flex md:items-end">
+              <button
+                type="button"
+                aria-label="Swap origin and destination"
+                onClick={swapStations}
+                className="grid h-12 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-[#1D5BD8] hover:bg-slate-50"
+              >
+                <ArrowLeftRight className="size-5 v2-flip-rtl" />
+              </button>
+            </div>
             <V2Field label={t('v2.to')}>
               <StationPicker
+                id="trips-to"
+                nextId="trips-date"
                 value={toStationId}
                 onChange={setToStationId}
                 placeholder={t('v2.allStations')}
@@ -320,38 +394,58 @@ function TripsContent() {
                 excludeId={fromStationId || undefined}
               />
             </V2Field>
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-              <div className="grid gap-2">
-                <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.date')}</span>
+            {/* Mobile swap: absolute on the edge, centered between the two fields */}
+            <button
+              type="button"
+              aria-label="Swap origin and destination"
+              onClick={swapStations}
+              className="absolute end-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-[#1D5BD8] shadow-sm md:hidden"
+            >
+              <ArrowLeftRight className="size-4 v2-flip-rtl" />
+            </button>
+          </div>
+          {/* Dates: side-by-side on mobile, flattened into the grid on desktop */}
+          <div className={cn('grid min-w-0 gap-3 md:contents', roundTrip ? 'grid-cols-2' : 'grid-cols-1')}>
+            <div className="grid min-w-0 gap-2">
+              <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.date')}</span>
+              <V2DatePicker
+                id="trips-date"
+                nextId={roundTrip ? 'trips-return' : undefined}
+                value={date}
+                onChange={setDeparture}
+                min={todayISO}
+                label={t('v2.date')}
+              />
+            </div>
+            {roundTrip && (
+              <div className="grid min-w-0 gap-2">
+                <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.returnDate')}</span>
                 <V2DatePicker
-                  value={date}
-                  onChange={(v) => {
-                    setDate(v);
-                    if (roundTrip && returnDate && returnDate < v) setReturnDate(v);
-                  }}
-                  label={t('v2.date')}
+                  id="trips-return"
+                  value={returnDate}
+                  onChange={(v) => { setReturnDate(v); setReturnNotice(''); setErrors({}); }}
+                  min={date || todayISO}
+                  label={t('v2.returnDate')}
+                  disabled={!date}
+                  invalid={!!errors.returnDate}
+                  open={returnOpen}
+                  onOpenChange={setReturnOpen}
+                  rangeStart={date || null}
+                  rangeEnd={returnDate || null}
                 />
+                {errors.returnDate ? (
+                  <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.returnDate}</p>
+                ) : returnNotice ? (
+                  <p role="status" className="px-1 text-[12.5px] font-semibold text-amber-600">{returnNotice}</p>
+                ) : null}
               </div>
-              {roundTrip && (
-                <div className="grid gap-2">
-                  <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.returnDate')}</span>
-                  <V2DatePicker value={returnDate} onChange={setReturnDate} min={date || undefined} label={t('v2.returnDate')} />
-                </div>
-              )}
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                aria-label="Swap origin and destination"
-                onClick={() => { setFromStationId(toStationId); setToStationId(fromStationId); }}
-                className="grid min-h-[52px] w-[52px] shrink-0 place-items-center rounded-xl border border-slate-200 text-[#1D5BD8] hover:bg-slate-50 lg:min-h-[60px] lg:w-[60px]"
-              >
-                <ArrowLeftRight className="size-5 v2-flip-rtl" />
-              </button>
-              <V2Button type="submit" size="lg" className="flex-1">
-                <Search className="size-5 v2-flip-rtl" /> {t('v2.searchTrips')}
-              </V2Button>
-            </div>
+            )}
+          </div>
+          <div className="flex items-end gap-2">
+            <V2Button type="submit" size="lg" className="h-12 min-h-0 flex-1">
+              <Search className="size-5 v2-flip-rtl" /> {t('v2.searchTrips')}
+            </V2Button>
+          </div>
           </div>
         </form>
 

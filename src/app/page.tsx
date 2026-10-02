@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ import { V2SectionHeading } from '@/components/v2/ui';
 import { V2DatePicker } from '@/components/v2/DatePicker';
 import { StationPicker } from '@/components/v2/StationPicker';
 import { normAr } from '@/lib/arabic';
+import { cairoTodayISO } from '@/lib/search-ar';
 
 /* Safro V2 homepage — real backend data only. No mock trips. */
 
@@ -69,6 +70,10 @@ export default function V2HomePage() {
   const [date, setDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [searchError, setSearchError] = useState('');
+  const [errors, setErrors] = useState<{ fromId?: string; toId?: string; date?: string; returnDate?: string }>({});
+  const [returnNotice, setReturnNotice] = useState('');
+  const [returnOpen, setReturnOpen] = useState(false);
+  const todayISO = useMemo(() => cairoTodayISO(), []);
 
   useEffect(() => {
     fetch('/api/stations').then((r) => r.json()).then((d) => {
@@ -105,13 +110,27 @@ export default function V2HomePage() {
     return st ? `/trips?toStationId=${st.id}` : '/trips';
   }
 
+  function focusField(id: string) {
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
+  }
+
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    setSearchError('');
-    if (tripKind === 'roundTrip' && !returnDate) {
-      setSearchError(t('v2.needReturnDate'));
+    const errs: typeof errors = {};
+    if (!fromId) errs.fromId = t('v2.required');
+    if (!toId) errs.toId = t('v2.required');
+    if (!date) errs.date = t('v2.required');
+    if (tripKind === 'roundTrip') {
+      if (!returnDate) errs.returnDate = t('v2.required');
+      else if (date && returnDate < date) errs.returnDate = t('v2.returnAutoCleared');
+    }
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setSearchError('');
+      focusField(errs.fromId ? 'home-from' : errs.toId ? 'home-to' : errs.date ? 'home-date' : 'home-return');
       return;
     }
+    setSearchError('');
     const params = new URLSearchParams();
     if (fromId) params.set('fromStationId', fromId);
     if (toId) params.set('toStationId', toId);
@@ -123,10 +142,35 @@ export default function V2HomePage() {
     router.push(`/trips?${params.toString()}`);
   }
 
+  function swapStations() {
+    setFromId(toId);
+    setToId(fromId);
+    // Swap never breaks validation: re-check only when both were set.
+    setErrors((prev) => ({ ...prev, fromId: undefined, toId: undefined }));
+  }
+
   function setDeparture(v: string) {
     setDate(v);
-    // Keep return on/after departure: adjust forward if overtaken
-    if (tripKind === 'roundTrip' && v && returnDate && returnDate < v) setReturnDate(v);
+    setErrors((prev) => ({ ...prev, date: undefined }));
+    // A return can never precede departure: clear it + notice, then open return.
+    if (v && returnDate && returnDate < v) {
+      setReturnDate('');
+      setErrors((prev) => ({ ...prev, returnDate: undefined }));
+      setReturnNotice(t('v2.returnAutoCleared'));
+    }
+    if (tripKind === 'roundTrip' && v) setReturnOpen(true);
+  }
+
+  function switchTripKind(kind: 'oneWay' | 'roundTrip') {
+    setTripKind(kind);
+    setSearchError('');
+    if (kind === 'oneWay') {
+      // Hide return entirely: clear its value so the grid redistributes cleanly.
+      setReturnDate('');
+      setReturnNotice('');
+      setReturnOpen(false);
+      setErrors((prev) => ({ ...prev, returnDate: undefined }));
+    }
   }
 
   const trust = [
@@ -208,7 +252,7 @@ export default function V2HomePage() {
                 ).map((tab) => (
                   <button
                     key={tab.key} role="tab" aria-selected={tripKind === tab.key}
-                    onClick={() => { setTripKind(tab.key); setSearchError(''); }}
+                    onClick={() => switchTripKind(tab.key)}
                     className={cn(
                       'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-[14.5px] font-bold transition',
                       tripKind === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]'
@@ -219,53 +263,116 @@ export default function V2HomePage() {
                 ))}
               </div>
 
-              <form onSubmit={submitSearch} className="grid gap-3 p-2.5 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
-                <label className="grid gap-2">
-                  <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.from')}</span>
-                  <StationPicker
-                    value={fromId}
-                    onChange={setFromId}
-                    placeholder={t('v2.fromPh')}
-                    ariaLabel={t('v2.from')}
-                    excludeId={toId || undefined}
-                  />
-                </label>
-                <label className="grid gap-2">
-                  <span className="flex items-center justify-between px-1 text-[13px] font-bold text-[#0B1B33]">
-                    {t('v2.to')}
+              <form
+                onSubmit={submitSearch}
+                dir="rtl"
+                className={cn(
+                  'grid min-w-0 gap-3 p-2.5 md:items-end',
+                  tripKind === 'roundTrip'
+                    ? 'md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                    : 'md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)_auto]'
+                )}
+              >
+                {/* From / swap / to: stacked on mobile, flattened into the grid on desktop */}
+                <div className="relative grid min-w-0 gap-3 md:contents">
+                  <div className="grid min-w-0 gap-2">
+                    <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.from')}</span>
+                    <StationPicker
+                      id="home-from"
+                      nextId="home-to"
+                      value={fromId}
+                      onChange={(v) => { setFromId(v); setErrors((p) => ({ ...p, fromId: undefined })); }}
+                      placeholder={t('v2.fromPh')}
+                      ariaLabel={t('v2.from')}
+                      excludeId={toId || undefined}
+                      invalid={!!errors.fromId}
+                    />
+                    {errors.fromId && (
+                      <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.fromId}</p>
+                    )}
+                  </div>
+                  {/* Desktop swap column: fixed 40px, bottom-aligned with the fields */}
+                  <div className="hidden min-w-0 md:flex md:items-end">
                     <button
                       type="button" aria-label="Swap origin and destination"
-                      onClick={() => { setFromId(toId); setToId(fromId); }}
-                      className="grid size-7 place-items-center rounded-full border border-slate-200 text-[#1D5BD8] hover:bg-slate-50"
+                      onClick={swapStations}
+                      className="grid h-12 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-[#1D5BD8] hover:bg-slate-50"
                     >
                       <ArrowLeftRight className="size-4 v2-flip-rtl" />
                     </button>
-                  </span>
-                  <StationPicker
-                    value={toId}
-                    onChange={setToId}
-                    placeholder={t('v2.toPh')}
-                    ariaLabel={t('v2.to')}
-                    excludeId={fromId || undefined}
-                  />
-                </label>
-                <div className={cn('grid gap-3', tripKind === 'roundTrip' && 'sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2')}>
-                  <div className="grid gap-2">
+                  </div>
+                  <div className="grid min-w-0 gap-2">
+                    <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.to')}</span>
+                    <StationPicker
+                      id="home-to"
+                      nextId="home-date"
+                      value={toId}
+                      onChange={(v) => { setToId(v); setErrors((p) => ({ ...p, toId: undefined })); }}
+                      placeholder={t('v2.toPh')}
+                      ariaLabel={t('v2.to')}
+                      excludeId={fromId || undefined}
+                      invalid={!!errors.toId}
+                    />
+                    {errors.toId && (
+                      <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.toId}</p>
+                    )}
+                  </div>
+                  {/* Mobile swap: absolute on the edge, centered between the two fields */}
+                  <button
+                    type="button" aria-label="Swap origin and destination"
+                    onClick={swapStations}
+                    className="absolute end-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-[#1D5BD8] shadow-sm md:hidden"
+                  >
+                    <ArrowLeftRight className="size-4 v2-flip-rtl" />
+                  </button>
+                </div>
+                {/* Dates: side-by-side on mobile, flattened into the grid on desktop */}
+                <div className={cn('grid min-w-0 gap-3 md:contents', tripKind === 'roundTrip' ? 'grid-cols-2' : 'grid-cols-1')}>
+                  <div className="grid min-w-0 gap-2">
                     <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.date')}</span>
-                    <V2DatePicker value={date} onChange={setDeparture} label={t('v2.date')} />
+                    <V2DatePicker
+                      id="home-date"
+                      nextId={tripKind === 'roundTrip' ? 'home-return' : 'home-submit'}
+                      value={date}
+                      onChange={setDeparture}
+                      min={todayISO}
+                      label={t('v2.date')}
+                      invalid={!!errors.date}
+                    />
+                    {errors.date && (
+                      <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.date}</p>
+                    )}
                   </div>
                   {tripKind === 'roundTrip' && (
-                    <div className="grid gap-2">
+                    <div className="grid min-w-0 gap-2">
                       <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('v2.returnDate')}</span>
-                      <V2DatePicker value={returnDate} onChange={setReturnDate} min={date || undefined} label={t('v2.returnDate')} />
+                      <V2DatePicker
+                        id="home-return"
+                        nextId="home-submit"
+                        value={returnDate}
+                        onChange={(v) => { setReturnDate(v); setReturnNotice(''); setErrors((p) => ({ ...p, returnDate: undefined })); }}
+                        min={date || todayISO}
+                        label={t('v2.returnDate')}
+                        disabled={!date}
+                        invalid={!!errors.returnDate}
+                        open={returnOpen}
+                        onOpenChange={setReturnOpen}
+                        rangeStart={date || null}
+                        rangeEnd={returnDate || null}
+                      />
+                      {errors.returnDate ? (
+                        <p role="alert" className="px-1 text-[12.5px] font-bold text-red-600">{errors.returnDate}</p>
+                      ) : returnNotice ? (
+                        <p role="status" className="px-1 text-[12.5px] font-semibold text-amber-600">{returnNotice}</p>
+                      ) : null}
                     </div>
                   )}
                 </div>
-                <div className="grid gap-2">
+                <div className="grid min-w-0 gap-2">
                   {searchError && (
                     <p role="alert" className="px-1 text-[13px] font-bold text-red-600">{searchError}</p>
                   )}
-                  <button type="submit" className="v2-btn-primary flex min-h-[52px] items-center justify-center gap-2 px-7 text-[15px] lg:min-h-[60px] lg:px-8">
+                  <button id="home-submit" type="submit" className="v2-btn-primary flex h-12 items-center justify-center gap-2 px-7 text-[15px]">
                     <Search className="size-5 v2-flip-rtl" /> {t('v2.searchTrips')}
                   </button>
                 </div>

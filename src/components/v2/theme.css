@@ -136,6 +136,13 @@
 .v2-no-scrollbar::-webkit-scrollbar { display: none; }
 .v2-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Thin, quiet scrollbar for dropdown lists: never covers content. */
+.v2-thin-scroll { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #c3cfdf transparent; }
+.v2-thin-scroll::-webkit-scrollbar { width: 6px; }
+.v2-thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.v2-thin-scroll::-webkit-scrollbar-thumb { background: #c3cfdf; border-radius: 999px; }
+.v2-thin-scroll::-webkit-scrollbar-thumb:hover { background: #9aa8bd; }
+
 /* RTL: flip directional arrows automatically */
 .v2[dir='rtl'] .v2-flip-rtl { transform: scaleX(-1); }
 
