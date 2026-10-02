@@ -118,7 +118,32 @@ defaults to `file:./dev.db`. No file in this repo says what production runs.
 - **If it is Postgres**: provider `postgresql` + `prisma generate`.
 Ask the hoster which engine the live database uses before §2.
 
-## 9. Rollback
+## 9. Transition Cron Job
+
+Trip statuses transition automatically from `SCHEDULED` to `IN_PROGRESS` and `COMPLETED` based on departure and arrival timestamps.
+In V1, `/api/jobs/transition` supports two authentication models:
+1. **Cron header**: `x-cron-key: <JOB_CRON_KEY>` matching environment variable `JOB_CRON_KEY`.
+2. **Admin session**: NextAuth session cookie for a user with `role === 'SUPER_ADMIN'`.
+
+### Cron Configuration (cPanel Cron Jobs)
+Schedule every 5 minutes:
+```bash
+*/5 * * * * curl -s -X POST https://your-domain.com/api/jobs/transition -H "x-cron-key: YOUR_JOB_CRON_KEY" > /dev/null 2>&1
+```
+Or with `wget`:
+```bash
+*/5 * * * * wget -qO- --post-data="" --header="x-cron-key: YOUR_JOB_CRON_KEY" https://your-domain.com/api/jobs/transition > /dev/null 2>&1
+```
+
+### Expected HTTP Status Codes
+- `200 OK`: Transition ran successfully, response body: `{"ok":true}`.
+- `401 Unauthorized`: Request missing `x-cron-key` and not authenticated as `SUPER_ADMIN`.
+- `403 Forbidden`: Authenticated as non-super-admin (e.g. `CUSTOMER` or `COMPANY_ADMIN`).
+- `500 Internal Server Error`: Execution failed during trip query or transaction update.
+
+> **Backend Gap Note**: In V2 redesign codebase, `src/app/api/jobs/transition/route.ts` is currently missing while called from `src/app/admin/page.tsx:39`. When restoring, ensure it accepts both `x-cron-key` and `SUPER_ADMIN` session as defined above.
+
+## 10. Rollback
 
 1. **Code**: cPanel file manager keeps app copies, or re-upload the previous
    release (pre-V2 tag `v1-final` / branch `backup/pre-safro-v2`).
