@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Loader2, ArrowUp, ArrowDown, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, ArrowUp, ArrowDown, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
@@ -34,6 +34,7 @@ export default function AdminFaqs() {
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   const load = useCallback(async (all: boolean) => {
     setLoading(true);
@@ -128,11 +129,32 @@ export default function AdminFaqs() {
       const res = await fetch(`/api/faqs/${f.id}/reorder`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ direction }),
       });
       if (res.ok) load(showAll);
     } catch { /* keep order */ }
+  }
+
+  async function handleSeed() {
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/faqs/seed', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(
+          data.seeded
+            ? (isRTL ? 'تم إضافة الأسئلة الافتراضية بنجاح' : 'Default FAQs seeded successfully')
+            : (isRTL ? 'الأسئلة الافتراضية موجودة بالفعل' : 'FAQs already seeded')
+        );
+        load(showAll);
+      } else {
+        toast.error(t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSeeding(false);
+    }
   }
 
   return (
@@ -142,6 +164,14 @@ export default function AdminFaqs() {
         sub={t('faq.manage')}
         action={
           <>
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-50 px-4 py-3 text-[14px] font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+            >
+              <Sparkles className="size-4" />
+              {isRTL ? 'الأسئلة الافتراضية' : 'Seed Defaults'}
+            </button>
             <button
               onClick={() => setShowAll(!showAll)}
               aria-pressed={showAll}
