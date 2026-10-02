@@ -161,7 +161,7 @@ export default function V2HomePage() {
       <V2SiteHeader overlay />
 
       {/* ── HERO ── */}
-      <section className="relative overflow-hidden">
+      <section className="relative -mt-[76px] overflow-hidden">
         <div className="absolute inset-0">
           <Image src="/v2/hero-egypt.png" alt="" fill priority className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#0B1B33]/70 via-[#0B1B33]/35 to-[#0B1B33]/55" />

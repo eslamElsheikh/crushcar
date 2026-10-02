@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Menu, X, Globe, ChevronDown, LogOut, User } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
@@ -21,7 +21,17 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const dashHref = role === 'SUPER_ADMIN' ? '/admin' : '/company/dashboard';
   const bookingsHref = role === 'COMPANY_ADMIN' ? '/company/bookings' : '/bookings';
   const [userOpen, setUserOpen] = useState(false);
-  const light = overlay && !open;
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!overlay) return;
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [overlay]);
+
+  const light = overlay && !open && !scrolled;
   const fullName = session?.user?.name?.trim() || t('v2.account');
 
   const linkCls = light ? 'text-white/85 hover:text-white' : 'text-[#0B1B33]/75 hover:text-[#0B1B33]';
@@ -87,8 +97,8 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
   );
 
   return (
-    <header className={cn('inset-inline-0 top-0 z-30', overlay ? 'absolute' : 'sticky bg-white/95 backdrop-blur')}>
-      {!overlay && <div className="border-b border-[#E6EBF2]" />}
+    <header className={cn('inset-inline-0 top-0 z-30', overlay ? (scrolled ? 'sticky bg-white/95 backdrop-blur' : 'sticky') : 'sticky bg-white/95 backdrop-blur')}>
+      {(!overlay || scrolled) && <div className="border-b border-[#E6EBF2]" />}
       {/* Two logical groups: main nav (RTL start) + utility (RTL end), separated by justify-between */}
       <div className="v2-container flex items-center justify-between gap-6 py-4 pt-[max(1rem,env(safe-area-inset-top))] lg:gap-10">
         {/* Right group: logo + wordmark + nav */}
