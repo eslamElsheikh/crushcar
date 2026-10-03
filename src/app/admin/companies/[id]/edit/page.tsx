@@ -77,7 +77,7 @@ export default function EditCompanyPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href="/admin/credit-report" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+      <Link href="/admin/credit-report" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('company.creditReport')}
       </Link>
       <div className="mt-3">
@@ -89,7 +89,7 @@ export default function EditCompanyPage() {
           <V2Skeleton className="h-64 rounded-2xl" />
         </div>
       ) : (
-        <form onSubmit={save} className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <form onSubmit={save} className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <V2Field label={isRTL ? 'اسم الشركة' : 'Company name'}>
               <V2Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -122,7 +122,7 @@ export default function EditCompanyPage() {
                 onClick={() => setForm({ ...form, isActive: !form.isActive })}
                 className={cn(
                   'flex min-h-[52px] items-center gap-2.5 rounded-xl border px-4 text-[14.5px] font-bold transition lg:min-h-[60px]',
-                  form.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-[#5B6B84]'
+                  form.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'
                 )}
               >
                 <Power className="size-5" />

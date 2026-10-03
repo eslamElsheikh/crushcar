@@ -74,9 +74,9 @@ export default function AdminCustomers() {
             const cells = [
               <span key="n">
                 <span className="block font-bold">{c.name}</span>
-                <span className="block text-[12.5px] font-normal tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</span>
+                <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</span>
               </span>,
-              <span key="p" className="tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{c.phone || '—'}</span>,
+              <span key="p" className="tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.phone || '—'}</span>,
               <span key="b" className="font-bold tabular-nums">{(c.totalBookings || 0).toLocaleString(locale)}</span>,
               <span key="r" className="font-extrabold tabular-nums">EGP {Number(c.totalRevenue || 0).toLocaleString(locale)}</span>,
             ];
@@ -85,8 +85,8 @@ export default function AdminCustomers() {
           renderMobile={(c) => (
             <div>
               <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{c.name}</p>
-              <p className="truncate text-[12.5px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</p>
-              <p className="mt-1.5 text-[13.5px] tabular-nums text-[#5B6B84]">
+              <p className="truncate text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</p>
+              <p className="mt-1.5 text-[13.5px] tabular-nums text-[var(--sp-text-muted)]">
                 {(c.totalBookings || 0)} · EGP {Number(c.totalRevenue || 0).toLocaleString(locale)}
               </p>
             </div>

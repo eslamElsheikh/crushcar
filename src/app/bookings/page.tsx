@@ -158,7 +158,7 @@ export default function MyBookingsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
         <V2SiteHeader />
         <div className="v2-container grid max-w-4xl gap-4 py-10" role="status">
           <V2Skeleton className="h-9 w-56" />
@@ -172,34 +172,34 @@ export default function MyBookingsPage() {
   const list = groups[tab];
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container max-w-4xl pb-16 pt-8 md:pt-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-balance text-[28px] font-extrabold text-[#0B1B33] md:text-[34px]">{t('v2.myBookings')}</h1>
-            <p className="mt-1 text-[14.5px] text-[#5B6B84]">{session?.user?.name || session?.user?.email}</p>
+            <p className="mt-1 text-[14.5px] text-[var(--sp-text-muted)]">{session?.user?.name || session?.user?.email}</p>
           </div>
           <div className="flex gap-2.5">
-            <div className="rounded-2xl border border-[#E6EBF2] bg-white px-5 py-2.5 text-center shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
+            <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] px-5 py-2.5 text-center shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
               <p className="text-[20px] font-extrabold tabular-nums text-[#1D5BD8]">{groups.upcoming.length}</p>
-              <p className="text-[12px] font-semibold text-[#5B6B84]">{t('v2.tabUpcoming')}</p>
+              <p className="text-[12px] font-semibold text-[var(--sp-text-muted)]">{t('v2.tabUpcoming')}</p>
             </div>
-            <div className="rounded-2xl border border-[#E6EBF2] bg-white px-5 py-2.5 text-center shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
+            <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] px-5 py-2.5 text-center shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
               <p className="text-[20px] font-extrabold tabular-nums text-emerald-600">{bookings.filter((b) => b.status === 'PAID').length}</p>
-              <p className="text-[12px] font-semibold text-[#5B6B84]">{t('common.confirmed')}</p>
+              <p className="text-[12px] font-semibold text-[var(--sp-text-muted)]">{t('common.confirmed')}</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 ring-1 ring-[#E6EBF2]" role="tablist">
+        <div className="mt-6 flex gap-1.5 overflow-x-auto rounded-2xl bg-[var(--sp-card)] p-1.5 ring-1 ring-[#E6EBF2]" role="tablist">
           {tabs.map((tb) => (
             <button
               key={tb.key} role="tab" aria-selected={tab === tb.key} onClick={() => setTab(tb.key)}
               className={cn(
                 'flex-1 whitespace-nowrap rounded-xl px-4 py-2.5 text-[14px] font-bold tabular-nums transition',
-                tab === tb.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84] hover:bg-slate-50'
+                tab === tb.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[var(--sp-text-muted)] hover:bg-slate-50'
               )}
             >
               {tb.label} · {groups[tb.key].length}
@@ -245,19 +245,19 @@ export default function MyBookingsPage() {
                   <p className="mt-3 text-balance text-[17px] font-extrabold text-[#0B1B33]">
                     {isRTL ? `${b.actualDestination || b.trip.destination} ← ${b.actualOrigin || b.trip.origin}` : `${b.actualOrigin || b.trip.origin} → ${b.actualDestination || b.trip.destination}`}
                   </p>
-                  <p className="mt-1.5 text-[14px] tabular-nums text-[#5B6B84]">
+                  <p className="mt-1.5 text-[14px] tabular-nums text-[var(--sp-text-muted)]">
                     {new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                     {' · '}
                     {new Date(b.actualDeparture || b.trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                     {' · '}{isRTL ? 'مقعد' : 'Seat'} {b.seatLabel} · {b.trip.bus?.name}
                   </p>
-                  <p className="mt-1 text-[13px] text-[#5B6B84]">{b.passengerName}</p>
+                  <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">{b.passengerName}</p>
 
                   <div className="mt-4 flex flex-wrap gap-2.5 border-t border-slate-100 pt-4">
                     <Link href={`/bookings/${b.id}`} className="v2-btn-ghost px-5 py-2.5 text-[14px]">
                       {t('v2.viewTicket')}
                     </Link>
-                    <Link href={`/bookings/${b.id}/print`} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-[#5B6B84] hover:bg-slate-100">
+                    <Link href={`/bookings/${b.id}/print`} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">
                       <Printer className="size-4" /> {t('v2.printTicket')}
                     </Link>
                     {(b.status === 'PAID' || b.status === 'PENDING') && (
@@ -286,11 +286,11 @@ export default function MyBookingsPage() {
             <motion.div
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="relative w-full max-w-[440px] rounded-2xl bg-white p-6"
+              className="relative w-full max-w-[440px] rounded-2xl bg-[var(--sp-card)] p-6"
             >
               <div className="flex items-center justify-between">
                 <p className="text-[18px] font-extrabold text-[#0B1B33]">{t('v2.cancelBooking')}</p>
-                <button onClick={() => setCancelId(null)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100">
+                <button onClick={() => setCancelId(null)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100">
                   <X className="size-5" />
                 </button>
               </div>

@@ -155,7 +155,7 @@ export default function BusLayoutPage() {
 
   return (
     <div>
-      <Link href="/admin/buses" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+      <Link href="/admin/buses" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.buses')}
       </Link>
       <div className="mt-3">
@@ -175,7 +175,7 @@ export default function BusLayoutPage() {
         </div>
       ) : (
         <div className="mt-5 grid items-start gap-5 xl:grid-cols-[1fr_320px]">
-          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
             <div className="flex flex-wrap items-center gap-2.5">
               <V2Field label={isRTL ? 'الصفوف' : 'Rows'}>
                 <V2Input
@@ -195,7 +195,7 @@ export default function BusLayoutPage() {
                   dir="ltr" className="tabular-nums !min-h-[48px] !w-24"
                 />
               </V2Field>
-              <p className="ms-auto text-[13px] tabular-nums text-[#5B6B84]">
+              <p className="ms-auto text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                 {seats.length} {isRTL ? 'مقعد' : 'seats'}
               </p>
             </div>
@@ -245,7 +245,7 @@ export default function BusLayoutPage() {
                             selected === seat.label && 'border-[#0A1E3C] bg-[#0A1E3C] text-white',
                             selected !== seat.label && seat.type === 'VIP' && 'border-amber-300 bg-amber-50 text-amber-700',
                             selected !== seat.label && seat.type === 'DISABLED' && 'border-slate-100 bg-slate-50 text-slate-300',
-                            selected !== seat.label && seat.type === 'NORMAL' && 'border-slate-200 bg-white text-[#5B6B84]'
+                            selected !== seat.label && seat.type === 'NORMAL' && 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'
                           )}
                         >
                           {seat.label}
@@ -259,10 +259,10 @@ export default function BusLayoutPage() {
           </div>
 
           <div className="grid content-start gap-4">
-            <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+            <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{isRTL ? 'المقعد المحدد' : 'Selected seat'}</p>
               {!sel ? (
-                <p className="mt-2 text-[13.5px] text-[#5B6B84]">{isRTL ? 'اضغط على مقعد لتعديله' : 'Tap a seat to edit it'}</p>
+                <p className="mt-2 text-[13.5px] text-[var(--sp-text-muted)]">{isRTL ? 'اضغط على مقعد لتعديله' : 'Tap a seat to edit it'}</p>
               ) : (
                 <div className="mt-3 grid gap-3">
                   <p className="text-[16px] font-extrabold tabular-nums text-[#0B1B33]">{sel.label}</p>
@@ -272,7 +272,7 @@ export default function BusLayoutPage() {
                         key={tp}
                         onClick={() => updateSeat(sel.label, { type: tp, price: TYPE_PRICE[tp] })}
                         aria-pressed={sel.type === tp}
-                        className={cn('flex-1 rounded-lg px-2 py-2 text-[12.5px] font-bold transition', sel.type === tp ? 'bg-[#0A1E3C] text-white' : 'bg-slate-100 text-[#5B6B84]')}
+                        className={cn('flex-1 rounded-lg px-2 py-2 text-[12.5px] font-bold transition', sel.type === tp ? 'bg-[#0A1E3C] text-white' : 'bg-slate-100 text-[var(--sp-text-muted)]')}
                       >
                         {tp}
                       </button>
@@ -291,17 +291,17 @@ export default function BusLayoutPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+            <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{isRTL ? 'محطات الباص' : 'Bus stations'}</p>
               <div className="mt-3 grid gap-2">
                 {stations.map((s, i) => (
-                  <div key={`${s.name}-${i}`} className="flex items-center gap-2 rounded-xl bg-[#F6F8FC] px-3.5 py-2.5 text-[14px] font-semibold text-[#0B1B33]">
+                  <div key={`${s.name}-${i}`} className="flex items-center gap-2 rounded-xl bg-[var(--sp-inset)] px-3.5 py-2.5 text-[14px] font-semibold text-[#0B1B33]">
                     <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[#0A1E3C] text-[11px] font-bold tabular-nums text-white">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate">{s.name}</span>
                     <button
                       onClick={() => setStations(stations.filter((_, x) => x !== i))}
                       aria-label="Remove station"
-                      className="grid size-8 shrink-0 place-items-center rounded-lg text-red-500 hover:bg-white"
+                      className="grid size-8 shrink-0 place-items-center rounded-lg text-red-500 hover:bg-[var(--sp-inset)]"
                     >
                       <Trash2 className="size-4" />
                     </button>

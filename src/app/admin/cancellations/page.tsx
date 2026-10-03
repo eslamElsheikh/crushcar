@@ -118,13 +118,13 @@ export default function CancellationsPage() {
                 </div>
                 <div className="grid gap-2.5">
                   {(tiers[k] || []).map((b: any) => (
-                    <div key={b.id} className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-[#E6EBF2] bg-white p-4">
+                    <div key={b.id} className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14.5px] font-extrabold text-[#0B1B33]">
                           {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                           {source === 'company' && b.company ? ` · ${b.company.name || ''}` : ''}
                         </p>
-                        <p className="mt-0.5 font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                        <p className="mt-0.5 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
                           {b.reference}
                         </p>
                         <p className="mt-0.5 text-[13px] font-bold tabular-nums text-emerald-700">
@@ -141,7 +141,7 @@ export default function CancellationsPage() {
                     </div>
                   ))}
                   {(tiers[k] || []).length === 0 && (
-                    <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-6 text-center text-[13.5px] text-[#5B6B84]">
+                    <p className="rounded-2xl border border-dashed border-slate-300 bg-[var(--sp-card)] py-6 text-center text-[13.5px] text-[var(--sp-text-muted)]">
                       —
                     </p>
                   )}

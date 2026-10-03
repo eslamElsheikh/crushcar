@@ -136,7 +136,7 @@ export default function BookingDetailPage() {
 
   if (loading) {
     return (
-      <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
         <V2SiteHeader />
         <main className="v2-container py-12">
           <div className="max-w-4xl mx-auto space-y-4" role="status">
@@ -155,10 +155,10 @@ export default function BookingDetailPage() {
 
   if (!booking) {
     return (
-      <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
         <V2SiteHeader />
         <main className="v2-container py-16 text-center">
-          <div className="max-w-md mx-auto bg-white rounded-2xl border border-[#E6EBF2] p-8 shadow-sm">
+          <div className="max-w-md mx-auto bg-[var(--sp-card)] rounded-2xl border border-[var(--sp-line)] p-8 shadow-sm">
             <p className="text-lg font-extrabold text-[#0B1B33]">
               {isRTL ? 'لم يتم العثور على الحجز' : 'Booking not found'}
             </p>
@@ -184,7 +184,7 @@ export default function BookingDetailPage() {
   const companyName = booking.trip.bus.company?.name;
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC] text-[#0B1B33]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)] text-[#0B1B33]" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* ── TOP SITE HEADER ──────────────────────────── */}
       <V2SiteHeader />
 
@@ -193,7 +193,7 @@ export default function BookingDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <Link
             href="/bookings"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5B6B84] hover:text-[#0B1B33] transition"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition"
           >
             <ArrowRight className="size-4 rotate-180 v2-flip-rtl" />
             {isRTL ? 'الرجوع إلى حجوزاتي' : 'Back to my bookings'}
@@ -201,7 +201,7 @@ export default function BookingDetailPage() {
 
           <Link
             href={`/bookings/${booking.id}/print`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-[#E6EBF2] text-xs font-bold text-[#0B1B33] hover:bg-slate-50 transition shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--sp-card)] border border-[var(--sp-line)] text-xs font-bold text-[#0B1B33] hover:bg-slate-50 transition shadow-sm"
           >
             <Printer size={15} className="text-[#1D5BD8]" />
             {booking.roundTripGroupId
@@ -218,7 +218,7 @@ export default function BookingDetailPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-[#E6EBF2] bg-white p-6 md:p-7 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-5"
+          className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 md:p-7 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-5"
         >
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -251,7 +251,7 @@ export default function BookingDetailPage() {
               <span>{destination}</span>
             </h1>
 
-            <p className="mt-2 text-xs text-[#5B6B84] flex flex-wrap items-center gap-3 font-medium">
+            <p className="mt-2 text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-3 font-medium">
               <span className="flex items-center gap-1">
                 <Calendar size={13} className="text-[#1D5BD8]" />
                 {formatDate(departureDate)}
@@ -270,12 +270,12 @@ export default function BookingDetailPage() {
           </div>
 
           <div className="text-start md:text-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 shrink-0">
-            <span className="text-xs text-[#5B6B84] block font-medium">
+            <span className="text-xs text-[var(--sp-text-muted)] block font-medium">
               {isRTL ? 'إجمالي المدفوع' : 'Total Amount'}
             </span>
             <span className="text-2xl font-extrabold text-emerald-600">
               {Math.round(booking.total).toLocaleString(locale)}{' '}
-              <span className="text-xs font-bold text-[#5B6B84]">{t('common.currency')}</span>
+              <span className="text-xs font-bold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
             </span>
           </div>
         </motion.div>
@@ -289,7 +289,7 @@ export default function BookingDetailPage() {
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border border-[#E6EBF2] bg-white p-6 shadow-sm"
+                className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 shadow-sm"
               >
                 <h3 className="text-sm font-extrabold text-[#0B1B33] uppercase tracking-wider mb-4 flex items-center gap-2">
                   <MapPin size={16} className="text-[#1D5BD8]" />
@@ -314,7 +314,7 @@ export default function BookingDetailPage() {
                                 ? 'border-[#1D5BD8] bg-[#1D5BD8] shadow-[0_0_8px_rgba(29,91,216,0.5)]'
                                 : isLast
                                 ? 'border-emerald-600 bg-emerald-600 shadow-[0_0_8px_rgba(5,150,105,0.5)]'
-                                : 'border-slate-300 bg-white'
+                                : 'border-slate-300 bg-[var(--sp-card)]'
                             )}
                           />
                           <p
@@ -324,7 +324,7 @@ export default function BookingDetailPage() {
                                 ? 'text-[#1D5BD8] font-bold'
                                 : isLast
                                 ? 'text-emerald-700 font-bold'
-                                : 'text-[#5B6B84]'
+                                : 'text-[var(--sp-text-muted)]'
                             )}
                           >
                             {stop.station?.name}
@@ -354,7 +354,7 @@ export default function BookingDetailPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="rounded-2xl border border-[#E6EBF2] bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 shadow-sm"
             >
               <h3 className="text-sm font-extrabold text-[#0B1B33] uppercase tracking-wider mb-4 flex items-center gap-2">
                 <User size={16} className="text-[#1D5BD8]" />
@@ -362,8 +362,8 @@ export default function BookingDetailPage() {
               </h3>
 
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-                  <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+                <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+                  <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
                     {isRTL ? 'اسم المسافر' : 'Passenger Name'}
                   </span>
                   <span className="text-sm font-extrabold text-[#0B1B33]">
@@ -372,8 +372,8 @@ export default function BookingDetailPage() {
                 </div>
 
                 {(booking.passengerPhone || booking.user.phone) && (
-                  <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-                    <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+                  <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+                    <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
                       {isRTL ? 'رقم الهاتف' : 'Phone'}
                     </span>
                     <span className="text-sm font-bold font-mono text-[#0B1B33]">
@@ -383,8 +383,8 @@ export default function BookingDetailPage() {
                 )}
 
                 {booking.passengerHotel && (
-                  <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-                    <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+                  <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+                    <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
                       {isRTL ? 'مكان الإقامة / الفندق' : 'Hotel / Pickup'}
                     </span>
                     <span className="text-sm font-bold text-[#0B1B33]">
@@ -394,8 +394,8 @@ export default function BookingDetailPage() {
                 )}
 
                 {booking.collectAmount != null && booking.collectAmount > 0 && (
-                  <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-                    <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+                  <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+                    <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
                       {isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}
                     </span>
                     <span className="text-sm font-extrabold text-amber-700">
@@ -406,8 +406,8 @@ export default function BookingDetailPage() {
               </div>
 
               {booking.passengerNotes && (
-                <div className="mt-4 rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-                  <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+                <div className="mt-4 rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+                  <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
                     {isRTL ? 'ملاحظات إضافية' : 'Notes'}
                   </span>
                   <p className="text-xs text-[#0B1B33] font-medium leading-relaxed">
@@ -433,21 +433,21 @@ export default function BookingDetailPage() {
                 <div className="space-y-3 text-xs">
                   {booking.cancelledAt && (
                     <div className="flex justify-between items-center py-1.5 border-b border-red-100">
-                      <span className="text-[#5B6B84]">{t('cancel.cancelledAt') || (isRTL ? 'تاريخ الإلغاء' : 'Cancelled At')}</span>
+                      <span className="text-[var(--sp-text-muted)]">{t('cancel.cancelledAt') || (isRTL ? 'تاريخ الإلغاء' : 'Cancelled At')}</span>
                       <span className="font-bold text-[#0B1B33]">{formatDate(booking.cancelledAt)}</span>
                     </div>
                   )}
 
                   {booking.cancellationReason && (
                     <div className="flex justify-between items-center py-1.5 border-b border-red-100">
-                      <span className="text-[#5B6B84]">{t('cancel.reasonLabel') || (isRTL ? 'سبب الإلغاء' : 'Reason')}</span>
+                      <span className="text-[var(--sp-text-muted)]">{t('cancel.reasonLabel') || (isRTL ? 'سبب الإلغاء' : 'Reason')}</span>
                       <span className="font-bold text-[#0B1B33]">{booking.cancellationReason}</span>
                     </div>
                   )}
 
                   {booking.refundAmount !== undefined && booking.refundAmount !== null && (
                     <div className="flex justify-between items-center py-1.5 border-b border-red-100">
-                      <span className="text-[#5B6B84]">{t('cancel.refundedAmount') || (isRTL ? 'المبلغ المسترد' : 'Refunded Amount')}</span>
+                      <span className="text-[var(--sp-text-muted)]">{t('cancel.refundedAmount') || (isRTL ? 'المبلغ المسترد' : 'Refunded Amount')}</span>
                       <span className="font-extrabold text-emerald-700">
                         {Math.round(booking.refundAmount).toLocaleString(locale)} {t('common.currency')}
                       </span>
@@ -456,7 +456,7 @@ export default function BookingDetailPage() {
 
                   {booking.cancellationFee !== undefined && booking.cancellationFee !== null && booking.cancellationFee > 0 && (
                     <div className="flex justify-between items-center py-1.5 border-b border-red-100">
-                      <span className="text-[#5B6B84]">{t('cancel.fee') || (isRTL ? 'رسوم الإلغاء' : 'Cancellation Fee')}</span>
+                      <span className="text-[var(--sp-text-muted)]">{t('cancel.fee') || (isRTL ? 'رسوم الإلغاء' : 'Cancellation Fee')}</span>
                       <span className="font-bold text-red-600">
                         {Math.round(booking.cancellationFee).toLocaleString(locale)} {t('common.currency')}
                       </span>
@@ -488,7 +488,7 @@ export default function BookingDetailPage() {
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="rounded-2xl border border-[#E6EBF2] bg-white p-6 shadow-sm sticky top-24"
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 shadow-sm sticky top-24"
           >
             <div className="border-b border-slate-100 pb-4 mb-5 text-center">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1D5BD8] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
@@ -497,8 +497,8 @@ export default function BookingDetailPage() {
             </div>
 
             {/* Seat & Price Hero */}
-            <div className="bg-[#F6F8FC] rounded-2xl p-4 text-center mb-5 border border-slate-200/60">
-              <span className="text-xs font-bold text-[#5B6B84] block mb-1">
+            <div className="bg-[var(--sp-inset)] rounded-2xl p-4 text-center mb-5 border border-slate-200/60">
+              <span className="text-xs font-bold text-[var(--sp-text-muted)] block mb-1">
                 {isRTL ? 'رقم المقعد المحجوز' : 'Reserved Seat'}
               </span>
               <div className="flex items-center justify-center gap-2 text-3xl font-extrabold font-mono text-[#1D5BD8]">
@@ -513,14 +513,14 @@ export default function BookingDetailPage() {
             {/* QR Code */}
             {qrCode ? (
               <div className="text-center mb-5">
-                <div className="inline-block p-3 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div className="inline-block p-3 bg-[var(--sp-card)] rounded-2xl border border-slate-200 shadow-sm">
                   <img
                     src={qrCode}
                     alt={`QR Code for ${booking.reference}`}
                     className="w-36 h-36 mx-auto object-contain"
                   />
                 </div>
-                <p className="font-mono text-xs font-bold text-[#5B6B84] mt-2 tracking-wider">
+                <p className="font-mono text-xs font-bold text-[var(--sp-text-muted)] mt-2 tracking-wider">
                   {booking.reference}
                 </p>
               </div>
@@ -529,13 +529,13 @@ export default function BookingDetailPage() {
             {/* Payment & Date Details */}
             <div className="space-y-2.5 text-xs border-t border-slate-100 pt-4 mb-5">
               <div className="flex justify-between items-center">
-                <span className="text-[#5B6B84] font-medium">{isRTL ? 'تاريخ الحجز' : 'Booked At'}</span>
+                <span className="text-[var(--sp-text-muted)] font-medium">{isRTL ? 'تاريخ الحجز' : 'Booked At'}</span>
                 <span className="font-bold text-[#0B1B33]">{formatDate(booking.createdAt)}</span>
               </div>
 
               {booking.paidAt && (
                 <div className="flex justify-between items-center">
-                  <span className="text-[#5B6B84] font-medium">{isRTL ? 'تاريخ الدفع' : 'Paid At'}</span>
+                  <span className="text-[var(--sp-text-muted)] font-medium">{isRTL ? 'تاريخ الدفع' : 'Paid At'}</span>
                   <span className="font-bold text-emerald-700">{formatDate(booking.paidAt)}</span>
                 </div>
               )}
@@ -544,7 +544,7 @@ export default function BookingDetailPage() {
                 <span className="font-bold text-[#0B1B33]">{isRTL ? 'المبلغ' : 'Amount'}</span>
                 <span className="text-xl font-extrabold text-[#0B1B33]">
                   {Math.round(booking.total).toLocaleString(locale)}{' '}
-                  <span className="text-xs font-bold text-[#5B6B84]">{t('common.currency')}</span>
+                  <span className="text-xs font-bold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
                 </span>
               </div>
             </div>

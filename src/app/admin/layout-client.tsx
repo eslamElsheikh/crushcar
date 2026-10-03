@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Armchair, Bus, Route, Ticket, MapPin, HelpCircle,
   Calendar, Wallet, ScanEye, BarChart3, Users, Clock, CreditCard,
   XCircle, ShieldPlus, LogOut, Menu, X, Image as ImageIcon,
+  History, Settings,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,8 @@ const navItems = [
   { href: '/admin/cancellations', icon: XCircle, labelKey: 'admin.cancellations' },
   { href: '/admin/credit-report', icon: CreditCard, labelKey: 'company.creditReport' },
   { href: '/admin/reports', icon: BarChart3, labelKey: 'nav.reports' },
+  { href: '/admin/audit-log', icon: History, labelKey: 'admin.auditLog' },
+  { href: '/admin/settings', icon: Settings, labelKey: 'admin.settings' },
   { href: '/admin/faqs', icon: HelpCircle, labelKey: 'nav.faq' },
 ];
 
@@ -67,7 +70,7 @@ export default function AdminLayoutClient({ session, children }: { session: any;
   );
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="flex min-h-dvh">
         <aside className="hidden w-64 shrink-0 flex-col bg-[#0A1E3C] md:flex">
           <Link href="/" className="flex items-center gap-2.5 p-6 pb-5" aria-label="Safro">
@@ -90,17 +93,17 @@ export default function AdminLayoutClient({ session, children }: { session: any;
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[#E6EBF2] bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--sp-line)] bg-white/95 px-4 py-3 backdrop-blur md:hidden">
             <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} className="grid size-10 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]">
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
             <span className="flex items-center gap-2">
               <V2Logo height={30} />
-              <span className="text-[13px] font-bold text-[#5B6B84]">{t('nav.admin')}</span>
+              <span className="text-[13px] font-bold text-[var(--sp-text-muted)]">{t('nav.admin')}</span>
             </span>
           </div>
           {mobileOpen && (
-            <div className="max-h-[60dvh] overflow-y-auto border-b border-[#E6EBF2] bg-[#0A1E3C] md:hidden">{nav}</div>
+            <div className="max-h-[60dvh] overflow-y-auto border-b border-[var(--sp-line)] bg-[#0A1E3C] md:hidden">{nav}</div>
           )}
           <div className="p-4 md:p-8">{children}</div>
         </div>

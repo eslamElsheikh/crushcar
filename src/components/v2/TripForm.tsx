@@ -113,7 +113,7 @@ export function TripForm({
         </V2Field>
       </div>
 
-      <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+      <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[15px] font-extrabold text-[#0B1B33]">
             {isRTL ? 'المحطات' : 'Stops'} · <span className="tabular-nums">{stops.length}</span>
@@ -133,29 +133,29 @@ export function TripForm({
 
         <div className="mt-4 grid gap-2.5">
           {stops.map((s, i) => (
-            <div key={s.stationId} className="rounded-xl bg-[#F6F8FC] p-3.5">
+            <div key={s.stationId} className="rounded-xl bg-[var(--sp-inset)] p-3.5">
               <div className="flex items-center gap-2">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#0A1E3C] text-[12px] font-bold tabular-nums text-white">
                   {s.stopOrder}
                 </span>
                 <p className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold text-[#0B1B33]">{s.name}</p>
-                <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-white disabled:opacity-30">
+                <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-[var(--sp-inset)] disabled:opacity-30">
                   <ArrowUp className="size-4" />
                 </button>
-                <button onClick={() => move(i, 1)} disabled={i === stops.length - 1} aria-label="Move down" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-white disabled:opacity-30">
+                <button onClick={() => move(i, 1)} disabled={i === stops.length - 1} aria-label="Move down" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-[var(--sp-inset)] disabled:opacity-30">
                   <ArrowDown className="size-4" />
                 </button>
                 <button
                   onClick={() => setStops(stops.filter((_, x) => x !== i).map((x, xi) => ({ ...x, stopOrder: xi + 1 })))}
                   aria-label="Remove stop"
-                  className="grid size-9 place-items-center rounded-lg text-red-500 hover:bg-white"
+                  className="grid size-9 place-items-center rounded-lg text-red-500 hover:bg-[var(--sp-inset)]"
                 >
                   <Trash2 className="size-4" />
                 </button>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2.5">
                 <label className="grid gap-1">
-                  <span className="text-[11.5px] font-bold text-[#5B6B84]">EGP</span>
+                  <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">EGP</span>
                   <input
                     type="number" min="0" value={s.priceFromOrigin}
                     onChange={(e) => update(i, 'priceFromOrigin', Number(e.target.value))}
@@ -164,7 +164,7 @@ export function TripForm({
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-[11.5px] font-bold text-[#5B6B84]">{isRTL ? 'وصول' : 'Arr'}</span>
+                  <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'وصول' : 'Arr'}</span>
                   <input
                     type="time" value={s.arrivalTime}
                     onChange={(e) => update(i, 'arrivalTime', e.target.value)}
@@ -173,7 +173,7 @@ export function TripForm({
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-[11.5px] font-bold text-[#5B6B84]">{isRTL ? 'مغادرة' : 'Dep'}</span>
+                  <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'مغادرة' : 'Dep'}</span>
                   <input
                     type="time" value={s.departureTime}
                     onChange={(e) => update(i, 'departureTime', e.target.value)}
@@ -187,7 +187,7 @@ export function TripForm({
           {stops.length === 0 && (
             <button
               onClick={() => available[0] && addStop(available[0].id)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-4 text-[14px] font-bold text-[#5B6B84] hover:border-[#1D5BD8]/50 hover:text-[#1D5BD8]"
+              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-4 text-[14px] font-bold text-[var(--sp-text-muted)] hover:border-[#1D5BD8]/50 hover:text-[#1D5BD8]"
             >
               <Plus className="size-5" /> {isRTL ? 'إضافة أول محطة' : 'Add first stop'}
             </button>

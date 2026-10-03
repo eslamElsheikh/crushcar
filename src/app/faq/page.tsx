@@ -35,14 +35,14 @@ export default function FaqPage() {
   }, []);
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container max-w-3xl pb-16 pt-8 md:pt-10">
         <h1 className="text-balance text-[28px] font-extrabold text-[#0B1B33] md:text-[36px]">
           {t('faq.title')}
         </h1>
-        <p className="mt-2 text-pretty text-[15px] text-[#5B6B84]">{t('faq.subtitle')}</p>
+        <p className="mt-2 text-pretty text-[15px] text-[var(--sp-text-muted)]">{t('faq.subtitle')}</p>
 
         <div className="mt-7">
           {loading ? (
@@ -74,7 +74,7 @@ export default function FaqPage() {
                       <span className="flex-1 text-[15.5px] font-extrabold text-[#0B1B33]">
                         {isRTL ? f.questionAr : f.questionEn}
                       </span>
-                      <ChevronDown className={cn('size-5 shrink-0 text-[#5B6B84] transition-transform', open && 'rotate-180')} />
+                      <ChevronDown className={cn('size-5 shrink-0 text-[var(--sp-text-muted)] transition-transform', open && 'rotate-180')} />
                     </button>
                     <AnimatePresence initial={false}>
                       {open && (
@@ -83,7 +83,7 @@ export default function FaqPage() {
                           exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}
                           className="overflow-hidden"
                         >
-                          <p className="px-5 pb-5 ps-[76px] text-pretty text-[14.5px] leading-relaxed text-[#5B6B84]">
+                          <p className="px-5 pb-5 ps-[76px] text-pretty text-[14.5px] leading-relaxed text-[var(--sp-text-muted)]">
                             {isRTL ? f.answerAr : f.answerEn}
                           </p>
                         </motion.div>

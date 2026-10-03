@@ -62,32 +62,20 @@ export async function GET(req: NextRequest) {
           AND t.status = 'SCHEDULED'
           ${companyFilter}
         ORDER BY t.departure ASC
-        LIMIT ? OFFSET ?
-      `, fromStationId, toStationId, dateStart, dateEnd, take, skip)
+        ${returnDate ? '' : 'LIMIT ? OFFSET ?'}
+      `, ...(returnDate ? [fromStationId, toStationId, dateStart, dateEnd] : [fromStationId, toStationId, dateStart, dateEnd, take, skip]))
 
-      const tripIds = tripRows.map((t: any) => t.id)
-      queryTrips = tripIds.length > 0 ? await prisma.trip.findMany({
-        where: { id: { in: tripIds } },
-        include,
-      }) : []
-
-      const priceMap = new Map(tripRows.map((t: any) => [t.id, t]))
-      queryTrips = queryTrips.map(trip => ({
-        ...trip,
-        calculatedPrice: priceMap.get(trip.id)?.calculatedPrice || trip.price,
-        boardingTime: priceMap.get(trip.id)?.boardingTime || null,
-        alightingTime: priceMap.get(trip.id)?.alightingTime || null,
-        stops: trip.tripStops,
-      }))
-      queryTotal = tripRows.length
-
-      // Return trips for round trip
+      // Round trip: only outbound trips that have a matching return with free
+      // seats stay visible. A return matches when it runs the reversed leg on
+      // returnDate and departs after the outbound arrival.
+      let returnTrips: any[] = []
+      let filteredRows = tripRows
       if (returnDate) {
         const returnStart = new Date(Math.max(new Date(returnDate).getTime(), now.getTime()))
         const returnEnd = new Date(returnStart)
         returnEnd.setDate(returnEnd.getDate() + 1)
         const returnRaw = await prisma.$queryRawUnsafe<any[]>(`
-          SELECT t.id
+          SELECT t.id, t.departure
           FROM "Trip" t
           JOIN "TripStop" fromStop ON t.id = fromStop."tripId"
           JOIN "TripStop" toStop   ON t.id = toStop."tripId"
@@ -102,23 +90,54 @@ export async function GET(req: NextRequest) {
         `, toStationId, fromStationId, returnStart, returnEnd)
 
         const returnIds = returnRaw.map((r: any) => r.id)
-        let returnTrips: any[] = []
+        let candidates: any[] = []
         if (returnIds.length > 0) {
-          returnTrips = await prisma.trip.findMany({
+          candidates = await prisma.trip.findMany({
             where: { id: { in: returnIds } },
             include,
           })
         }
-        return NextResponse.json({
-          data: queryTrips,
-          returnTrips: returnTrips.length > 0 ? returnTrips : undefined,
-          pagination: { page, take, total: queryTotal, pages: Math.ceil((queryTotal || 0) / take) },
+        // Sold-out returns don't count as available.
+        returnTrips = candidates.filter((rt: any) => {
+          const total = rt.bus?.layout?.seats?.length || 0
+          const booked = (rt.bookings?.length || 0) + (rt.companyBookings?.length || 0)
+          return total - booked > 0
         })
+        if (returnTrips.length === 0) {
+          return NextResponse.json({
+            data: [],
+            returnTrips: undefined,
+            pagination: { page, take, total: 0, pages: 0 },
+          })
+        }
+        const latestReturnDep = Math.max(...returnTrips.map((rt: any) => new Date(rt.departure).getTime()))
+        filteredRows = tripRows.filter(
+          (r: any) => new Date(r.arrival).getTime() < latestReturnDep
+        )
+        queryTotal = filteredRows.length
+      } else {
+        queryTotal = tripRows.length
       }
+
+      const pageRows = returnDate ? filteredRows.slice(skip, skip + take) : filteredRows
+      const tripIds = pageRows.map((t: any) => t.id)
+      queryTrips = tripIds.length > 0 ? await prisma.trip.findMany({
+        where: { id: { in: tripIds } },
+        include,
+      }) : []
+
+      const priceMap = new Map(tripRows.map((t: any) => [t.id, t]))
+      queryTrips = queryTrips.map(trip => ({
+        ...trip,
+        calculatedPrice: priceMap.get(trip.id)?.calculatedPrice || trip.price,
+        boardingTime: priceMap.get(trip.id)?.boardingTime || null,
+        alightingTime: priceMap.get(trip.id)?.alightingTime || null,
+        stops: trip.tripStops,
+      }))
 
       return NextResponse.json({
         data: queryTrips,
-        returnTrips: undefined,
+        returnTrips: returnTrips.length > 0 ? returnTrips : undefined,
         pagination: { page, take, total: queryTotal, pages: Math.ceil((queryTotal || 0) / take) },
       })
     }

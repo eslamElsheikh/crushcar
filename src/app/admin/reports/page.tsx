@@ -95,7 +95,7 @@ export default function AdminReports() {
       {tab === 'routes' && (
         <div className="mt-4 grid gap-3">
           {routes.map((r) => (
-            <div key={r.tripId} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+            <div key={r.tripId} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-[15.5px] font-extrabold text-[#0B1B33]">
                   {isRTL ? `${r.destination} ← ${r.origin}` : `${r.origin} → ${r.destination}`}
@@ -104,7 +104,7 @@ export default function AdminReports() {
                   EGP {r.revenue.toLocaleString(locale)}
                 </span>
               </div>
-              <p className="mt-1 text-[13px] tabular-nums text-[#5B6B84]">
+              <p className="mt-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                 {new Date(r.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                 {' · '}{r.bookedSeats}/{r.totalSeats} · {Math.round(r.occupancy || 0)}%
               </p>
@@ -117,7 +117,7 @@ export default function AdminReports() {
             </div>
           ))}
           {routes.length === 0 && (
-            <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-[14.5px] text-[#5B6B84]">
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-[var(--sp-card)] py-10 text-center text-[14.5px] text-[var(--sp-text-muted)]">
               {t('bookings.noBookings')}
             </p>
           )}
@@ -125,9 +125,9 @@ export default function AdminReports() {
       )}
 
       {tab === 'revenue' && (
-        <div className="mt-4 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <div className="mt-4 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           {(data?.monthlyData.length || 0) === 0 ? (
-            <p className="py-10 text-center text-[14.5px] text-[#5B6B84]">{t('bookings.noBookings')}</p>
+            <p className="py-10 text-center text-[14.5px] text-[var(--sp-text-muted)]">{t('bookings.noBookings')}</p>
           ) : (
             <div className="h-72" dir="ltr">
               <ResponsiveContainer width="100%" height="100%">
@@ -150,13 +150,13 @@ export default function AdminReports() {
       {tab === 'customers' && (
         <div className="mt-4 grid gap-3">
           {(data?.topCustomers || []).map((c, i) => (
-            <div key={c.userId} className="flex items-center gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-4">
+            <div key={c.userId} className="flex items-center gap-3.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
               <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl text-[15px] font-extrabold tabular-nums', i === 0 ? 'bg-[#1D5BD8] text-white' : 'bg-[#EFF4FF] text-[#1D5BD8]')}>
                 {i + 1}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-extrabold text-[#0B1B33]">{c.name}</span>
-                <span className="block truncate text-[12.5px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</span>
+                <span className="block truncate text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</span>
               </span>
               <span className="shrink-0 text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">
                 EGP {c.totalRevenue.toLocaleString(locale)}
@@ -164,7 +164,7 @@ export default function AdminReports() {
             </div>
           ))}
           {(data?.topCustomers.length || 0) === 0 && (
-            <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-[14.5px] text-[#5B6B84]">
+            <p className="rounded-2xl border border-dashed border-slate-300 bg-[var(--sp-card)] py-10 text-center text-[14.5px] text-[var(--sp-text-muted)]">
               {t('bookings.noBookings')}
             </p>
           )}

@@ -63,7 +63,7 @@ function LoginForm() {
     <V2AuthShell
       title={t('auth.welcome')}
       sub={t('auth.signInAccount')}
-      sideTitle={t('v2.heroTitleA') + ' ' + t('v2.heroTitleB')}
+      sideTitle={t('v2.heroTitleA')}
       sideSub={t('v2.heroSubtitle')}
     >
       {registered && (
@@ -112,7 +112,7 @@ function LoginForm() {
         </V2Button>
       </form>
 
-      <p className="mt-6 text-center text-[14.5px] text-[#5B6B84]">
+      <p className="mt-6 text-center text-[14.5px] text-[var(--sp-text-muted)]">
         {t('auth.noAccount')}{' '}
         <Link href="/register" className="font-bold text-[#1D5BD8] hover:underline">
           {t('auth.createOne')}
@@ -121,14 +121,14 @@ function LoginForm() {
 
       {/* Dev-only demo accounts: never rendered in production builds. */}
       {process.env.NODE_ENV !== 'production' && (
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-[#F6F8FC] p-4">
-        <p className="text-center text-[12.5px] font-bold text-[#5B6B84]">{t('auth.demoAccounts')}</p>
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-[var(--sp-inset)] p-4">
+        <p className="text-center text-[12.5px] font-bold text-[var(--sp-text-muted)]">{t('auth.demoAccounts')}</p>
         <div className="mt-2.5 grid gap-2">
           {DEMO.map((d) => (
             <button
               key={d.email} type="button"
               onClick={() => { setEmail(d.email); setPassword(d.password); }}
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-start font-mono text-[12.5px] tabular-nums text-[#0B1B33] hover:border-[#1D5BD8]/40"
+              className="rounded-xl border border-slate-200 bg-[var(--sp-card)] px-3.5 py-2.5 text-start font-mono text-[12.5px] tabular-nums text-[#0B1B33] hover:border-[#1D5BD8]/40"
               dir="ltr"
             >
               {d.email}

@@ -92,12 +92,12 @@ function TripCard({
             {new Date(trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
             {' → '}
             {new Date(trip.arrival).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-            <span className="ms-2.5 text-[13px] font-medium text-[#5B6B84]">
+            <span className="ms-2.5 text-[13px] font-medium text-[var(--sp-text-muted)]">
               {new Date(trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
             </span>
           </p>
 
-          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13.5px] text-[#5B6B84]">
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13.5px] text-[var(--sp-text-muted)]">
             <span className="inline-flex items-center gap-1.5">
               <Clock className="size-4" /> {durationOf(trip.departure, trip.arrival, lang)}
             </span>
@@ -116,7 +116,7 @@ function TripCard({
           </p>
 
           {stops.length > 0 && (
-            <p className="mt-2 flex items-start gap-1.5 text-[13px] leading-relaxed text-[#5B6B84]">
+            <p className="mt-2 flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--sp-text-muted)]">
               <MapPin className="mt-1 size-4 shrink-0" />
               <span className="truncate">
                 {stops.map((s) => s.station!.name).join(lang === 'ar' ? ' ← ' : ' → ')}
@@ -128,7 +128,7 @@ function TripCard({
         <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-4 md:w-[210px] md:flex-col md:items-end md:justify-center md:border-s md:border-t-0 md:ps-6 md:pt-0">
           <p className="text-[24px] font-extrabold tabular-nums text-[#0B1B33]">
             {price.toLocaleString(locale)}
-            <span className="ms-1.5 block text-[12.5px] font-medium text-[#5B6B84] md:inline">
+            <span className="ms-1.5 block text-[12.5px] font-medium text-[var(--sp-text-muted)] md:inline">
               EGP {t('v2.perPassenger')}
             </span>
           </p>
@@ -300,13 +300,13 @@ function TripsContent() {
   const toName = stations.find((s) => s.id === toStationId)?.name;
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container pb-16 pt-8 md:pt-10">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
           <h1 className="text-balance text-[28px] font-extrabold text-[#0B1B33] md:text-[36px]">{t('v2.searchTitle')}</h1>
-          <p className="mt-2 text-pretty text-[15px] text-[#5B6B84] md:text-[16px]">{t('v2.searchSub')}</p>
+          <p className="mt-2 text-pretty text-[15px] text-[var(--sp-text-muted)] md:text-[16px]">{t('v2.searchSub')}</p>
         </motion.div>
 
         {/* ── SEARCH CARD ── */}
@@ -341,7 +341,7 @@ function TripsContent() {
                 }}
                 className={cn(
                   'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[14px] font-bold transition',
-                  roundTrip === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]'
+                  roundTrip === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[var(--sp-text-muted)]'
                 )}
               >
                 {tab.key && <Repeat className="size-4" />} {tab.label}
@@ -399,7 +399,7 @@ function TripsContent() {
               type="button"
               aria-label="Swap origin and destination"
               onClick={swapStations}
-              className="absolute end-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-[#1D5BD8] shadow-sm md:hidden"
+              className="absolute end-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-[var(--sp-card)] text-[#1D5BD8] shadow-sm md:hidden"
             >
               <ArrowLeftRight className="size-4 v2-flip-rtl" />
             </button>
@@ -458,7 +458,7 @@ function TripsContent() {
             </span>
           </span>
           {(fromName || toName) && !loading && (
-            <span className="text-[13.5px] text-[#5B6B84]">
+            <span className="text-[13.5px] text-[var(--sp-text-muted)]">
               {fromName || '…'} {isRTL ? '←' : '→'} {toName || '…'}
             </span>
           )}
@@ -467,7 +467,7 @@ function TripsContent() {
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
               aria-label="Sort"
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#0B1B33]"
+              className="rounded-xl border border-slate-200 bg-[var(--sp-card)] px-3.5 py-2.5 text-[13.5px] font-semibold text-[#0B1B33]"
             >
               <option value="recommended">{isRTL ? 'موصى به' : 'Recommended'}</option>
               <option value="price">{isRTL ? 'السعر: الأقل أولًا' : 'Price: lowest'}</option>
@@ -476,13 +476,13 @@ function TripsContent() {
             </select>
             <button
               type="button" aria-pressed={directOnly} onClick={() => setDirectOnly(!directOnly)}
-              className={cn('rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition', directOnly ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 bg-white text-[#5B6B84]')}
+              className={cn('rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition', directOnly ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]')}
             >
               {t('v2.direct')}
             </button>
             <button
               type="button" aria-pressed={hideSoldOut} onClick={() => setHideSoldOut(!hideSoldOut)}
-              className={cn('rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition', hideSoldOut ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 bg-white text-[#5B6B84]')}
+              className={cn('rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition', hideSoldOut ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]')}
             >
               {isRTL ? 'إخفاء المكتمل' : 'Hide sold out'}
             </button>
@@ -508,8 +508,8 @@ function TripsContent() {
             <V2ErrorState title={t('v2.loadFailed')} desc={t('v2.loadFailedDesc')} retryLabel={t('v2.retry')} onRetry={loadTrips} />
           ) : visible.length === 0 ? (
             <V2NoResults
-              title={t('v2.noTrips')}
-              desc={t('v2.noTripsDesc')}
+              title={roundTrip && returnDate ? t('v2.noRoundTrips') : t('v2.noTrips')}
+              desc={roundTrip && returnDate ? t('v2.noRoundTripsDesc') : t('v2.noTripsDesc')}
               actionLabel={t('v2.clearFilters')}
               onAction={() => { setFromStationId(''); setToStationId(''); setDate(''); setReturnDate(''); setDirectOnly(false); setHideSoldOut(false); }}
             />
@@ -523,7 +523,7 @@ function TripsContent() {
             <div>
               <div className="mb-4 flex items-center gap-2" aria-label={t('v2.outboundStep')}>
                 <span className="rounded-full bg-[#0A1E3C] px-3.5 py-2 text-[13px] font-bold tabular-nums text-white">1 · {t('v2.outboundStep')}</span>
-                <span className="rounded-full bg-white px-3.5 py-2 text-[13px] font-bold text-[#5B6B84] ring-1 ring-slate-200">2 · {t('v2.returnStep')}</span>
+                <span className="rounded-full bg-[var(--sp-card)] px-3.5 py-2 text-[13px] font-bold text-[var(--sp-text-muted)] ring-1 ring-slate-200">2 · {t('v2.returnStep')}</span>
               </div>
               <div className="grid gap-4">
                 {visible.map((trip, i) => (
@@ -571,7 +571,7 @@ function TripsContent() {
                   })}
                 </div>
               ) : (
-                <p className="rounded-2xl border border-dashed border-slate-300 bg-white py-8 text-center text-[14.5px] text-[#5B6B84]">
+                <p className="rounded-2xl border border-dashed border-slate-300 bg-[var(--sp-card)] py-8 text-center text-[14.5px] text-[var(--sp-text-muted)]">
                   {isRTL ? 'لا توجد رحلات عودة مطابقة' : 'No matching return trips'}
                 </p>
               )}
@@ -580,15 +580,15 @@ function TripsContent() {
 
           {/* ── RT SUMMARY BAR ── */}
           {roundTrip && pickedOut && !loading && !failed && (
-            <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border border-[#E6EBF2] bg-white/95 p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)] backdrop-blur md:p-5">
+            <div className="sticky bottom-4 z-20 mt-6 rounded-2xl border border-[var(--sp-line)] bg-white/95 p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)] backdrop-blur md:p-5">
               <div className="grid gap-2.5 text-[13.5px] sm:grid-cols-2">
                 <p className="truncate font-bold text-[#0B1B33]">
-                  <span className="text-[#5B6B84]">{t('v2.outboundStep')}: </span>
+                  <span className="text-[var(--sp-text-muted)]">{t('v2.outboundStep')}: </span>
                   {isRTL ? `${pickedOut.destination} ← ${pickedOut.origin}` : `${pickedOut.origin} → ${pickedOut.destination}`}
                   {' · '}<span className="tabular-nums">EGP {(pickedOut.calculatedPrice || pickedOut.price).toLocaleString(locale)}</span>
                 </p>
                 <p className="truncate font-bold text-[#0B1B33]">
-                  <span className="text-[#5B6B84]">{t('v2.returnStep')}: </span>
+                  <span className="text-[var(--sp-text-muted)]">{t('v2.returnStep')}: </span>
                   {(() => {
                     const rt = returnTrips.find((x) => x.id === selectedReturnTrip);
                     return rt

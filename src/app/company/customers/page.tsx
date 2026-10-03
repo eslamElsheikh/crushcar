@@ -69,7 +69,7 @@ export default function CompanyCustomersPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.customers')}</h1>
-          <p className="mt-1 text-[14.5px] tabular-nums text-[#5B6B84]">
+          <p className="mt-1 text-[14.5px] tabular-nums text-[var(--sp-text-muted)]">
             {customers.length} {isRTL ? 'عميل' : 'customers'}
           </p>
         </div>
@@ -98,13 +98,13 @@ export default function CompanyCustomersPage() {
         ) : (
           <div className="grid gap-3">
             {customers.map((c: any) => (
-              <div key={c.id} className="flex items-center gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <div key={c.id} className="flex items-center gap-3.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#EFF4FF] text-[16px] font-extrabold text-[#1D5BD8]">
                   {(c.name || '?').slice(0, 1)}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{c.name}</p>
-                  <p className="truncate text-[13px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                  <p className="truncate text-[13px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
                     {[c.email, c.phone].filter(Boolean).join(' · ')}
                   </p>
                 </div>
@@ -117,7 +117,7 @@ export default function CompanyCustomersPage() {
                   <button
                     onClick={() => setModal({ id: c.id, name: c.name || '', email: c.email || '', phone: c.phone || '', notes: c.notes || '' })}
                     aria-label={t('company.editCustomer')}
-                    className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]"
+                    className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]"
                   >
                     <Pencil className="size-5" />
                   </button>
@@ -157,12 +157,12 @@ export default function CompanyCustomersPage() {
         {modal && (
           <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={modal.id ? t('company.editCustomer') : t('company.addCustomer')}>
             <div className="absolute inset-0 bg-[#0B1B33]/60" onClick={() => setModal(null)} />
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative w-full max-w-[480px] rounded-2xl bg-white p-6">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative w-full max-w-[480px] rounded-2xl bg-[var(--sp-card)] p-6">
               <div className="flex items-center justify-between">
                 <p className="flex items-center gap-2 text-[18px] font-extrabold text-[#0B1B33]">
                   <Users className="size-5 text-[#1D5BD8]" /> {modal.id ? t('company.editCustomer') : t('company.addCustomer')}
                 </p>
-                <button onClick={() => setModal(null)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100">
+                <button onClick={() => setModal(null)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100">
                   <X className="size-5" />
                 </button>
               </div>

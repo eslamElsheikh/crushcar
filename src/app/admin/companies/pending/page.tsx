@@ -110,19 +110,19 @@ export default function PendingCompaniesPage() {
         ) : (
           <div className="grid gap-3">
             {companies.map((c: any) => (
-              <div key={c.id} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <div key={c.id} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <div className="flex items-center gap-3">
                   <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#EFF4FF] text-[#1D5BD8]">
                     <Building2 className="size-6" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[16px] font-extrabold text-[#0B1B33]">{c.name}</p>
-                    <p className="truncate text-[13px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                    <p className="truncate text-[13px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
                       {[c.email, c.phone].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                 </div>
-                {c.notes && <p className="mt-2.5 rounded-xl bg-[#F6F8FC] px-4 py-2.5 text-[13.5px] text-[#5B6B84]">{c.notes}</p>}
+                {c.notes && <p className="mt-2.5 rounded-xl bg-[var(--sp-inset)] px-4 py-2.5 text-[13.5px] text-[var(--sp-text-muted)]">{c.notes}</p>}
                 <div className="mt-4 flex gap-2">
                   <V2Button disabled={rejecting === c.id} onClick={() => openApprove(c)} className="flex-1">
                     <Check className="size-5" /> {t('tripRequest.approve')}

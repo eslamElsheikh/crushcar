@@ -286,7 +286,7 @@ export function StationPicker({
     return (
       <div key={g.city} role="group" aria-label={g.city}>
         <div className="flex items-center justify-between px-2 pb-1.5 pt-3 text-[13px]">
-          <span className="flex items-center gap-1.5 font-bold text-[#5B6B84]">
+          <span className="flex items-center gap-1.5 font-bold text-[var(--sp-text-muted)]">
             <Building2 className="size-4" />
             <Highlight text={g.city} query={query} />
           </span>
@@ -313,8 +313,8 @@ export function StationPicker({
                   isSel
                     ? 'border-[#1D5BD8] bg-[#1D5BD8] font-extrabold text-white'
                     : isActive
-                      ? 'border-[#E6EBF2] bg-slate-100 font-bold text-[#0B1B33]'
-                      : 'border-[#E6EBF2] bg-white font-bold text-[#0B1B33] hover:bg-slate-50'
+                      ? 'border-[var(--sp-line)] bg-slate-100 font-bold text-[#0B1B33]'
+                      : 'border-[var(--sp-line)] bg-[var(--sp-card)] font-bold text-[#0B1B33] hover:bg-slate-50'
                 )}
               >
                 <span className="min-w-0 truncate">
@@ -381,13 +381,13 @@ export function StationPicker({
       {open && (
         <div
           className={cn(
-            'absolute inset-x-0 z-50 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white shadow-[0_24px_64px_rgba(11,27,51,0.18)]',
+            'absolute inset-x-0 z-50 overflow-hidden rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] shadow-[0_24px_64px_rgba(11,27,51,0.18)]',
             flip ? 'bottom-full mb-2' : 'top-full mt-2'
           )}
         >
-          <div className="flex items-center gap-1.5 border-b border-[#E6EBF2] px-3.5 py-2.5 text-[13px]">
+          <div className="flex items-center gap-1.5 border-b border-[var(--sp-line)] px-3.5 py-2.5 text-[13px]">
             <Search className="size-4 text-[#1D5BD8]" />
-            <span className="font-bold text-[#5B6B84]">{t('v2.chooseGovStation')}</span>
+            <span className="font-bold text-[var(--sp-text-muted)]">{t('v2.chooseGovStation')}</span>
           </div>
           <div
             ref={listRef}
@@ -398,12 +398,12 @@ export function StationPicker({
             className="v2-thin-scroll overflow-y-auto p-2.5"
           >
             {loading ? (
-              <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
+              <p className="px-2 py-6 text-center text-[14px] font-semibold text-[var(--sp-text-muted)]">
                 {t('v2.stationsLoading')}
               </p>
             ) : failed ? (
               <div className="grid gap-2 px-2 py-6 text-center">
-                <p className="text-[14px] font-semibold text-[#5B6B84]">{t('v2.stationsFailed')}</p>
+                <p className="text-[14px] font-semibold text-[var(--sp-text-muted)]">{t('v2.stationsFailed')}</p>
                 <button
                   type="button"
                   onClick={load}
@@ -417,7 +417,7 @@ export function StationPicker({
                 {renderEmptyRow()}
                 {groups.map(renderGroup)}
                 {totalCount === 0 && (
-                  <p className="px-2 py-6 text-center text-[14px] font-semibold text-[#5B6B84]">
+                  <p className="px-2 py-6 text-center text-[14px] font-semibold text-[var(--sp-text-muted)]">
                     {t('v2.noStations')}
                   </p>
                 )}

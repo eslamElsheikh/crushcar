@@ -51,7 +51,7 @@ export default function CompanyBookingsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.bookings')}</h1>
-          <p className="mt-1 text-[14.5px] tabular-nums text-[#5B6B84]">{t('company.totalBookings')}</p>
+          <p className="mt-1 text-[14.5px] tabular-nums text-[var(--sp-text-muted)]">{t('company.totalBookings')}</p>
         </div>
         <Link href="/company/bookings/new" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
           <Plus className="size-5" /> {t('company.newBooking')}
@@ -71,7 +71,7 @@ export default function CompanyBookingsPage() {
               aria-pressed={status === f}
               className={cn(
                 'rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition',
-                status === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-white text-[#5B6B84]'
+                status === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'
               )}
             >
               {f || (isRTL ? 'الكل' : 'All')}
@@ -96,12 +96,12 @@ export default function CompanyBookingsPage() {
           <>
             <div className="grid gap-3">
               {bookings.map((b: any) => (
-                <Link key={b.id} href={`/company/bookings/${b.id}`} className="rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40">
+                <Link key={b.id} href={`/company/bookings/${b.id}`} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
                   <div className="flex flex-wrap items-center gap-2">
                     <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
                       {t(`booking.${String(b.status).toLowerCase()}`)}
                     </V2StatusBadge>
-                    <span className="font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr">{b.reference}</span>
+                    <span className="font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
                       EGP {(b.total || 0).toLocaleString(locale)}
                     </span>
@@ -111,7 +111,7 @@ export default function CompanyBookingsPage() {
                       ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}`
                       : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
                   </p>
-                  <p className="mt-1 text-[13px] tabular-nums text-[#5B6B84]">
+                  <p className="mt-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                     {b.customer?.name ? ` · ${b.customer.name}` : ''}
                     {b.seatLabel ? ` · ${isRTL ? 'مقعد' : 'Seat'} ${b.seatLabel}` : ''}
@@ -124,7 +124,7 @@ export default function CompanyBookingsPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
                   aria-label="Previous page"
-                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#0B1B33] disabled:opacity-40"
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
                 >
                   <ChevronLeft className="size-5 v2-flip-rtl" />
                 </button>
@@ -132,7 +132,7 @@ export default function CompanyBookingsPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages}
                   aria-label="Next page"
-                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#0B1B33] disabled:opacity-40"
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
                 >
                   <ChevronRight className="size-5 v2-flip-rtl" />
                 </button>

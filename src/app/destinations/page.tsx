@@ -59,7 +59,7 @@ export default function DestinationsPage() {
   const visibleItems = dedupeDestinations(items);
 
   return (
-    <div className="v2 min-h-dvh bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container pb-16 pt-8 md:pt-10">

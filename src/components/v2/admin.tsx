@@ -22,7 +22,7 @@ export function V2PageHeader({
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="text-balance text-[24px] font-extrabold text-[#0B1B33] md:text-[30px]">{title}</h1>
-        {sub && <p className="mt-1 text-[14px] tabular-nums text-[#5B6B84]">{sub}</p>}
+        {sub && <p className="mt-1 text-[14px] tabular-nums text-[var(--sp-text-muted)]">{sub}</p>}
       </div>
       {action && <div className="flex flex-wrap gap-2.5">{action}</div>}
     </div>
@@ -47,14 +47,14 @@ export function V2StatCard({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut', delay: index * 0.05 }}
-      className="rounded-2xl border border-[#E6EBF2] bg-white p-5 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
+      className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-[13px] font-semibold text-[#5B6B84]">{label}</p>
+        <p className="truncate text-[13px] font-semibold text-[var(--sp-text-muted)]">{label}</p>
         {icon}
       </div>
       <p className="mt-2 truncate text-[24px] font-extrabold tabular-nums text-[#0B1B33]">{value}</p>
-      {sub && <p className="mt-1 truncate text-[12.5px] text-[#5B6B84]">{sub}</p>}
+      {sub && <p className="mt-1 truncate text-[12.5px] text-[var(--sp-text-muted)]">{sub}</p>}
     </motion.div>
   );
 }
@@ -113,7 +113,7 @@ export function V2Table<T>({
   }
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-[14.5px] font-semibold text-[#5B6B84]">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-[var(--sp-card)] py-10 text-center text-[14.5px] font-semibold text-[var(--sp-text-muted)]">
         {emptyTitle}
       </div>
     );
@@ -121,12 +121,12 @@ export function V2Table<T>({
   return (
     <>
       {/* Desktop table */}
-      <div className="hidden overflow-x-auto rounded-2xl border border-[#E6EBF2] bg-white md:block">
+      <div className="hidden overflow-x-auto rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] md:block">
         <table className="w-full min-w-[720px] border-collapse text-start">
           <thead>
-            <tr className="border-b border-slate-100 bg-[#F6F8FC]">
+            <tr className="border-b border-slate-100 bg-[var(--sp-inset)]">
               {columns.map((c) => (
-                <th key={c} className="px-5 py-3.5 text-[12.5px] font-bold uppercase text-[#5B6B84]">
+                <th key={c} className="px-5 py-3.5 text-[12.5px] font-bold uppercase text-[var(--sp-text-muted)]">
                   {c}
                 </th>
               ))}
@@ -134,7 +134,7 @@ export function V2Table<T>({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={rowKey(row)} className="border-b border-slate-50 transition last:border-0 hover:bg-[#F6F8FC]">
+              <tr key={rowKey(row)} className="border-b border-slate-50 transition last:border-0 hover:bg-[var(--sp-inset)]">
                 {columns.map((_, i) => (
                   <td key={i} className="px-5 py-4 text-[14px] text-[#0B1B33]">
                     {renderCell(row, i)}
@@ -148,7 +148,7 @@ export function V2Table<T>({
       {/* Mobile cards */}
       <div className="grid gap-3 md:hidden">
         {rows.map((row) => (
-          <div key={rowKey(row)} className="rounded-2xl border border-[#E6EBF2] bg-white p-4">
+          <div key={rowKey(row)} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
             {renderMobile(row)}
           </div>
         ))}
@@ -173,7 +173,7 @@ export function V2Pagination({
         onClick={() => onPage(Math.max(1, page - 1))}
         disabled={page <= 1}
         aria-label="Previous page"
-        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#0B1B33] disabled:opacity-40"
+        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
       >
         <ChevronLeft className="size-5 v2-flip-rtl" />
       </button>
@@ -182,7 +182,7 @@ export function V2Pagination({
         onClick={() => onPage(Math.min(pages, page + 1))}
         disabled={page >= pages}
         aria-label="Next page"
-        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#0B1B33] disabled:opacity-40"
+        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
       >
         <ChevronRight className="size-5 v2-flip-rtl" />
       </button>
@@ -214,13 +214,13 @@ export function V2Modal({
             exit={{ opacity: 0, y: 24 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={cn(
-              'relative max-h-[90dvh] w-full overflow-y-auto rounded-2xl bg-white p-6',
+              'relative max-h-[90dvh] w-full overflow-y-auto rounded-2xl bg-[var(--sp-card)] p-6',
               wide ? 'max-w-[720px]' : 'max-w-[520px]'
             )}
           >
             <div className="flex items-center justify-between gap-3">
               <p className="text-[18px] font-extrabold text-[#0B1B33]">{title}</p>
-              <button onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100">
+              <button onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100">
                 <X className="size-5" />
               </button>
             </div>
@@ -242,7 +242,7 @@ export function V2Tabs<T extends string>({
   onChange: (k: T) => void;
 }) {
   return (
-    <div className="flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 ring-1 ring-[#E6EBF2]" role="tablist">
+    <div className="flex gap-1.5 overflow-x-auto rounded-2xl bg-[var(--sp-card)] p-1.5 ring-1 ring-[#E6EBF2]" role="tablist">
       {tabs.map((tb) => (
         <button
           key={tb.key}
@@ -251,7 +251,7 @@ export function V2Tabs<T extends string>({
           onClick={() => onChange(tb.key)}
           className={cn(
             'flex-1 whitespace-nowrap rounded-xl px-4 py-2.5 text-[14px] font-bold tabular-nums transition',
-            active === tb.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84] hover:bg-slate-50'
+            active === tb.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[var(--sp-text-muted)] hover:bg-slate-50'
           )}
         >
           {tb.label}

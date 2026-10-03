@@ -102,9 +102,9 @@ export function V2SeatMap({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-[#F6F8FC] py-3">
+      <div className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-[var(--sp-inset)] py-3">
         <Bus className="size-5 text-[#1D5BD8]" aria-hidden="true" />
-        <span className="text-[12px] font-bold text-[#5B6B84]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
+        <span className="text-[12px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
       </div>
 
       <div className="grid gap-2 overflow-x-auto pb-2" role="group" aria-label={isRTL ? 'خريطة المقاعد' : 'Seat map'}>
@@ -137,7 +137,7 @@ export function V2SeatMap({
                       isAisle && 'ms-6',
                       isRes && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300',
                       disabled && 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-200',
-                      !isRes && !disabled && !isSel && 'border-slate-200 bg-white text-[#5B6B84] hover:border-[#1D5BD8]/50',
+                      !isRes && !disabled && !isSel && 'border-[var(--sp-seat-line)] bg-[var(--sp-seat-bg)] text-[var(--sp-text-muted)] hover:border-[#1D5BD8]/50',
                       isSel && 'border-[#1D5BD8] bg-[#1D5BD8] text-white shadow-[0_8px_20px_rgba(29,91,216,0.35)]',
                       vip && !isSel && !isRes && 'border-amber-300 bg-amber-50 text-amber-700'
                     )}
@@ -153,8 +153,8 @@ export function V2SeatMap({
         })}
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[#5B6B84]">
-        <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-slate-200 bg-white" /> {isRTL ? 'متاح' : 'Available'}</span>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[var(--sp-text-muted)]">
+        <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-[var(--sp-seat-line)] bg-[var(--sp-seat-bg)]" /> {isRTL ? 'متاح' : 'Available'}</span>
         <span className="flex items-center gap-1.5"><span className="size-4 rounded-md bg-[#1D5BD8]" /> {isRTL ? 'مختار' : 'Selected'}</span>
         <span className="flex items-center gap-1.5"><span className="size-4 rounded-md bg-slate-100" /> {isRTL ? 'محجوز' : 'Taken'}</span>
         <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-amber-300 bg-amber-50" /> VIP</span>

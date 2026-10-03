@@ -69,7 +69,7 @@ export default function CompanyRegisterPage() {
           <span className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-50 text-emerald-600">
             <Building2 className="size-9" />
           </span>
-          <p className="mx-auto mt-5 max-w-[380px] text-pretty text-[15px] leading-relaxed text-[#5B6B84]">
+          <p className="mx-auto mt-5 max-w-[380px] text-pretty text-[15px] leading-relaxed text-[var(--sp-text-muted)]">
             {isRTL
               ? 'هيوصلك إيميل لما الحساب يتفعل. بعدها تقدر تسجّل الدخول وتدير حجوزات شركتك.'
               : 'You will receive an email once activated. Then you can sign in and manage your company bookings.'}
@@ -162,14 +162,14 @@ export default function CompanyRegisterPage() {
         </V2Button>
       </form>
 
-      <p className="mt-6 text-center text-[14.5px] text-[#5B6B84]">
+      <p className="mt-6 text-center text-[14.5px] text-[var(--sp-text-muted)]">
         {isRTL ? 'عندك حساب بالفعل؟' : 'Already have an account?'}{' '}
         <Link href="/login" className="font-bold text-[#1D5BD8] hover:underline">
           {isRTL ? 'تسجيل الدخول' : 'Sign In'}
         </Link>
       </p>
       <p className="mt-3 text-center">
-        <Link href="/register" className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-[#5B6B84] hover:text-[#0B1B33]">
+        <Link href="/register" className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
           <ArrowRight className="size-4 rotate-180 v2-flip-rtl" />
           {isRTL ? 'تسجيل كعميل عادي' : 'Register as individual customer'}
         </Link>

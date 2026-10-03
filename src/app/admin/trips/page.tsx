@@ -194,22 +194,22 @@ export default function AdminTrips() {
               <span key="r" className="font-bold">
                 {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
               </span>,
-              <span key="d" className="tabular-nums text-[#5B6B84]">
+              <span key="d" className="tabular-nums text-[var(--sp-text-muted)]">
                 {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                 {' · '}
                 {new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
               </span>,
-              <span key="b" className="text-[#5B6B84]">{tr.bus?.name}</span>,
+              <span key="b" className="text-[var(--sp-text-muted)]">{tr.bus?.name}</span>,
               <span key="p" className="font-extrabold tabular-nums">EGP {tr.price.toLocaleString(locale)}</span>,
               <V2StatusBadge key="s" tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{tr.status}</V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
-                <Link href={`/admin/trips/${tr.id}/edit`} aria-label="Edit" className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                <Link href={`/admin/trips/${tr.id}/edit`} aria-label="Edit" className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                   <Pencil className="size-5" />
                 </Link>
-                <Link href={`/admin/trips/${tr.id}/seats`} aria-label="Seats" className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                <Link href={`/admin/trips/${tr.id}/seats`} aria-label="Seats" className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                   <Armchair className="size-5" />
                 </Link>
-                <Link href={`/admin/trips/${tr.id}/passengers`} aria-label="Passengers" className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                <Link href={`/admin/trips/${tr.id}/passengers`} aria-label="Passengers" className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                   <Users className="size-5" />
                 </Link>
                 <button
@@ -231,7 +231,7 @@ export default function AdminTrips() {
                 </p>
                 <V2StatusBadge tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{tr.status}</V2StatusBadge>
               </div>
-              <p className="mt-1.5 text-[13px] tabular-nums text-[#5B6B84]">
+              <p className="mt-1.5 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                 {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })} · EGP {tr.price.toLocaleString(locale)}
               </p>
               <div className="mt-3 flex gap-1.5">

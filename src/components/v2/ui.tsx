@@ -22,7 +22,7 @@ export function V2SectionHeading({
           {title}
         </h2>
         {sub && (
-          <p className="mt-2 text-pretty text-[15px] text-[#5B6B84] md:text-[16px]">{sub}</p>
+          <p className="mt-2 text-pretty text-[15px] text-[var(--sp-text-muted)] md:text-[16px]">{sub}</p>
         )}
       </div>
       {action && <div className="hidden shrink-0 md:block">{action}</div>}
@@ -79,7 +79,7 @@ function StateShell({
         {icon}
       </span>
       <p className="mt-5 text-balance text-[18px] font-extrabold text-[#0B1B33]">{title}</p>
-      {desc && <p className="mx-auto mt-2 max-w-[340px] text-pretty text-[14.5px] text-[#5B6B84]">{desc}</p>}
+      {desc && <p className="mx-auto mt-2 max-w-[340px] text-pretty text-[14.5px] text-[var(--sp-text-muted)]">{desc}</p>}
       {action && <div className="mt-6">{action}</div>}
     </div>
   );
@@ -177,7 +177,7 @@ export function V2Skeleton({ className }: { className?: string }) {
 /** Card-shaped skeleton for trip grids. */
 export function V2TripCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white" aria-hidden="true">
+    <div className="overflow-hidden rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)]" aria-hidden="true">
       <V2Skeleton className="h-40 rounded-none" />
       <div className="grid gap-3 p-5">
         <V2Skeleton className="h-5 w-2/3" />

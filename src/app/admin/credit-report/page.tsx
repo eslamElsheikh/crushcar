@@ -49,14 +49,14 @@ export default function AdminCreditReport() {
             const cells = [
               <span key="n">
                 <span className="block font-bold">{c.name}</span>
-                <span className="block text-[12.5px] font-normal text-[#5B6B84]">
+                <span className="block text-[12.5px] font-normal text-[var(--sp-text-muted)]">
                   {c.subdomain} · <V2StatusBadge tone={c.paymentMode === 'CREDIT' ? 'blue' : c.paymentMode === 'PREPAID' ? 'green' : 'slate'}>{c.paymentMode}</V2StatusBadge>
                 </span>
               </span>,
               <span key="l" className="tabular-nums">{Number(c.creditLimit || 0).toLocaleString(locale)}</span>,
               <span key="o" className="font-bold tabular-nums text-amber-700">{Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>,
               <span key="w" className="font-bold tabular-nums text-emerald-700">{Number(c.walletBalance || 0).toLocaleString(locale)}</span>,
-              <Link key="e" href={`/admin/companies/${c.id}/edit`} aria-label={t('company.editCompany')} className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+              <Link key="e" href={`/admin/companies/${c.id}/edit`} aria-label={t('company.editCompany')} className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                 <Pencil className="size-5" />
               </Link>,
             ];
@@ -71,7 +71,7 @@ export default function AdminCreditReport() {
                 </Link>
               </div>
               <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-                <span className="rounded-lg bg-[#F6F8FC] px-2 py-2 text-[12px] font-bold tabular-nums">L: {Number(c.creditLimit || 0).toLocaleString(locale)}</span>
+                <span className="rounded-lg bg-[var(--sp-inset)] px-2 py-2 text-[12px] font-bold tabular-nums">L: {Number(c.creditLimit || 0).toLocaleString(locale)}</span>
                 <span className="rounded-lg bg-amber-50 px-2 py-2 text-[12px] font-bold tabular-nums text-amber-700">O: {Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>
                 <span className="rounded-lg bg-emerald-50 px-2 py-2 text-[12px] font-bold tabular-nums text-emerald-700">W: {Number(c.walletBalance || 0).toLocaleString(locale)}</span>
               </div>

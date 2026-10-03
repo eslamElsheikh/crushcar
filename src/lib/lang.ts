@@ -393,6 +393,7 @@ const translations: Record<string, Record<Language, string>> = {
   'company.paidFromWallet': { ar: 'مدفوع من المحفظة', en: 'Paid from Wallet' },
   'company.paidOnCredit': { ar: 'مدفوع بالكريدت', en: 'Paid on Credit' },
   'company.wallet': { ar: 'المحفظة', en: 'Wallet' },
+  'company.settings': { ar: 'إعدادات الشركة', en: 'Company Settings' },
   'company.depositAmount': { ar: 'مبلغ الشحن', en: 'Deposit Amount' },
   'company.transactionHistory': { ar: 'سجل المعاملات', en: 'Transaction History' },
   'company.depositType': { ar: 'شحن', en: 'Deposit' },
@@ -651,6 +652,8 @@ const translations: Record<string, Record<Language, string>> = {
   'company.selectAllSeats': { ar: 'تحديد كل المقاعد المتاحة', en: 'Select all available' },
   'company.clearSelection': { ar: 'إلغاء التحديد', en: 'Clear selection' },
   'admin.quickActions': { ar: 'إجراءات سريعة', en: 'Quick Actions' },
+  'admin.auditLog': { ar: 'سجل العمليات', en: 'Audit Log' },
+  'admin.settings': { ar: 'الإعدادات العامة', en: 'System Settings' },
 }
 
 export const useLangStore = create<LangState>()(

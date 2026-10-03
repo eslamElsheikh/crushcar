@@ -40,7 +40,7 @@ export default function CompanyInvoicesPage() {
             key={s || 'all'}
             onClick={() => setFilter(s)}
             aria-pressed={filter === s}
-            className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === s ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-white text-[#5B6B84]'}`}
+            className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === s ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'}`}
           >
             {s || (isRTL ? 'الكل' : 'All')}
           </button>
@@ -62,7 +62,7 @@ export default function CompanyInvoicesPage() {
         ) : (
           <div className="grid gap-3">
             {invoices.map((inv: any) => (
-              <div key={inv.id} className="flex items-center gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <div key={inv.id} className="flex items-center gap-3.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#EFF4FF] text-[#1D5BD8]">
                   <FileText className="size-6" />
                 </span>
@@ -72,7 +72,7 @@ export default function CompanyInvoicesPage() {
                     {' — '}
                     {inv.periodEnd && new Date(inv.periodEnd).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
-                  <p className="mt-0.5 text-[13px] tabular-nums text-[#5B6B84]">
+                  <p className="mt-0.5 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     {t('company.invoiceTotal')}: EGP {Number(inv.totalAmount || 0).toLocaleString(locale)}
                     {' · '}{t('company.invoiceRemaining')}: EGP {Number((inv.totalAmount || 0) - (inv.paidAmount || 0)).toLocaleString(locale)}
                     {inv.dueDate && ` · ${t('company.dueDate')}: ${new Date(inv.dueDate).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`}

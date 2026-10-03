@@ -116,21 +116,21 @@ export default function VerifyPage() {
       )}
 
       {booking && (
-        <div className="mt-4 rounded-2xl border border-[#E6EBF2] bg-white p-6">
+        <div className="mt-4 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6">
           <div className="flex flex-wrap items-center gap-2">
             <V2StatusBadge tone={booking.status === 'CANCELLED' ? 'red' : done ? 'green' : 'blue'}>
               {booking.status}
             </V2StatusBadge>
-            <span className="ms-auto font-mono text-[12.5px] tabular-nums text-[#5B6B84]" dir="ltr">{booking.reference}</span>
+            <span className="ms-auto font-mono text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{booking.reference}</span>
           </div>
           <p className="mt-3.5 text-[20px] font-extrabold text-[#0B1B33]">{booking.passengerName}</p>
-          <p className="mt-1 text-[14px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{booking.passengerPhone}</p>
+          <p className="mt-1 text-[14px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{booking.passengerPhone}</p>
           <p className="mt-2 text-[15px] font-bold text-[#0B1B33]">
             {isRTL
               ? `${booking.actualDestination || booking.trip?.destination} ← ${booking.actualOrigin || booking.trip?.origin}`
               : `${booking.actualOrigin || booking.trip?.origin} → ${booking.actualDestination || booking.trip?.destination}`}
           </p>
-          <p className="mt-1 text-[13.5px] tabular-nums text-[#5B6B84]">
+          <p className="mt-1 text-[13.5px] tabular-nums text-[var(--sp-text-muted)]">
             {isRTL ? 'مقعد' : 'Seat'} {booking.seatLabel}
             {(booking.actualDeparture || booking.trip?.departure) && ` · ${new Date(booking.actualDeparture || booking.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`}
           </p>

@@ -88,14 +88,14 @@ export default function AdminDashboard() {
         title={t('nav.dashboard')}
         sub={t('nav.admin')}
         action={
-          <div className="flex gap-1.5 rounded-xl bg-white p-1 ring-1 ring-[#E6EBF2]" role="tablist" aria-label="Range">
+          <div className="flex gap-1.5 rounded-xl bg-[var(--sp-card)] p-1 ring-1 ring-[#E6EBF2]" role="tablist" aria-label="Range">
             {(['7d', '30d', '90d'] as const).map((r) => (
               <button
                 key={r}
                 role="tab"
                 aria-selected={range === r}
                 onClick={() => setRange(r)}
-                className={`rounded-lg px-3.5 py-2 text-[13px] font-bold tabular-nums transition ${range === r ? 'bg-[#0A1E3C] text-white' : 'text-[#5B6B84]'}`}
+                className={`rounded-lg px-3.5 py-2 text-[13px] font-bold tabular-nums transition ${range === r ? 'bg-[#0A1E3C] text-white' : 'text-[var(--sp-text-muted)]'}`}
               >
                 {r}
               </button>
@@ -108,7 +108,7 @@ export default function AdminDashboard() {
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {pendingCount > 0 && (
             <Link href="/admin/companies/pending" className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 hover:border-amber-300">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-amber-600">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--sp-card)] text-amber-600">
                 <Clock className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export default function AdminDashboard() {
           )}
           {pendingCancel > 0 && (
             <Link href="/admin/cancellations" className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 hover:border-red-300">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-red-600">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--sp-card)] text-red-600">
                 <Ticket className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
@@ -164,10 +164,10 @@ export default function AdminDashboard() {
       {/* Main Grid: Revenue Trend + Recent Bookings Feed */}
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_380px]">
         {/* Revenue Trend Area Chart */}
-        <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="flex items-center justify-between">
             <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('dashboard.revenueChart')}</p>
-            <span className="text-[12.5px] font-bold text-[#5B6B84]">{range}</span>
+            <span className="text-[12.5px] font-bold text-[var(--sp-text-muted)]">{range}</span>
           </div>
           {(data?.chartData?.length || 0) > 0 ? (
             <div className="mt-4 h-72" dir="ltr">
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="flex h-72 flex-col items-center justify-center text-center text-[#5B6B84]">
+            <div className="flex h-72 flex-col items-center justify-center text-center text-[var(--sp-text-muted)]">
               <TrendingUp className="size-8 text-slate-300" />
               <p className="mt-2 text-[14px] font-medium">{t('company.noTransactions')}</p>
             </div>
@@ -193,7 +193,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recent Bookings Feed (Restored from V1) */}
-        <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="flex items-center justify-between">
             <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('dashboard.recentBookings')}</p>
             <Link href="/admin/bookings" className="flex items-center gap-1 text-[13px] font-bold text-[#1D5BD8] hover:underline">
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-4 grid gap-2">
             {(!data?.recentBookings || data.recentBookings.length === 0) ? (
-              <p className="rounded-xl bg-[#F6F8FC] py-8 text-center text-[13.5px] text-[#5B6B84]">
+              <p className="rounded-xl bg-[var(--sp-inset)] py-8 text-center text-[13.5px] text-[var(--sp-text-muted)]">
                 {t('bookings.noBookings')}
               </p>
             ) : (
@@ -210,13 +210,13 @@ export default function AdminDashboard() {
                 const name = b.user?.name || b.passengerName || t('common.guest');
                 const initial = name.slice(0, 1).toUpperCase();
                 return (
-                  <div key={b.id} className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-[#F6F8FC]">
+                  <div key={b.id} className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-[var(--sp-inset)]">
                     <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#EFF4FF] text-[13px] font-bold text-[#1D5BD8]">
                       {initial}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13.5px] font-bold text-[#0B1B33]">{name}</p>
-                      <p className="truncate text-[12px] text-[#5B6B84]">
+                      <p className="truncate text-[12px] text-[var(--sp-text-muted)]">
                         {isRTL
                           ? `${b.trip?.destination} ← ${b.trip?.origin}`
                           : `${b.trip?.origin} → ${b.trip?.destination}`}
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/admin/buses"
-            className="group flex flex-col justify-between rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
+            className="group flex flex-col justify-between rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
               <span className="grid size-11 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8] transition group-hover:scale-105">
@@ -255,13 +255,13 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-4">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{t('dashboard.manageBuses')}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#5B6B84]">{t('dashboard.addBuses')}</p>
+              <p className="mt-0.5 text-[12.5px] text-[var(--sp-text-muted)]">{t('dashboard.addBuses')}</p>
             </div>
           </Link>
 
           <Link
             href="/admin/trips"
-            className="group flex flex-col justify-between rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
+            className="group flex flex-col justify-between rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
               <span className="grid size-11 place-items-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:scale-105">
@@ -271,13 +271,13 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-4">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{t('dashboard.manageTrips')}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#5B6B84]">{t('dashboard.createTrips')}</p>
+              <p className="mt-0.5 text-[12.5px] text-[var(--sp-text-muted)]">{t('dashboard.createTrips')}</p>
             </div>
           </Link>
 
           <Link
             href="/trips"
-            className="group flex flex-col justify-between rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
+            className="group flex flex-col justify-between rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
               <span className="grid size-11 place-items-center rounded-xl bg-purple-50 text-purple-600 transition group-hover:scale-105">
@@ -287,13 +287,13 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-4">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{t('dashboard.viewTrips')}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#5B6B84]">{t('dashboard.seeTrips')}</p>
+              <p className="mt-0.5 text-[12.5px] text-[var(--sp-text-muted)]">{t('dashboard.seeTrips')}</p>
             </div>
           </Link>
 
           <Link
             href="/admin/companies/pending"
-            className="group relative flex flex-col justify-between rounded-2xl border border-[#E6EBF2] bg-white p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
+            className="group relative flex flex-col justify-between rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
               <span className="grid size-11 place-items-center rounded-xl bg-amber-50 text-amber-600 transition group-hover:scale-105">
@@ -307,7 +307,7 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-4">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{t('admin.pendingCompanies')}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#5B6B84]">{t('dashboard.reviewCompanies')}</p>
+              <p className="mt-0.5 text-[12.5px] text-[var(--sp-text-muted)]">{t('dashboard.reviewCompanies')}</p>
             </div>
           </Link>
         </div>

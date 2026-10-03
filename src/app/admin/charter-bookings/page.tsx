@@ -130,7 +130,7 @@ export default function AdminCharterBookingsPage() {
           <h1 className="text-2xl font-extrabold text-[#0B1B33]">
             {t('admin.charterBookings') || (isRTL ? 'حجوزات الشارتر' : 'Charter Bookings')}
           </h1>
-          <p className="text-sm text-[#5B6B84] mt-1">
+          <p className="text-sm text-[var(--sp-text-muted)] mt-1">
             {isRTL ? 'إدارة ومراجعة طلبات حجز الأتوبيسات الكاملة للشركات' : 'Manage and review full bus charter requests from companies'}
           </p>
         </div>
@@ -146,7 +146,7 @@ export default function AdminCharterBookingsPage() {
               'px-4 py-2 rounded-xl text-xs font-bold transition',
               filter === tab.key
                 ? 'bg-[#0A1E3C] text-white shadow-sm'
-                : 'bg-white border border-[#E6EBF2] text-[#5B6B84] hover:bg-slate-50 hover:text-[#0B1B33]'
+                : 'bg-[var(--sp-card)] border border-[var(--sp-line)] text-[var(--sp-text-muted)] hover:bg-slate-50 hover:text-[#0B1B33]'
             )}
           >
             {tab.label}
@@ -167,9 +167,9 @@ export default function AdminCharterBookingsPage() {
           desc={isRTL ? 'لم يتم العثور على أي طلبات في هذه الحالة' : 'No charter requests match the selected filter'}
         />
       ) : (
-        <div className="rounded-2xl border border-[#E6EBF2] bg-white overflow-hidden shadow-sm">
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] overflow-hidden shadow-sm">
           {/* Table Header */}
-          <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3.5 bg-[#F6F8FC] border-b border-slate-200/80 text-xs font-bold text-[#5B6B84] uppercase tracking-wider">
+          <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3.5 bg-[var(--sp-inset)] border-b border-slate-200/80 text-xs font-bold text-[var(--sp-text-muted)] uppercase tracking-wider">
             <div className="col-span-2">{isRTL ? 'الشركة' : 'Company'}</div>
             <div className="col-span-3">{isRTL ? 'الرحلة والمسار' : 'Trip & Route'}</div>
             <div className="col-span-2">{isRTL ? 'الموعد' : 'Date & Time'}</div>
@@ -204,7 +204,7 @@ export default function AdminCharterBookingsPage() {
                     <span className="text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
                     <span>{booking.trip.destination}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-[#5B6B84] mt-1 font-medium">
+                  <div className="flex items-center gap-2 text-xs text-[var(--sp-text-muted)] mt-1 font-medium">
                     <Bus size={12} className="shrink-0" />
                     <span>{booking.trip.bus.name}</span>
                     <span>•</span>
@@ -225,7 +225,7 @@ export default function AdminCharterBookingsPage() {
                       })}
                     </span>
                   </div>
-                  <p className="text-xs text-[#5B6B84] mt-0.5 font-medium">
+                  <p className="text-xs text-[var(--sp-text-muted)] mt-0.5 font-medium">
                     {new Date(booking.trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
@@ -249,7 +249,7 @@ export default function AdminCharterBookingsPage() {
                       : isRTL ? 'ملغى' : 'Cancelled'}
                   </V2StatusBadge>
                   {booking.notes && (
-                    <p className="text-[11px] text-[#5B6B84] mt-1 truncate" title={booking.notes}>
+                    <p className="text-[11px] text-[var(--sp-text-muted)] mt-1 truncate" title={booking.notes}>
                       {booking.notes}
                     </p>
                   )}
@@ -309,7 +309,7 @@ export default function AdminCharterBookingsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-[#E6EBF2]"
+              className="w-full max-w-md rounded-2xl bg-[var(--sp-card)] p-6 shadow-xl border border-[var(--sp-line)]"
             >
               <h3 className="text-lg font-extrabold text-[#0B1B33] mb-2 flex items-center gap-2">
                 <AlertTriangle size={18} className="text-amber-500" />
@@ -322,19 +322,19 @@ export default function AdminCharterBookingsPage() {
                   : isRTL ? 'إلغاء الطلب' : 'Cancel Request'}
               </h3>
 
-              <div className="my-4 rounded-xl bg-[#F6F8FC] p-4 text-xs space-y-2 border border-slate-200/60">
+              <div className="my-4 rounded-xl bg-[var(--sp-inset)] p-4 text-xs space-y-2 border border-slate-200/60">
                 <div className="flex justify-between">
-                  <span className="text-[#5B6B84]">{isRTL ? 'الشركة' : 'Company'}</span>
+                  <span className="text-[var(--sp-text-muted)]">{isRTL ? 'الشركة' : 'Company'}</span>
                   <span className="font-bold text-[#0B1B33]">{confirmModal.booking.company.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#5B6B84]">{isRTL ? 'الرحلة' : 'Trip'}</span>
+                  <span className="text-[var(--sp-text-muted)]">{isRTL ? 'الرحلة' : 'Trip'}</span>
                   <span className="font-bold text-[#0B1B33]">
                     {confirmModal.booking.trip.origin} ← {confirmModal.booking.trip.destination}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#5B6B84]">{isRTL ? 'المبلغ' : 'Amount'}</span>
+                  <span className="text-[var(--sp-text-muted)]">{isRTL ? 'المبلغ' : 'Amount'}</span>
                   <span className="font-extrabold text-emerald-600">
                     {confirmModal.booking.price.toLocaleString()} {t('common.currency')}
                   </span>
@@ -345,7 +345,7 @@ export default function AdminCharterBookingsPage() {
                 <button
                   onClick={() => setConfirmModal(null)}
                   disabled={!!processing}
-                  className="px-4 py-2 rounded-xl border border-[#E6EBF2] bg-white text-xs font-bold text-[#5B6B84] hover:bg-slate-50 transition"
+                  className="px-4 py-2 rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] text-xs font-bold text-[var(--sp-text-muted)] hover:bg-slate-50 transition"
                 >
                   {isRTL ? 'رجوع' : 'Back'}
                 </button>

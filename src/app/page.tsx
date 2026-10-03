@@ -217,7 +217,7 @@ export default function V2HomePage() {
     : ['Full bus charter & group bookings', 'Custom routes and schedules', 'Dedicated company account', 'Flexible payment options'];
 
   return (
-    <div className="v2 min-h-dvh overflow-x-clip bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh overflow-x-clip bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader overlay />
 
       {/* ── HERO ── */}
@@ -237,11 +237,9 @@ export default function V2HomePage() {
           <motion.h1
             initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             transition={{ duration: 0.2, ease: 'easeOut', delay: 0.05 }}
-            className="mt-4 max-w-[600px] text-balance text-[40px] font-extrabold leading-[1.08] text-white md:text-[64px] md:leading-[1.04]"
+            className="mt-4 grid min-h-[86.4px] max-w-[600px] content-center text-balance text-[40px] font-extrabold leading-[1.08] text-white md:min-h-[133.2px] md:text-[64px] md:leading-[1.04]"
           >
             {t('v2.heroTitleA')}
-            <br />
-            <span className="bg-gradient-to-r from-[#9DBCFF] to-[#5EE6FF] bg-clip-text text-transparent">{t('v2.heroTitleB')}</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -257,7 +255,7 @@ export default function V2HomePage() {
             transition={{ duration: 0.2, ease: 'easeOut', delay: 0.15 }}
             className="mt-8 scroll-mt-24"
           >
-            <div className="rounded-2xl bg-white p-2.5 shadow-[0_24px_64px_rgba(11,27,51,0.25)]">
+            <div className="rounded-2xl bg-[var(--sp-card)] p-2.5 shadow-[0_24px_64px_rgba(11,27,51,0.25)]">
               <div className="flex gap-1 rounded-xl bg-[#F1F4F9] p-1.5" role="tablist" aria-label={t('v2.tripType')}>
                 {(
                   [
@@ -270,7 +268,7 @@ export default function V2HomePage() {
                     onClick={() => switchTripKind(tab.key)}
                     className={cn(
                       'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-[14.5px] font-bold transition',
-                      tripKind === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]'
+                      tripKind === tab.key ? 'bg-[#0A1E3C] text-white shadow' : 'text-[var(--sp-text-muted)]'
                     )}
                   >
                     {tab.label}
@@ -338,7 +336,7 @@ export default function V2HomePage() {
                   <button
                     type="button" aria-label="Swap origin and destination"
                     onClick={swapStations}
-                    className="absolute end-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-[#1D5BD8] shadow-sm md:hidden"
+                    className="absolute end-2 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-[var(--sp-card)] text-[#1D5BD8] shadow-sm md:hidden"
                   >
                     <ArrowLeftRight className="size-4 v2-flip-rtl" />
                   </button>
@@ -400,7 +398,7 @@ export default function V2HomePage() {
       </section>
 
       {/* ── TRUST ── */}
-      <section className="border-b border-[#E6EBF2] bg-white">
+      <section className="border-b border-[var(--sp-line)]">
         <div className="v2-container grid grid-cols-2 gap-x-4 gap-y-7 py-8 lg:grid-cols-4">
           {trust.map((it) => (
             <div key={it.title} className="flex items-center gap-3.5">
@@ -409,7 +407,7 @@ export default function V2HomePage() {
               </span>
               <span>
                 <span className="block text-balance text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">{it.title}</span>
-                <span className="mt-0.5 block text-[13px] text-[#5B6B84]">{it.sub}</span>
+                <span className="mt-0.5 block text-[13px] text-[var(--sp-text-muted)]">{it.sub}</span>
               </span>
             </div>
           ))}
@@ -418,7 +416,7 @@ export default function V2HomePage() {
 
       {/* ── DESTINATIONS (DB-driven, deduped, max 2 rows = 8 cards; rest on /destinations) ── */}
       {homeDestinations.length > 0 && (
-      <section id="destinations" className="scroll-mt-20 bg-white py-16 md:py-20">
+      <section id="destinations" className="scroll-mt-20 py-16 md:py-20">
         <div className="v2-container">
           <V2SectionHeading
             title={t('v2.popularTitle')}
@@ -458,12 +456,12 @@ export default function V2HomePage() {
       )}
 
       {/* ── HOW IT WORKS ── */}
-      <section className="bg-[#F6F8FC] py-16 md:py-20">
+      <section className="bg-[var(--sp-inset)] py-16 md:py-20">
         <div className="v2-container grid gap-12 lg:grid-cols-[340px_1fr] lg:items-center">
           <div>
             <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.howEyebrow')}</p>
             <h2 className="mt-3 text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[34px]">{t('v2.howTitle')}</h2>
-            <p className="mt-3 text-pretty text-[15px] leading-relaxed text-[#5B6B84] md:text-[16px]">{t('v2.howSub')}</p>
+            <p className="mt-3 text-pretty text-[15px] leading-relaxed text-[var(--sp-text-muted)] md:text-[16px]">{t('v2.howSub')}</p>
             <Link href="/trips" className="v2-btn-primary mt-6 inline-flex items-center gap-2 px-6 py-3.5 text-[15px]">
               {t('v2.howCta')} <ArrowRight className="size-4 v2-flip-rtl" />
             </Link>
@@ -496,7 +494,7 @@ export default function V2HomePage() {
 
       {/* ── FEATURED TRIPS (real: /api/public/stats recentTrips, unique routes, max 8; hidden when none upcoming) ── */}
       {featuredTrips.length > 0 && (
-      <section id="featured" className="scroll-mt-20 bg-white py-16 md:py-20">
+      <section id="featured" className="scroll-mt-20 py-16 md:py-20">
         <div className="v2-container">
           <V2SectionHeading
             title={t('v2.featTitle')}
@@ -516,7 +514,7 @@ export default function V2HomePage() {
                   key={trip.id}
                   initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                   transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.06 }}
-                  className="v2-hover-lift flex flex-col overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white"
+                  className="v2-hover-lift flex flex-col overflow-hidden rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)]"
                 >
                   <div className="relative h-40 overflow-hidden bg-[#E6EBF2]">
                     <Image src={tripImageForDestination(trip.destination, destinations)} alt={isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`} fill sizes="(max-width:768px) 82vw, 25vw" className="object-cover" />
@@ -533,7 +531,7 @@ export default function V2HomePage() {
                       {' → '}
                       {new Date(trip.arrival).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-[#5B6B84]">
+                    <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-[var(--sp-text-muted)]">
                       <span className="inline-flex items-center gap-1.5">
                         <Clock className="size-4" /> {durationOf(trip.departure, trip.arrival, lang)}
                       </span>
@@ -547,7 +545,7 @@ export default function V2HomePage() {
                     </p>
                     <p className="mt-4 text-[22px] font-extrabold tabular-nums text-[#0B1B33]">
                       EGP {trip.price}
-                      <span className="ms-1.5 text-[13px] font-medium text-[#5B6B84]">{t('v2.perPassenger')}</span>
+                      <span className="ms-1.5 text-[13px] font-medium text-[var(--sp-text-muted)]">{t('v2.perPassenger')}</span>
                     </p>
                     <Link
                       href={soldOut ? '/trips' : `/trips/${trip.id}`}
@@ -569,7 +567,7 @@ export default function V2HomePage() {
       )}
 
       {/* ── B2B ── */}
-      <section id="b2b" className="scroll-mt-20 bg-[#F6F8FC] py-16 md:py-24">
+      <section id="b2b" className="scroll-mt-20 bg-[var(--sp-inset)] py-16 md:py-24">
         <div className="v2-container grid items-center gap-12 lg:grid-cols-[400px_1fr_300px]">
           <motion.div
             initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -577,7 +575,7 @@ export default function V2HomePage() {
           >
             <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.b2bEyebrow')}</p>
             <h2 className="mt-3 text-balance text-[28px] font-extrabold leading-tight text-[#0B1B33] md:text-[36px]">{t('v2.b2bTitle')}</h2>
-            <p className="mt-4 text-pretty text-[15.5px] leading-relaxed text-[#5B6B84] md:text-[16.5px]">{t('v2.b2bSub')}</p>
+            <p className="mt-4 text-pretty text-[15.5px] leading-relaxed text-[var(--sp-text-muted)] md:text-[16.5px]">{t('v2.b2bSub')}</p>
             <ul className="mt-6 grid gap-3.5">
               {bullets.map((b) => (
                 <li key={b} className="flex items-start gap-3 text-[15px] font-semibold text-[#0B1B33]">
@@ -606,7 +604,7 @@ export default function V2HomePage() {
           <motion.aside
             initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             transition={{ duration: 0.2, ease: 'easeOut', delay: 0.15 }}
-            className="rounded-2xl border border-[#E6EBF2] bg-white p-7 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-7 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
           >
             <span className="grid size-12 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
               <LayoutDashboard className="size-6" />
@@ -614,7 +612,7 @@ export default function V2HomePage() {
             <p className="mt-5 text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
               {isRTL ? 'أدر أسطولك وفريقك من لوحة واحدة.' : 'Manage your fleet and team from one dashboard.'}
             </p>
-            <p className="mt-2.5 text-pretty text-[14px] leading-relaxed text-[#5B6B84]">
+            <p className="mt-2.5 text-pretty text-[14px] leading-relaxed text-[var(--sp-text-muted)]">
               {isRTL ? 'تحديثات لحظية وتقارير مفصلة وتحكم كامل — مصمم للشركات.' : 'Real-time updates, detailed reports, and complete control — built for businesses.'}
             </p>
             <Link href="/register/company" className="v2-btn-dark mt-6 flex items-center justify-center gap-2 px-4 py-3.5 text-[14.5px]">

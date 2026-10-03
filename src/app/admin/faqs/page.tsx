@@ -175,7 +175,7 @@ export default function AdminFaqs() {
             <button
               onClick={() => setShowAll(!showAll)}
               aria-pressed={showAll}
-              className={cn('rounded-xl border px-4 py-3 text-[14px] font-bold transition', showAll ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 bg-white text-[#5B6B84]')}
+              className={cn('rounded-xl border px-4 py-3 text-[14px] font-bold transition', showAll ? 'border-[#1D5BD8]/30 bg-[#EFF4FF] text-[#1D5BD8]' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]')}
             >
               {isRTL ? 'عرض الكل' : 'Show all'}
             </button>
@@ -192,21 +192,21 @@ export default function AdminFaqs() {
 
       <div className="mt-4 grid gap-3">
         {loading ? (
-          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-10 text-center text-[14.5px] text-[#5B6B84]" role="status">
+          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-10 text-center text-[14.5px] text-[var(--sp-text-muted)]" role="status">
             {t('common.loading')}
           </div>
         ) : visible.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-[var(--sp-card)] p-10 text-center">
             <p className="text-[15.5px] font-extrabold text-[#0B1B33]">{t('faq.noFaqs')}</p>
-            <p className="mt-1 text-[13.5px] text-[#5B6B84]">{t('faq.addFirst')}</p>
+            <p className="mt-1 text-[13.5px] text-[var(--sp-text-muted)]">{t('faq.addFirst')}</p>
           </div>
         ) : (
           visible.map((f) => (
-            <div key={f.id} className={cn('rounded-2xl border bg-white p-5 transition', f.isActive ? 'border-[#E6EBF2]' : 'opacity-60')}>
+            <div key={f.id} className={cn('rounded-2xl border bg-[var(--sp-card)] p-5 transition', f.isActive ? 'border-[var(--sp-line)]' : 'opacity-60')}>
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[15.5px] font-extrabold text-[#0B1B33]">{isRTL ? f.questionAr : f.questionEn}</p>
-                  <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-[#5B6B84]">
+                  <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-[var(--sp-text-muted)]">
                     {isRTL ? f.answerAr : f.answerEn}
                   </p>
                 </div>
@@ -215,17 +215,17 @@ export default function AdminFaqs() {
                 </span>
               </div>
               <div className="mt-3.5 flex items-center gap-1 border-t border-slate-100 pt-3">
-                <button onClick={() => reorder(f, 'up')} aria-label="Move up" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100">
+                <button onClick={() => reorder(f, 'up')} aria-label="Move up" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100">
                   <ArrowUp className="size-4" />
                 </button>
-                <button onClick={() => reorder(f, 'down')} aria-label="Move down" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100">
+                <button onClick={() => reorder(f, 'down')} aria-label="Move down" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100">
                   <ArrowDown className="size-4" />
                 </button>
-                <button onClick={() => toggle(f)} aria-label="Toggle active" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100">
+                <button onClick={() => toggle(f)} aria-label="Toggle active" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100">
                   {f.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
                 <span className="ms-auto flex gap-1">
-                  <button onClick={() => openEdit(f)} aria-label="Edit" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                  <button onClick={() => openEdit(f)} aria-label="Edit" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                     <Pencil className="size-4" />
                   </button>
                   <button

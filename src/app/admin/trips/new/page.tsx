@@ -117,13 +117,13 @@ export default function NewTripPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.trips')}
       </Link>
       <div className="mt-3">
         <V2PageHeader title={t('trips.addTrip')} sub={t('trips.manage')} />
       </div>
-      <form onSubmit={submit} className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+      <form onSubmit={submit} className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
         <TripForm
           buses={buses}
           stations={stations}

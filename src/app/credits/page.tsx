@@ -14,14 +14,14 @@ export default function CreditsPage() {
   const isRTL = lang === 'ar';
 
   return (
-    <div className="v2 min-h-dvh bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container max-w-3xl pb-16 pt-8 md:pt-10">
         <h1 className="text-balance text-[28px] font-extrabold text-[#0B1B33] md:text-[36px]">
           {isRTL ? 'حقوق الصور' : 'Image credits'}
         </h1>
-        <p className="mt-2 text-pretty text-[15px] text-[#5B6B84]">
+        <p className="mt-2 text-pretty text-[15px] text-[var(--sp-text-muted)]">
           {isRTL
             ? 'صور الوجهات مستخدمة بموجب تراخيصها الأصلية مع نسبها لأصحابها.'
             : 'Destination photos are used under their original licenses with attribution.'}
@@ -29,7 +29,7 @@ export default function CreditsPage() {
 
         <div className="mt-8 grid gap-4">
           {IMAGE_CREDITS.map((c) => (
-            <article key={c.slug} className="flex gap-4 rounded-2xl border border-[#E6EBF2] bg-white p-4">
+            <article key={c.slug} className="flex gap-4 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
               <span className="relative block h-24 w-32 shrink-0 overflow-hidden rounded-xl bg-[#0A1E3C]">
                 <Image src={c.localPath} alt={isRTL ? c.cityAr : c.cityEn} fill sizes="128px" className="object-cover" />
               </span>
@@ -37,10 +37,10 @@ export default function CreditsPage() {
                 <p className="text-[16px] font-extrabold text-[#0B1B33]">
                   {isRTL ? c.cityAr : c.cityEn}
                 </p>
-                <p className="mt-1 truncate text-[13.5px] text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                <p className="mt-1 truncate text-[13.5px] text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
                   {c.file}
                 </p>
-                <p className="mt-1 text-[13.5px] text-[#5B6B84]">
+                <p className="mt-1 text-[13.5px] text-[var(--sp-text-muted)]">
                   {isRTL ? 'المصور' : 'Author'}: <strong className="text-[#0B1B33]">{c.author}</strong>
                   {' · '}{c.license}
                 </p>

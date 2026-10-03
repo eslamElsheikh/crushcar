@@ -71,8 +71,8 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
       {userOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setUserOpen(false)} />
-          <div className="absolute end-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-[#E6EBF2] bg-white py-1.5 shadow-xl">
-            <p className="truncate px-4 pb-1 pt-2.5 text-[13px] font-bold text-[#5B6B84]">{fullName}</p>
+          <div className="absolute end-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] py-1.5 shadow-xl">
+            <p className="truncate px-4 pb-1 pt-2.5 text-[13px] font-bold text-[var(--sp-text-muted)]">{fullName}</p>
             <Link href="/profile" onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-[14.5px] font-medium text-[#0B1B33] hover:bg-slate-50">
               <User className="size-4" /> {t('v2.profileTitle')}
             </Link>
@@ -105,7 +105,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
 
   return (
     <header className={cn('inset-inline-0 top-0 z-30', overlay ? (scrolled ? 'sticky bg-white/95 backdrop-blur' : 'sticky') : 'sticky bg-white/95 backdrop-blur')}>
-      {(!overlay || scrolled) && <div className="border-b border-[#E6EBF2]" />}
+      {(!overlay || scrolled) && <div className="border-b border-[var(--sp-line)]" />}
       {/* Two logical groups: main nav (RTL start) + utility (RTL end), separated by justify-between */}
       <div className="v2-container flex items-center justify-between gap-6 py-4 pt-[max(1rem,env(safe-area-inset-top))] lg:gap-10">
         {/* Right group: logo + wordmark + nav */}
@@ -148,7 +148,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
 
       {/* Mobile drawer: nav + account + language */}
       <div className={cn('mx-4 lg:hidden', open ? 'block' : 'hidden')}>
-        <div className="rounded-2xl bg-white p-3 shadow-xl">
+        <div className="rounded-2xl bg-[var(--sp-card)] p-3 shadow-xl">
           <nav className="grid gap-1 text-[16px] font-semibold text-[#0B1B33]" aria-label="Mobile">
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/#destinations" onClick={() => setOpen(false)}>{t('v2.explore')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/trips" onClick={() => setOpen(false)}>{t('v2.trips')}</Link>

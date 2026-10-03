@@ -89,7 +89,7 @@ export default function TripSeatsPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.trips')}
       </Link>
       <div className="mt-3">
@@ -104,10 +104,10 @@ export default function TripSeatsPage() {
           <V2Skeleton className="h-96 rounded-2xl" />
         </div>
       ) : (
-        <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-8">
-          <div className="mb-5 flex items-center justify-center gap-2 rounded-xl bg-[#F6F8FC] py-3">
+        <div className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-8">
+          <div className="mb-5 flex items-center justify-center gap-2 rounded-xl bg-[var(--sp-inset)] py-3">
             <Bus className="size-5 text-[#1D5BD8]" aria-hidden="true" />
-            <span className="text-[12px] font-bold text-[#5B6B84]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
+            <span className="text-[12px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
           </div>
           <div className="grid gap-2 overflow-x-auto pb-2">
             {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
@@ -132,7 +132,7 @@ export default function TripSeatsPage() {
                         className={cn(
                           'grid size-12 shrink-0 place-items-center rounded-xl border-2 transition',
                           isAisle && 'ms-6',
-                          !b && 'border-slate-200 bg-white text-slate-300 hover:border-slate-300 hover:bg-slate-50',
+                          !b && 'border-slate-200 bg-[var(--sp-card)] text-slate-300 hover:border-slate-300 hover:bg-slate-50',
                           b && !boarded && 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:shadow-sm',
                           b && boarded && 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400'
                         )}
@@ -150,8 +150,8 @@ export default function TripSeatsPage() {
               );
             })}
           </div>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[#5B6B84]">
-            <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-slate-200 bg-white" /> {isRTL ? 'فارغ' : 'Empty'}</span>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[var(--sp-text-muted)]">
+            <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-slate-200 bg-[var(--sp-card)]" /> {isRTL ? 'فارغ' : 'Empty'}</span>
             <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-amber-300 bg-amber-50" /> {isRTL ? 'محجوز' : 'Booked'}</span>
             <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-emerald-300 bg-emerald-50" /> {t('booking.boarded')}</span>
           </div>
@@ -167,12 +167,12 @@ export default function TripSeatsPage() {
         {inspectSeat && (
           <div className="grid gap-4">
             {!inspectSeat.booking ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-[#F6F8FC] p-6 text-center">
+              <div className="rounded-xl border border-dashed border-slate-200 bg-[var(--sp-inset)] p-6 text-center">
                 <Armchair className="mx-auto size-8 text-slate-400" />
                 <p className="mt-2 text-[15px] font-extrabold text-[#0B1B33]">
                   {isRTL ? 'المقعد متاح' : 'Seat Available'}
                 </p>
-                <p className="mt-1 text-[13px] text-[#5B6B84]">
+                <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">
                   {isRTL ? 'لم يتم حجز هذا المقعد بعد' : 'Not booked for this trip'}
                 </p>
                 <p className="mt-3 text-[14.5px] font-extrabold text-[#1D5BD8]">
@@ -181,23 +181,23 @@ export default function TripSeatsPage() {
               </div>
             ) : (
               <div className="grid gap-3">
-                <div className="flex items-center justify-between rounded-xl bg-[#F6F8FC] p-3.5">
-                  <span className="text-[13px] font-bold text-[#5B6B84]">{t('tripRequest.status')}</span>
+                <div className="flex items-center justify-between rounded-xl bg-[var(--sp-inset)] p-3.5">
+                  <span className="text-[13px] font-bold text-[var(--sp-text-muted)]">{t('tripRequest.status')}</span>
                   <V2StatusBadge tone={inspectSeat.booking.status === 'BOARDED' || inspectSeat.booking.status === 'PAID' ? 'green' : 'amber'}>
                     {inspectSeat.booking.status}
                   </V2StatusBadge>
                 </div>
 
-                <div className="rounded-xl border border-[#E6EBF2] p-4 text-[13.5px]">
+                <div className="rounded-xl border border-[var(--sp-line)] p-4 text-[13.5px]">
                   <div className="flex items-center gap-2 font-bold text-[#0B1B33]">
                     <User className="size-4 text-[#1D5BD8]" />
                     <span>{inspectSeat.booking.passengerName || inspectSeat.booking.user?.name || t('common.guest')}</span>
                   </div>
                   {inspectSeat.booking.passengerPhone && (
-                    <p className="mt-1 text-[#5B6B84] tabular-nums" dir="ltr">{inspectSeat.booking.passengerPhone}</p>
+                    <p className="mt-1 text-[var(--sp-text-muted)] tabular-nums" dir="ltr">{inspectSeat.booking.passengerPhone}</p>
                   )}
                   {inspectSeat.booking.company?.name && (
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-[#5B6B84]">
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--sp-text-muted)]">
                       <Building2 className="size-3.5 text-[#1D5BD8]" />
                       <span>{inspectSeat.booking.company.name}</span>
                     </p>
@@ -205,12 +205,12 @@ export default function TripSeatsPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[13px]">
-                  <div className="rounded-xl bg-[#F6F8FC] p-3">
-                    <span className="block text-[#5B6B84]">{isRTL ? 'كود الحجز' : 'Ref'}</span>
+                  <div className="rounded-xl bg-[var(--sp-inset)] p-3">
+                    <span className="block text-[var(--sp-text-muted)]">{isRTL ? 'كود الحجز' : 'Ref'}</span>
                     <span className="font-mono font-bold text-[#0B1B33]" dir="ltr">{inspectSeat.booking.reference}</span>
                   </div>
-                  <div className="rounded-xl bg-[#F6F8FC] p-3">
-                    <span className="block text-[#5B6B84]">{isRTL ? 'السعر' : 'Price'}</span>
+                  <div className="rounded-xl bg-[var(--sp-inset)] p-3">
+                    <span className="block text-[var(--sp-text-muted)]">{isRTL ? 'السعر' : 'Price'}</span>
                     <span className="font-bold text-[#0B1B33] tabular-nums">
                       EGP {Number(inspectSeat.booking.total || 0).toLocaleString(locale)}
                     </span>
@@ -218,7 +218,7 @@ export default function TripSeatsPage() {
                 </div>
 
                 {inspectSeat.booking.paidAt && (
-                  <p className="text-[12px] text-[#5B6B84]">
+                  <p className="text-[12px] text-[var(--sp-text-muted)]">
                     {isRTL ? 'وقت الدفع' : 'Paid at'}: {new Date(inspectSeat.booking.paidAt).toLocaleString(locale)}
                   </p>
                 )}

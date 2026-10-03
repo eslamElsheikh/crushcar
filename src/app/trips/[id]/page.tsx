@@ -541,7 +541,7 @@ function TripDetailPageContent() {
 
   if (loading) {
     return (
-      <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
         <V2SiteHeader />
         <main className="v2-container py-12">
           <div className="grid gap-4" role="status">
@@ -556,10 +556,10 @@ function TripDetailPageContent() {
 
   if (!trip) {
     return (
-      <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
         <V2SiteHeader />
         <main className="v2-container py-16 text-center">
-          <div className="max-w-md mx-auto bg-white rounded-2xl border border-[#E6EBF2] p-8 shadow-sm">
+          <div className="max-w-md mx-auto bg-[var(--sp-card)] rounded-2xl border border-[var(--sp-line)] p-8 shadow-sm">
             <p className="text-lg font-extrabold text-[#0B1B33]">{t('trips.noTrips')}</p>
             <Link href="/trips" className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0A1E3C] text-white text-sm font-bold">
               {t('v2.back')}
@@ -572,7 +572,7 @@ function TripDetailPageContent() {
   }
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC] text-[#0B1B33]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)] text-[#0B1B33]" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* ── TOP SITE HEADER ──────────────────────────── */}
       <V2SiteHeader />
 
@@ -615,13 +615,13 @@ function TripDetailPageContent() {
         <div className="mb-6">
           <Link
             href="/trips"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5B6B84] hover:text-[#0B1B33] transition mb-3"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition mb-3"
           >
             <ArrowRight className="size-4 rotate-180 v2-flip-rtl" />
             {isRTL ? 'الرجوع إلى قائمة الرحلات' : 'Back to trips list'}
           </Link>
 
-          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <V2StatusBadge tone={seatsLeft > 0 ? 'green' : 'red'}>
@@ -640,7 +640,7 @@ function TripDetailPageContent() {
                 <span className="text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
                 <span>{trip.destination}</span>
               </h1>
-              <p className="mt-1.5 text-xs text-[#5B6B84] flex flex-wrap items-center gap-3 font-medium">
+              <p className="mt-1.5 text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-3 font-medium">
                 <span className="flex items-center gap-1">
                   <Clock size={13} className="text-[#1D5BD8]" />
                   {formatDate(trip.departure)} · {formatTime(trip.departure)}
@@ -654,9 +654,9 @@ function TripDetailPageContent() {
             </div>
 
             <div className="text-start md:text-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
-              <span className="text-xs text-[#5B6B84] block font-medium">{isRTL ? 'سعر التذكرة' : 'Ticket Price'}</span>
+              <span className="text-xs text-[var(--sp-text-muted)] block font-medium">{isRTL ? 'سعر التذكرة' : 'Ticket Price'}</span>
               <span className="text-2xl font-extrabold text-[#0B1B33]">
-                {Number(segmentPrice || 0).toLocaleString()} <span className="text-xs font-bold text-[#5B6B84]">{t('common.currency')}</span>
+                {Number(segmentPrice || 0).toLocaleString()} <span className="text-xs font-bold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
               </span>
             </div>
           </div>
@@ -667,7 +667,7 @@ function TripDetailPageContent() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6 mb-6 shadow-sm"
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6 mb-6 shadow-sm"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-extrabold text-[#0B1B33] flex items-center gap-2">
@@ -683,13 +683,13 @@ function TripDetailPageContent() {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-[#5B6B84] mb-2">
+                <label className="block text-xs font-bold text-[var(--sp-text-muted)] mb-2">
                   {isRTL ? 'محطة الصعود (البداية)' : 'Boarding Station (Start)'}
                 </label>
                 <select
                   value={fromStationId || ''}
                   onChange={(e) => handleBoardingChange(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm font-semibold focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition"
+                  className="w-full px-4 py-3 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm font-semibold focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                 >
                   {boardingOptions.map((s) => (
                     <option key={s.stationId} value={s.stationId}>
@@ -703,13 +703,13 @@ function TripDetailPageContent() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#5B6B84] mb-2">
+                <label className="block text-xs font-bold text-[var(--sp-text-muted)] mb-2">
                   {isRTL ? 'محطة النزول (الوجهة)' : 'Alighting Station (Destination)'}
                 </label>
                 <select
                   value={toStationId || ''}
                   onChange={(e) => handleAlightingChange(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm font-semibold focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition"
+                  className="w-full px-4 py-3 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm font-semibold focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                 >
                   {alightingOptions.map((s) => (
                     <option key={s.stationId} value={s.stationId}>
@@ -724,7 +724,7 @@ function TripDetailPageContent() {
             </div>
 
             {fromStop && toStop && (
-              <div className="mt-4 text-xs font-semibold text-[#5B6B84] flex flex-wrap items-center gap-2 bg-[#F6F8FC] rounded-xl px-4 py-3 border border-slate-200/60">
+              <div className="mt-4 text-xs font-semibold text-[var(--sp-text-muted)] flex flex-wrap items-center gap-2 bg-[var(--sp-inset)] rounded-xl px-4 py-3 border border-slate-200/60">
                 <MapPin size={13} className="text-[#1D5BD8]" />
                 <span className="text-[#0B1B33] font-bold">{fromStop.station?.name || fromStationId}</span>
                 <span className="text-slate-400">{isRTL ? '←' : '→'}</span>
@@ -745,7 +745,7 @@ function TripDetailPageContent() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="rounded-2xl border border-[#E6EBF2] bg-white p-6 sm:p-8 shadow-sm"
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 sm:p-8 shadow-sm"
           >
             {/* Header & Legend */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-slate-100">
@@ -753,13 +753,13 @@ function TripDetailPageContent() {
                 <h2 className="text-lg font-extrabold text-[#0B1B33]">
                   {t('seat.select')}
                 </h2>
-                <p className="text-xs text-[#5B6B84] mt-0.5">
+                <p className="text-xs text-[var(--sp-text-muted)] mt-0.5">
                   {trip.bus?.name} • {layout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0} {t('layout.totalSeats')}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold text-[#0B1B33]">
-                  <span className="size-3 rounded-md border border-slate-300 bg-white" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--sp-seat-line)] bg-[var(--sp-seat-bg)] font-semibold text-[#0B1B33]">
+                  <span className="size-3 rounded-md border border-[var(--sp-seat-line)] bg-[var(--sp-seat-bg)]" />
                   {t('seat.available')}
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1D5BD8] text-white font-bold">
@@ -779,7 +779,7 @@ function TripDetailPageContent() {
 
             {/* Bus front indicator */}
             <div className="flex items-center justify-center mb-6">
-              <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#F6F8FC] border border-slate-200 text-[#5B6B84] text-xs font-bold">
+              <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--sp-inset)] border border-slate-200 text-[var(--sp-text-muted)] text-xs font-bold">
                 <Bus size={15} className="text-[#1D5BD8]" />
                 <span>{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
               </div>
@@ -880,7 +880,7 @@ function TripDetailPageContent() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="rounded-2xl border border-[#E6EBF2] bg-white p-6 shadow-sm sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-hide">
+            <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 shadow-sm sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-hide">
               {isRoundTrip && (
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
                   <Repeat size={14} className="text-[#1D5BD8]" />
@@ -893,7 +893,7 @@ function TripDetailPageContent() {
               <h3 className="font-extrabold text-lg text-[#0B1B33]">
                 {isRoundTrip ? t('roundtrip.outboundTrip') : t('seat.summary')}
               </h3>
-              <p className="text-xs text-[#5B6B84] mb-5">{t('search.desc')}</p>
+              <p className="text-xs text-[var(--sp-text-muted)] mb-5">{t('search.desc')}</p>
 
               {/* Route timeline stops */}
               <div className="space-y-3 mb-5 text-sm">
@@ -905,12 +905,12 @@ function TripDetailPageContent() {
                     <div key={stop.stationId || idx} className="flex items-center gap-3">
                       <div className={cn(
                         'size-3 rounded-full shrink-0 border-2',
-                        isSelected ? 'border-[#1D5BD8] bg-[#1D5BD8] shadow-[0_0_8px_rgba(29,91,216,0.5)]' : 'border-slate-300 bg-white'
+                        isSelected ? 'border-[#1D5BD8] bg-[#1D5BD8] shadow-[0_0_8px_rgba(29,91,216,0.5)]' : 'border-[var(--sp-seat-line)] bg-[var(--sp-seat-bg)]'
                       )} />
                       <div className={cn(isSelected ? '' : 'opacity-70')}>
                         <p className={cn(
                           'text-sm',
-                          isSelected ? 'font-bold text-[#0B1B33]' : 'text-[#5B6B84]'
+                          isSelected ? 'font-bold text-[#0B1B33]' : 'text-[var(--sp-text-muted)]'
                         )}>
                           {stop.station?.name || stop.stationId}
                         </p>
@@ -929,7 +929,7 @@ function TripDetailPageContent() {
                   );
                 })}
 
-                <div className="flex items-center gap-2 text-xs text-[#5B6B84] pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2 text-xs text-[var(--sp-text-muted)] pt-2 border-t border-slate-100">
                   <Clock size={12} className="text-[#1D5BD8]" />
                   {formatTime(trip.departure)} – {formatTime(trip.arrival)}
                   <span className="text-slate-300">•</span>
@@ -940,11 +940,11 @@ function TripDetailPageContent() {
 
               {/* Selected seats list */}
               <div className="mb-5">
-                <h4 className="text-xs font-bold text-[#5B6B84] mb-3 uppercase tracking-wider">
+                <h4 className="text-xs font-bold text-[var(--sp-text-muted)] mb-3 uppercase tracking-wider">
                   {t('seat.selectedSeats')} ({selectedSeats.length})
                 </h4>
                 {selectedSeats.length === 0 ? (
-                  <p className="text-xs text-[#9AA8BD] flex items-center gap-2 py-4 justify-center bg-[#F6F8FC] rounded-xl border border-dashed border-slate-200">
+                  <p className="text-xs text-[#9AA8BD] flex items-center gap-2 py-4 justify-center bg-[var(--sp-inset)] rounded-xl border border-dashed border-slate-200">
                     <span className="text-base">🪑</span>
                     {t('seat.clickSeat')}
                   </p>
@@ -964,7 +964,7 @@ function TripDetailPageContent() {
                           >
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-[#1D5BD8] text-xs font-mono font-bold">
                               {label}
-                              <span className="text-[11px] text-[#5B6B84] font-normal">
+                              <span className="text-[11px] text-[var(--sp-text-muted)] font-normal">
                                 +{Number(price || 0).toLocaleString()}
                               </span>
                             </span>
@@ -997,7 +997,7 @@ function TripDetailPageContent() {
                       {isRTL ? 'بيانات المسافرين' : 'Passenger Details'}
                     </h4>
                     {selectedSeats.length > 1 && (
-                      <p className="text-[11px] text-[#5B6B84] mb-3">
+                      <p className="text-[11px] text-[var(--sp-text-muted)] mb-3">
                         {isRTL
                           ? 'سيتم استخدام نفس البيانات لجميع المقاعد المختارة'
                           : 'The same details will apply to all selected seats'}
@@ -1009,7 +1009,7 @@ function TripDetailPageContent() {
                         value={passenger.name}
                         onChange={(e) => setPassenger((p) => ({ ...p, name: e.target.value }))}
                         placeholder={session?.user?.name || (isRTL ? 'اسم المسافر' : 'Passenger name')}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <input
@@ -1017,18 +1017,18 @@ function TripDetailPageContent() {
                           value={passenger.phone}
                           onChange={(e) => setPassenger((p) => ({ ...p, phone: e.target.value }))}
                           placeholder={isRTL ? 'رقم الهاتف (اختياري)' : 'Phone (optional)'}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                         />
                         <input
                           type="text"
                           value={passenger.hotel}
                           onChange={(e) => setPassenger((p) => ({ ...p, hotel: e.target.value }))}
                           placeholder={isRTL ? 'الفندق (اختياري)' : 'Hotel (optional)'}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                         />
                       </div>
                       <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#5B6B84] pointer-events-none">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--sp-text-muted)] pointer-events-none">
                           {t('common.currency')}
                         </span>
                         <input
@@ -1038,7 +1038,7 @@ function TripDetailPageContent() {
                           value={passenger.collectAmount}
                           onChange={(e) => setPassenger((p) => ({ ...p, collectAmount: e.target.value }))}
                           placeholder={t('booking.collectPlaceholder') || (isRTL ? 'مبلغ التحصيل (اختياري)' : 'Collect amount (optional)')}
-                          className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition"
+                          className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                         />
                       </div>
                       <textarea
@@ -1046,7 +1046,7 @@ function TripDetailPageContent() {
                         onChange={(e) => setPassenger((p) => ({ ...p, notes: e.target.value }))}
                         placeholder={t('booking.notesPlaceholder') || (isRTL ? 'ملاحظات إضافية...' : 'Additional notes...')}
                         rows={2}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition resize-none"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition resize-none"
                       />
                     </div>
                   </motion.div>
@@ -1066,7 +1066,7 @@ function TripDetailPageContent() {
                       const seat = layout?.seats?.find((s) => s.label === label);
                       const price = (segmentPrice || trip?.price || 0) + (seat?.price || 0);
                       return (
-                        <div key={label} className="flex justify-between text-xs text-[#5B6B84]">
+                        <div key={label} className="flex justify-between text-xs text-[var(--sp-text-muted)]">
                           <span>
                             <span className="font-mono font-bold text-[#0B1B33]">{label}</span>
                             {seat?.type === 'VIP' && (
@@ -1082,7 +1082,7 @@ function TripDetailPageContent() {
                     <div className="flex justify-between items-center font-extrabold border-t border-slate-100 pt-3 text-[#0B1B33]">
                       <span>{t('seat.total')}</span>
                       <span className="text-[#1D5BD8] text-xl">
-                        {Number(totalPrice || 0).toLocaleString()} <span className="text-xs text-[#5B6B84]">{t('common.currency')}</span>
+                        {Number(totalPrice || 0).toLocaleString()} <span className="text-xs text-[var(--sp-text-muted)]">{t('common.currency')}</span>
                       </span>
                     </div>
                   </motion.div>
@@ -1150,7 +1150,7 @@ function TripDetailPageContent() {
               </div>
               <div>
                 <h2 className="text-xl font-extrabold text-[#0B1B33]">{t('roundtrip.returnTrip')}</h2>
-                <p className="text-xs text-[#5B6B84]">
+                <p className="text-xs text-[var(--sp-text-muted)]">
                   {returnTrip.origin} {isRTL ? '←' : '→'} {returnTrip.destination} · {formatDate(returnTrip.departure)} {formatTime(returnTrip.departure)}
                 </p>
               </div>
@@ -1158,16 +1158,16 @@ function TripDetailPageContent() {
 
             <div className="grid lg:grid-cols-[1fr,360px] gap-6 items-start">
               {/* Return seat map */}
-              <div className="rounded-2xl border border-[#E6EBF2] bg-white p-6 sm:p-8 shadow-sm">
+              <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 sm:p-8 shadow-sm">
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
                   <div>
                     <h3 className="text-lg font-extrabold text-[#0B1B33]">{t('seat.select')}</h3>
-                    <p className="text-xs text-[#5B6B84] mt-0.5">{returnTrip.bus?.name} · {returnLayout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0} seats</p>
+                    <p className="text-xs text-[var(--sp-text-muted)] mt-0.5">{returnTrip.bus?.name} · {returnLayout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0} seats</p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-center mb-6">
-                  <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#F6F8FC] border border-slate-200 text-[#5B6B84] text-xs font-bold">
+                  <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--sp-inset)] border border-slate-200 text-[var(--sp-text-muted)] text-xs font-bold">
                     <Bus size={15} className="text-[#1D5BD8]" />
                     <span>{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
                   </div>
@@ -1216,11 +1216,11 @@ function TripDetailPageContent() {
               </div>
 
               {/* Return trip summary sidebar */}
-              <div className="rounded-2xl border border-[#E6EBF2] bg-white p-6 shadow-sm sticky top-24">
+              <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 shadow-sm sticky top-24">
                 <h3 className="font-extrabold text-base text-[#0B1B33] mb-1">{t('roundtrip.returnTrip')}</h3>
-                <p className="text-xs text-[#5B6B84] mb-4">{returnTrip.bus?.name}</p>
+                <p className="text-xs text-[var(--sp-text-muted)] mb-4">{returnTrip.bus?.name}</p>
 
-                <div className="space-y-2 mb-5 text-xs text-[#5B6B84]">
+                <div className="space-y-2 mb-5 text-xs text-[var(--sp-text-muted)]">
                   <div className="flex items-center gap-2">
                     <MapPin size={13} className="text-[#1D5BD8]" />
                     <span className="font-bold text-[#0B1B33]">{returnTrip.origin}</span>
@@ -1233,7 +1233,7 @@ function TripDetailPageContent() {
 
                 {/* Return selected seats */}
                 <div className="mb-4">
-                  <h4 className="text-xs font-bold text-[#5B6B84] mb-2">{t('seat.selectedSeats')}</h4>
+                  <h4 className="text-xs font-bold text-[var(--sp-text-muted)] mb-2">{t('seat.selectedSeats')}</h4>
                   {returnSelectedSeats.length === 0 ? (
                     <p className="text-xs text-[#9AA8BD]">{t('seat.clickSeat')}</p>
                   ) : (
@@ -1250,11 +1250,11 @@ function TripDetailPageContent() {
                 {/* Combined price */}
                 {returnSelectedSeats.length > 0 && (
                   <div className="border-t border-slate-100 pt-4 space-y-1.5 text-xs">
-                    <div className="flex justify-between text-[#5B6B84]">
+                    <div className="flex justify-between text-[var(--sp-text-muted)]">
                       <span>{t('roundtrip.outboundTrip')}</span>
                       <span className="font-semibold text-[#0B1B33]">{Number(totalPrice || 0).toLocaleString()} {t('common.currency')}</span>
                     </div>
-                    <div className="flex justify-between text-[#5B6B84]">
+                    <div className="flex justify-between text-[var(--sp-text-muted)]">
                       <span>{t('roundtrip.returnTrip')}</span>
                       <span className="font-semibold text-[#0B1B33]">{Number(returnTotalPrice || 0).toLocaleString()} {t('common.currency')}</span>
                     </div>
@@ -1319,7 +1319,7 @@ function SeatButton({ seat, isSelected, isReserved, onToggle, tripPrice, t }: an
           ? 'bg-[#1D5BD8] border-2 border-[#1D5BD8] text-white shadow-[0_8px_20px_rgba(29,91,216,0.35)] scale-105 z-20 animate-seat-bounce-glow cursor-pointer'
           : isVip
           ? 'bg-amber-50 border-2 border-amber-300 text-amber-800 hover:bg-amber-100 hover:border-amber-400 cursor-pointer shadow-sm'
-          : 'bg-white border-2 border-slate-200 text-[#0B1B33] hover:border-[#1D5BD8]/60 hover:text-[#1D5BD8] hover:bg-blue-50/40 cursor-pointer shadow-sm'
+          : 'bg-[var(--sp-seat-bg)] border-2 border-[var(--sp-seat-line)] text-[var(--sp-text-muted)] hover:border-[#1D5BD8]/60 hover:text-[#1D5BD8] hover:bg-blue-50/40 cursor-pointer shadow-sm'
       )}
     >
       <span className="font-mono leading-none">{isToilet ? '🚻' : seat.label}</span>
@@ -1340,13 +1340,13 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
   return (
     <div
       className={cn(
-        'rounded-3xl border border-[#E6EBF2] bg-white shadow-2xl overflow-hidden',
+        'rounded-3xl border border-[var(--sp-line)] bg-[var(--sp-card)] shadow-2xl overflow-hidden',
         isRTL ? 'text-right' : 'text-left'
       )}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       {/* Header */}
-      <div className="relative p-6 sm:p-8 pb-5 border-b border-slate-100 bg-[#F6F8FC]/60">
+      <div className="relative p-6 sm:p-8 pb-5 border-b border-slate-100 bg-[var(--sp-inset)]/60">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-[#0B1B33] hover:bg-slate-200/60 transition"
@@ -1365,7 +1365,7 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         <h2 className="text-2xl font-extrabold text-[#0B1B33]">
           {t('confirmed.title')}
         </h2>
-        <p className="mt-1 text-sm text-[#5B6B84]">
+        <p className="mt-1 text-sm text-[var(--sp-text-muted)]">
           {t('confirmed.desc')}
         </p>
       </div>
@@ -1373,9 +1373,9 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
       {/* Details */}
       <div className="p-6 sm:p-8 space-y-4 text-sm">
         {/* Bus & Route */}
-        <div className="rounded-2xl bg-[#F6F8FC] p-4 space-y-2.5">
+        <div className="rounded-2xl bg-[var(--sp-inset)] p-4 space-y-2.5">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-[#5B6B84]">{isRTL ? 'المسار' : 'Route'}</span>
+            <span className="text-xs font-bold text-[var(--sp-text-muted)]">{isRTL ? 'المسار' : 'Route'}</span>
             <div className="flex items-center gap-1.5 font-bold text-[#0B1B33]">
               <MapPin size={14} className="text-[#1D5BD8]" />
               <span>{trip.origin}</span>
@@ -1383,13 +1383,13 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
               <span>{trip.destination}</span>
             </div>
           </div>
-          <div className="flex justify-between items-center text-xs text-[#5B6B84]">
+          <div className="flex justify-between items-center text-xs text-[var(--sp-text-muted)]">
             <span>{isRTL ? 'موعد الرحلة' : 'Departure'}</span>
             <span className="font-semibold text-[#0B1B33]">
               {formatDate(trip.departure)} · {formatTime(trip.departure)}
             </span>
           </div>
-          <div className="flex justify-between items-center text-xs text-[#5B6B84]">
+          <div className="flex justify-between items-center text-xs text-[var(--sp-text-muted)]">
             <span>{isRTL ? 'رقم الباص' : 'Bus'}</span>
             <span className="font-semibold text-[#0B1B33] flex items-center gap-1">
               <Bus size={13} className="text-[#1D5BD8]" />
@@ -1402,7 +1402,7 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         {isMulti ? (
           <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
             {confirmedBookings.map((b: any) => (
-              <div key={b.id || b.reference} className="flex justify-between items-center bg-[#F6F8FC] rounded-xl p-3 border border-slate-200/60">
+              <div key={b.id || b.reference} className="flex justify-between items-center bg-[var(--sp-inset)] rounded-xl p-3 border border-slate-200/60">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[#1D5BD8] text-xs font-bold bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
                     {b.reference}
@@ -1418,15 +1418,15 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3">
+          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-[#5B6B84]">{isRTL ? 'كود الحجز' : 'Booking Code'}</span>
+              <span className="text-xs font-bold text-[var(--sp-text-muted)]">{isRTL ? 'كود الحجز' : 'Booking Code'}</span>
               <span className="font-mono text-[#1D5BD8] text-base font-bold bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
                 {first?.reference}
               </span>
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-              <span className="text-xs font-bold text-[#5B6B84]">{isRTL ? 'رقم المقعد' : 'Seat'}</span>
+              <span className="text-xs font-bold text-[var(--sp-text-muted)]">{isRTL ? 'رقم المقعد' : 'Seat'}</span>
               <span className="inline-flex px-3 py-1 rounded-xl bg-[#0A1E3C] text-white font-mono font-bold text-sm">
                 {first?.seatLabel}
               </span>
@@ -1489,7 +1489,7 @@ export default function TripDetailPage() {
   return (
     <Suspense
       fallback={
-        <div className="v2 min-h-dvh bg-[#F6F8FC]">
+        <div className="v2 min-h-dvh bg-[var(--sp-bg)]">
           <V2SiteHeader />
           <div className="v2-container py-16 flex items-center justify-center">
             <Loader2 className="size-8 animate-spin text-[#1D5BD8]" />

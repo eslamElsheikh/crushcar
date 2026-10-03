@@ -137,9 +137,9 @@ export default function AdminStations() {
                 </span>
                 {s.name}
               </span>,
-              <span key="c" className="text-[#5B6B84]">{s.city}</span>,
+              <span key="c" className="text-[var(--sp-text-muted)]">{s.city}</span>,
               <span key="a" className="flex justify-end gap-1">
-                <button onClick={() => openEdit(s)} aria-label="Edit" className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                <button onClick={() => openEdit(s)} aria-label="Edit" className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                   <Pencil className="size-5" />
                 </button>
                 <button
@@ -161,7 +161,7 @@ export default function AdminStations() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{s.name}</p>
-                  <p className="text-[13px] text-[#5B6B84]">{s.city}</p>
+                  <p className="text-[13px] text-[var(--sp-text-muted)]">{s.city}</p>
                 </div>
               </div>
               <div className="mt-3 flex gap-1.5">

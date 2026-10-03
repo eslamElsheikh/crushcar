@@ -73,7 +73,7 @@ export default function TripPassengersPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+      <Link href="/admin/trips" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('nav.trips')}
       </Link>
       <div className="mt-3">
@@ -113,10 +113,10 @@ export default function TripPassengersPage() {
             const cells = [
               <span key="n">
                 <span className="block font-bold">{b.passengerName}</span>
-                {b.isCompany && <span className="block text-[12px] font-normal text-[#5B6B84]">B2B</span>}
+                {b.isCompany && <span className="block text-[12px] font-normal text-[var(--sp-text-muted)]">B2B</span>}
               </span>,
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
-              <span key="p" className="tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>,
+              <span key="p" className="tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>,
               <V2StatusBadge key="st" tone={done ? 'green' : b.status === 'PAID' ? 'blue' : 'amber'}>
                 {done ? t('booking.boarded') : b.status}
               </V2StatusBadge>,

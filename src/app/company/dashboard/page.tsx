@@ -61,7 +61,7 @@ export default function CompanyDashboard() {
 
   if (failed || !data) {
     return (
-      <div className="rounded-2xl border border-[#E6EBF2] bg-white p-10 text-center">
+      <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-10 text-center">
         <p className="text-[17px] font-extrabold text-[#0B1B33]">{t('common.error')}</p>
         <button onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-[#EFF4FF] px-6 py-3 text-[14.5px] font-bold text-[#1D5BD8]">
           {t('v2.retry')}
@@ -84,7 +84,7 @@ export default function CompanyDashboard() {
           <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">
             {t('company.welcome')}, {session?.user?.name}
           </h1>
-          <p className="mt-1 text-[14.5px] text-[#5B6B84]">{data.company?.name}</p>
+          <p className="mt-1 text-[14.5px] text-[var(--sp-text-muted)]">{data.company?.name}</p>
         </div>
         <Link href="/company/bookings/new" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
           <Plus className="size-5" /> {t('company.newBooking')}
@@ -97,19 +97,19 @@ export default function CompanyDashboard() {
             key={c.label}
             initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut', delay: i * 0.06 }}
-            className="rounded-2xl border border-[#E6EBF2] bg-white p-5 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
           >
             <span className={`inline-grid size-11 place-items-center rounded-xl ${c.chip}`}>
               <c.icon className="size-5" />
             </span>
-            <p className="mt-3.5 truncate text-[13px] font-semibold text-[#5B6B84]">{c.label}</p>
+            <p className="mt-3.5 truncate text-[13px] font-semibold text-[var(--sp-text-muted)]">{c.label}</p>
             <p className="mt-1 text-[21px] font-extrabold tabular-nums text-[#0B1B33]">{c.value}</p>
           </motion.div>
         ))}
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="flex items-center justify-between">
             <p className="text-[16.5px] font-extrabold text-[#0B1B33]">{t('company.recentBookings')}</p>
             <Link href="/company/bookings" className="flex items-center gap-1 text-[13.5px] font-bold text-[#1D5BD8]">
@@ -118,10 +118,10 @@ export default function CompanyDashboard() {
           </div>
           <div className="mt-4 grid gap-2.5">
             {recent.length === 0 && (
-              <p className="rounded-xl bg-[#F6F8FC] py-6 text-center text-[14px] text-[#5B6B84]">{t('company.noBookings')}</p>
+              <p className="rounded-xl bg-[var(--sp-inset)] py-6 text-center text-[14px] text-[var(--sp-text-muted)]">{t('company.noBookings')}</p>
             )}
             {recent.map((b: any) => (
-              <Link key={b.id} href={`/company/bookings/${b.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#F6F8FC]">
+              <Link key={b.id} href={`/company/bookings/${b.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[var(--sp-inset)]">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#EFF4FF] text-[13px] font-extrabold text-[#1D5BD8]">
                   {(b.actualOrigin || b.trip?.origin || '?').slice(0, 1)}
                 </span>
@@ -131,7 +131,7 @@ export default function CompanyDashboard() {
                       ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}`
                       : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
                   </span>
-                  <span className="block text-[12.5px] tabular-nums text-[#5B6B84]">
+                  <span className="block text-[12.5px] tabular-nums text-[var(--sp-text-muted)]">
                     {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                   </span>
                 </span>
@@ -144,15 +144,15 @@ export default function CompanyDashboard() {
         </div>
 
         <div className="grid content-start gap-3.5">
-          <Link href="/company/credit" className="rounded-2xl border border-[#E6EBF2] bg-white p-5 hover:border-[#1D5BD8]/40">
+          <Link href="/company/credit" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 hover:border-[#1D5BD8]/40">
             <Wallet className="size-6 text-emerald-600" />
             <p className="mt-3 text-[15px] font-extrabold text-[#0B1B33]">{t('company.deposit')}</p>
-            <p className="mt-1 text-[13px] text-[#5B6B84]">{t('company.walletBalance')}: {data.walletBalance.toLocaleString(locale)} EGP</p>
+            <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">{t('company.walletBalance')}: {data.walletBalance.toLocaleString(locale)} EGP</p>
           </Link>
-          <Link href="/company/invoices" className="rounded-2xl border border-[#E6EBF2] bg-white p-5 hover:border-[#1D5BD8]/40">
+          <Link href="/company/invoices" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 hover:border-[#1D5BD8]/40">
             <FileText className="size-6 text-[#1D5BD8]" />
             <p className="mt-3 text-[15px] font-extrabold text-[#0B1B33]">{t('company.viewInvoices')}</p>
-            <p className="mt-1 text-[13px] text-[#5B6B84]">{t('company.outstanding')}: {data.outstandingBalance.toLocaleString(locale)} EGP</p>
+            <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">{t('company.outstanding')}: {data.outstandingBalance.toLocaleString(locale)} EGP</p>
           </Link>
         </div>
       </div>

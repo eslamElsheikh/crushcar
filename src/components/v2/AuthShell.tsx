@@ -26,7 +26,7 @@ export function V2AuthShell({
   const isRTL = lang === 'ar';
 
   return (
-    <div className="v2 min-h-dvh bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="grid min-h-dvh lg:grid-cols-[1fr_1fr]">
         <div className="flex flex-col px-5 py-6 sm:px-10">
           <div className="flex items-center justify-between">
@@ -43,7 +43,7 @@ export function V2AuthShell({
 
           <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-10">
             <h1 className="text-balance text-[28px] font-extrabold text-[#0B1B33] md:text-[32px]">{title}</h1>
-            <p className="mt-2 text-pretty text-[15px] text-[#5B6B84]">{sub}</p>
+            <p className="mt-2 text-pretty text-[15px] text-[var(--sp-text-muted)]">{sub}</p>
             <div className="mt-7">{children}</div>
           </div>
         </div>

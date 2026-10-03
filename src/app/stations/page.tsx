@@ -57,12 +57,12 @@ export default function StationsPage() {
   }
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container max-w-4xl pb-16 pt-8 md:pt-10">
         <h1 className="text-balance text-[28px] font-extrabold text-[#0B1B33] md:text-[36px]">{t('stations.pageTitle')}</h1>
-        <p className="mt-2 text-pretty text-[15px] text-[#5B6B84]">{t('stations.pageDesc')}</p>
+        <p className="mt-2 text-pretty text-[15px] text-[var(--sp-text-muted)]">{t('stations.pageDesc')}</p>
 
         <div className="v2-card mt-6 grid gap-3 p-4 sm:grid-cols-[1fr_200px] md:p-5">
           <span className="relative block">
@@ -91,7 +91,7 @@ export default function StationsPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[16.5px] font-extrabold text-[#0B1B33]">{s.name}</p>
-                      <p className="mt-0.5 text-[13.5px] text-[#5B6B84]">{s.city}{s.address ? ` · ${s.address}` : ''}</p>
+                      <p className="mt-0.5 text-[13.5px] text-[var(--sp-text-muted)]">{s.city}{s.address ? ` · ${s.address}` : ''}</p>
                     </div>
                     <Link href={`/stations/${s.id}`} className="grid size-10 shrink-0 place-items-center rounded-full bg-[#EFF4FF] text-[#1D5BD8] hover:bg-[#1D5BD8] hover:text-white" aria-label={s.name}>
                       <ArrowRight className="size-5 v2-flip-rtl" />
@@ -100,12 +100,12 @@ export default function StationsPage() {
                   {(preview[s.id]?.length || 0) > 0 && (
                     <div className="mt-4 grid gap-2 border-t border-slate-100 pt-4">
                       {preview[s.id].map((tr) => (
-                        <Link key={tr.id} href={`/trips/${tr.id}`} className="flex items-center gap-2.5 rounded-xl bg-[#F6F8FC] px-4 py-3 text-[13.5px] hover:bg-[#EFF4FF]">
+                        <Link key={tr.id} href={`/trips/${tr.id}`} className="flex items-center gap-2.5 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13.5px] hover:bg-[#EFF4FF]">
                           <Bus className="size-4 shrink-0 text-[#1D5BD8]" />
                           <span className="min-w-0 flex-1 truncate font-semibold text-[#0B1B33]">
                             {tr.origin || ''} {tr.destination ? (isRTL ? '←' : '→') : ''} {tr.destination || ''}
                           </span>
-                          <span className="shrink-0 tabular-nums text-[#5B6B84]">
+                          <span className="shrink-0 tabular-nums text-[var(--sp-text-muted)]">
                             {new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           <span className="shrink-0 font-extrabold tabular-nums text-[#0B1B33]">EGP {tr.price}</span>

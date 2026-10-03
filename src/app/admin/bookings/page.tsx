@@ -146,13 +146,13 @@ export default function AdminBookings() {
               <span key="r" className="font-mono text-[12.5px] tabular-nums" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</span>,
               <span key="c">
                 <span className="block font-bold">{b.passengerName}</span>
-                <span className="block text-[12.5px] font-normal tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>
+                <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>
               </span>,
               <span key="rt" className="text-[13.5px]">
                 <span className="block font-semibold">
                   {isRTL ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}` : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
                 </span>
-                <span className="block text-[12.5px] font-normal tabular-nums text-[#5B6B84]">
+                <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]">
                   {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                 </span>
               </span>,
@@ -173,7 +173,7 @@ export default function AdminBookings() {
                 <button
                   onClick={() => { setEdit(b); setEditName(b.passengerName || ''); setEditPhone(b.passengerPhone || ''); setEditHotel(b.passengerHotel || ''); }}
                   aria-label="Edit"
-                  className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]"
+                  className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]"
                 >
                   <Pencil className="size-4" />
                 </button>
@@ -189,7 +189,7 @@ export default function AdminBookings() {
                 </p>
                 <V2StatusBadge tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>{b.status}</V2StatusBadge>
               </div>
-              <p className="mt-1 font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
+              <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">EGP {Number(b.total || 0).toLocaleString(locale)}</p>
               <div className="mt-3 flex gap-1.5">
                 {b.status === 'PENDING' && (
@@ -211,7 +211,7 @@ export default function AdminBookings() {
       </div>
 
       <V2Modal open={!!confirmId} onClose={() => setConfirmId(null)} title={t('payment.confirmTitle')}>
-        <p className="text-[14.5px] text-[#5B6B84]">{t('payment.pendingDesc')}</p>
+        <p className="text-[14.5px] text-[var(--sp-text-muted)]">{t('payment.pendingDesc')}</p>
         <div className="mt-5 grid grid-cols-2 gap-2.5">
           <button onClick={() => setConfirmId(null)} className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]">
             {t('common.cancel')}

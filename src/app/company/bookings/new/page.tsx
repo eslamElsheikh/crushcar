@@ -172,7 +172,7 @@ export default function CompanyNewBookingPage() {
               'rounded-full px-3.5 py-2 text-[13px] font-bold tabular-nums',
               s < step && 'bg-emerald-50 text-emerald-700',
               s === step && 'bg-[#0A1E3C] text-white',
-              s > step && 'bg-white text-[#5B6B84] ring-1 ring-slate-200'
+              s > step && 'bg-[var(--sp-card)] text-[var(--sp-text-muted)] ring-1 ring-slate-200'
             )}>
               {s}
             </span>
@@ -182,9 +182,9 @@ export default function CompanyNewBookingPage() {
       </ol>
 
       {step === 1 && (
-        <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <div className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           {credit && (
-            <p className="mb-4 flex items-center gap-2 rounded-xl bg-[#F6F8FC] px-4 py-3 text-[13.5px] font-semibold tabular-nums text-[#0B1B33]">
+            <p className="mb-4 flex items-center gap-2 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13.5px] font-semibold tabular-nums text-[#0B1B33]">
               <Wallet className="size-5 text-emerald-600" />
               {t('company.walletBalance')}: {Number(credit.walletBalance || 0).toLocaleString(locale)} EGP
             </p>
@@ -218,7 +218,7 @@ export default function CompanyNewBookingPage() {
               {(['FOR_EMPLOYEE', 'FOR_CLIENT'] as const).map((bt) => (
                 <button
                   key={bt} onClick={() => setBookingType(bt)} aria-pressed={bookingType === bt}
-                  className={cn('flex-1 rounded-lg px-4 py-2.5 text-[14px] font-bold transition', bookingType === bt ? 'bg-[#0A1E3C] text-white shadow' : 'text-[#5B6B84]')}
+                  className={cn('flex-1 rounded-lg px-4 py-2.5 text-[14px] font-bold transition', bookingType === bt ? 'bg-[#0A1E3C] text-white shadow' : 'text-[var(--sp-text-muted)]')}
                 >
                   {bt === 'FOR_EMPLOYEE' ? t('company.forEmployee') : t('company.forClient')}
                 </button>
@@ -243,12 +243,12 @@ export default function CompanyNewBookingPage() {
               return (
                 <button
                   key={tr.id} onClick={() => pickTrip(tr.id)} aria-pressed={active}
-                  className={cn('rounded-2xl border bg-white p-5 text-start transition', active ? 'border-[#1D5BD8] shadow-[0_0_0_3px_rgba(29,91,216,0.15)]' : 'border-[#E6EBF2] hover:border-[#1D5BD8]/40')}
+                  className={cn('rounded-2xl border bg-[var(--sp-card)] p-5 text-start transition', active ? 'border-[#1D5BD8] shadow-[0_0_0_3px_rgba(29,91,216,0.15)]' : 'border-[var(--sp-line)] hover:border-[#1D5BD8]/40')}
                 >
                   <p className="text-[16px] font-extrabold text-[#0B1B33]">
                     {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
                   </p>
-                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] tabular-nums text-[#5B6B84]">
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     <span>{new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} · {tr.bus?.name}</span>
                     <V2StatusBadge tone={left > 0 ? 'green' : 'red'}>{left > 0 ? `${left} ${t('v2.seatsLeft')}` : t('v2.soldOut')}</V2StatusBadge>
                     <span className="ms-auto text-[16px] font-extrabold text-[#0B1B33]">EGP {(tr.calculatedPrice || tr.price).toLocaleString(locale)}</span>
@@ -257,7 +257,7 @@ export default function CompanyNewBookingPage() {
               );
             })}
           </div>
-          <div className="rounded-2xl border border-[#E6EBF2] bg-white p-5 lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 lg:sticky lg:top-6">
             {!trip || loadingTrip ? (
               <div className="grid gap-3" role="status">
                 <V2Skeleton className="h-6 w-2/3" />
@@ -281,7 +281,7 @@ export default function CompanyNewBookingPage() {
                         className={cn(
                           'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-bold transition',
                           isAllSeatsSelected
-                            ? 'bg-white text-red-600 shadow-sm hover:bg-red-50'
+                            ? 'bg-[var(--sp-card)] text-red-600 shadow-sm hover:bg-red-50'
                             : 'bg-[#1D5BD8] text-white shadow-sm hover:bg-[#184bb3]'
                         )}
                       >
@@ -298,7 +298,7 @@ export default function CompanyNewBookingPage() {
                         )}
                       </button>
                     </div>
-                    <p className="mt-1 text-[12px] text-[#5B6B84]">
+                    <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
                       {t('company.bookEntireTripDesc')}
                     </p>
                   </div>
@@ -323,7 +323,7 @@ export default function CompanyNewBookingPage() {
               </>
             )}
             <div className="mt-4 flex gap-2">
-              <button onClick={() => setStep(1)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[#5B6B84] hover:bg-slate-100">{t('v2.back')}</button>
+              <button onClick={() => setStep(1)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">{t('v2.back')}</button>
               <V2Button disabled={seats.length === 0} onClick={() => setStep(3)} className="flex-1">
                 {t('v2.continue')} <ArrowRight className="size-4 v2-flip-rtl" />
               </V2Button>
@@ -333,7 +333,7 @@ export default function CompanyNewBookingPage() {
       )}
 
       {step === 3 && (
-        <div className="mt-5 rounded-2xl border border-[#E6EBF2] bg-white p-5 md:p-6">
+        <div className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
             <p className="text-[16px] font-extrabold text-[#0B1B33]">
               {isRTL ? `بيانات المسافرين (${seats.length} مقعد)` : `Passenger Details (${seats.length} seats)`}
@@ -366,7 +366,7 @@ export default function CompanyNewBookingPage() {
               <div key={s} className="rounded-2xl border border-slate-200 p-4">
                 <p className="flex items-center gap-2 text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
                   <User className="size-5 text-[#1D5BD8]" /> {isRTL ? 'مقعد' : 'Seat'} {s}
-                  <span className="ms-auto text-[14px] text-[#5B6B84]">EGP {priceOf(s).toLocaleString(locale)}</span>
+                  <span className="ms-auto text-[14px] text-[var(--sp-text-muted)]">EGP {priceOf(s).toLocaleString(locale)}</span>
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   <V2Input value={names[s] || ''} onChange={(e) => setNames({ ...names, [s]: e.target.value })} placeholder={t('company.passengerName')} aria-label={`${t('company.passengerName')} ${s}`} />
@@ -377,7 +377,7 @@ export default function CompanyNewBookingPage() {
             ))}
           </div>
           <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-            <button onClick={() => setStep(2)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[#5B6B84] hover:bg-slate-100">{t('v2.back')}</button>
+            <button onClick={() => setStep(2)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">{t('v2.back')}</button>
             <V2Button size="lg" disabled={submitting || seats.length === 0} onClick={submit}>
               {submitting && <Loader2 className="size-5 animate-spin" />}
               {t('v2.confirmBooking')} · EGP {total.toLocaleString(locale)}

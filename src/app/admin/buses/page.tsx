@@ -115,15 +115,15 @@ export default function AdminBuses() {
                 </span>
                 {b.name}
               </span>,
-              <span key="t" className="text-[#5B6B84]">{busTypes.find((x) => x.value === b.type)?.label || b.type}</span>,
-              <span key="s" className="tabular-nums text-[#5B6B84]">
+              <span key="t" className="text-[var(--sp-text-muted)]">{busTypes.find((x) => x.value === b.type)?.label || b.type}</span>,
+              <span key="s" className="tabular-nums text-[var(--sp-text-muted)]">
                 {b.layout?.seats?.length ?? b.seatCount ?? 0}
               </span>,
-              <span key="c" className="text-[#5B6B84]">{b.company?.name || '—'}</span>,
+              <span key="c" className="text-[var(--sp-text-muted)]">{b.company?.name || '—'}</span>,
               <span key="a" className="flex justify-end gap-1">
                 <button
                   onClick={() => router.push(`/admin/buses/${b.id}/layout`)}
-                  className="grid size-10 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]"
+                  className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]"
                   aria-label="Layout"
                 >
                   <Armchair className="size-5" />
@@ -148,7 +148,7 @@ export default function AdminBuses() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{b.name}</p>
-                  <p className="text-[13px] tabular-nums text-[#5B6B84]">
+                  <p className="text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     {busTypes.find((x) => x.value === b.type)?.label || b.type} · {b.layout?.seats?.length ?? b.seatCount ?? 0}
                   </p>
                 </div>

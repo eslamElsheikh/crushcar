@@ -163,7 +163,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container max-w-2xl pb-16 pt-8 md:pt-10">
@@ -194,7 +194,7 @@ export default function ProfilePage() {
               </p>
               {/* Avatar: photo or initials fallback */}
               <div className="mt-4 flex items-center gap-4">
-                <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-[#E6EBF2] bg-[#EFF4FF] text-[20px] font-extrabold text-[#1D5BD8]">
+                <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-[var(--sp-line)] bg-[#EFF4FF] text-[20px] font-extrabold text-[#1D5BD8]">
                   {avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatar} alt="" className="size-full object-cover" />
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => fileRef.current?.click()}
                     disabled={uploading}
-                    className="inline-flex w-fit items-center gap-2 rounded-xl border border-[#E6EBF2] bg-white px-4 py-2.5 text-[13.5px] font-bold text-[#0B1B33] hover:bg-slate-50 disabled:opacity-60"
+                    className="inline-flex w-fit items-center gap-2 rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] px-4 py-2.5 text-[13.5px] font-bold text-[#0B1B33] hover:bg-slate-50 disabled:opacity-60"
                   >
                     {uploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4 text-[#1D5BD8]" />}
                     {isRTL ? 'تغيير الصورة' : 'Change photo'}
@@ -273,7 +273,7 @@ export default function ProfilePage() {
                 </form>
               )}
               {!changingPw && (
-                <p className="mt-2 flex items-center gap-2 text-[13.5px] text-[#5B6B84]">
+                <p className="mt-2 flex items-center gap-2 text-[13.5px] text-[var(--sp-text-muted)]">
                   <Phone className="size-4" /> ••••••
                 </p>
               )}

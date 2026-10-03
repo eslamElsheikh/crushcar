@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
       name: company.name,
       isActive: company.isActive,
       busesCount: company._count.buses,
+      logoUrl: company.logoUrl,
+      showLogoOnTicket: company.showLogoOnTicket,
     })
   } catch (err) {
     console.error(err)

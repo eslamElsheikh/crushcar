@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import { logger } from '@/lib/logger'
 
 function getTransporter() {
   return nodemailer.createTransport({
@@ -67,7 +68,7 @@ export async function sendBookingConfirmationEmail(to: string, data: BookingEmai
   <div class="container">
     <div class="header">
       <h1>✅ تم تأكيد حجزك</h1>
-      <p>CrushCar — حجز مقعدك جاهز</p>
+      <p>Safro Travel — حجز مقعدك جاهز</p>
     </div>
     <div class="body">
       <div class="ref">
@@ -103,7 +104,7 @@ export async function sendBookingConfirmationEmail(to: string, data: BookingEmai
       </div>
     </div>
     <div class="footer">
-      CrushCar — فريق العمل<br/>
+      Safro Travel — فريق العمل<br/>
       ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}
     </div>
   </div>
@@ -120,7 +121,7 @@ export async function sendBookingConfirmationEmail(to: string, data: BookingEmai
     })
     console.log('[Email] Confirmation sent to:', to, data.reference)
   } catch (err) {
-    console.error('[Email] Failed to send:', err)
+    logger.error('[Email] Failed to send:', err)
   }
 }
 
@@ -168,7 +169,7 @@ export async function sendBookingReminderEmail(to: string, data: BookingEmailDat
   <div class="container">
     <div class="header">
       <h1>⏰ تذكير برحلتك غداً!</h1>
-      <p>CrushCar — رحلتك بعد أقل من 24 ساعة</p>
+      <p>Safro Travel — رحلتك بعد أقل من 24 ساعة</p>
     </div>
     <div class="body">
       <div class="ref">
@@ -207,7 +208,7 @@ export async function sendBookingReminderEmail(to: string, data: BookingEmailDat
       </div>
     </div>
     <div class="footer">
-      CrushCar — فريق العمل<br/>
+      Safro Travel — فريق العمل<br/>
       ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}
     </div>
   </div>
@@ -224,6 +225,140 @@ export async function sendBookingReminderEmail(to: string, data: BookingEmailDat
     })
     console.log('[Email] Reminder sent to:', to, data.reference)
   } catch (err) {
-    console.error('[Email] Reminder failed:', err)
+    logger.error('[Email] Reminder failed:', err)
+  }
+}
+
+export async function sendVerificationEmail(to: string, token: string, userId?: string) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('[Email] SMTP not configured — auto-verifying user:', to)
+    if (userId) {
+      try {
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.user.update({ where: { id: userId }, data: { emailVerified: new Date() } })
+        console.log('[Email] Auto-verified user:', to)
+      } catch (err) {
+        logger.error('[Email] Auto-verify failed:', err)
+      }
+    }
+    return
+  }
+
+  const url = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/verify-email?token=${token}`
+
+  const html = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: 'Cairo', Arial, sans-serif; background: #09090b; color: #fafafa; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #18181b; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
+    .header { background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 32px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; color: #fff; }
+    .header p { margin: 8px 0 0; color: rgba(255,255,255,0.7); font-size: 14px; }
+    .body { padding: 32px; }
+    .btn { display: inline-block; background: #3b82f6; color: #fff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 18px; font-weight: 600; margin: 24px 0; text-align: center; }
+    .btn:hover { background: #2563eb; }
+    .info { background: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center; }
+    .info p { margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6; }
+    .footer { text-align: center; padding: 24px; border-top: 1px solid #27272a; color: #71717a; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>مرحباً بك في Safro Travel</h1>
+      <p>يرجى تأكيد بريدك الإلكتروني</p>
+    </div>
+    <div class="body" style="text-align: center;">
+      <p style="font-size: 16px; color: #a1a1aa; margin-bottom: 8px;">شكراً لتسجيلك معنا</p>
+      <p style="font-size: 16px; color: #a1a1aa;">اضغط على الزر أدناه لتأكيد بريدك الإلكتروني</p>
+      <a href="${url}" class="btn">تأكيد البريد الإلكتروني</a>
+      <div class="info">
+        <p>إذا لم تقم بالتسجيل في Safro Travel، يمكنك تجاهل هذا البريد.</p>
+        <p style="margin-top: 8px;">رابط التفعيل صالح لمدة 24 ساعة.</p>
+      </div>
+    </div>
+    <div class="footer">
+      Safro Travel — فريق العمل<br/>
+      ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}
+    </div>
+  </div>
+</body>
+</html>
+  `
+
+  try {
+    await getTransporter().sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject: '✅ تأكيد البريد الإلكتروني — Safro Travel',
+      html,
+    })
+    console.log('[Email] Verification sent to:', to)
+  } catch (err) {
+    logger.error('[Email] Verification failed:', err)
+  }
+}
+
+export async function sendCompanyApprovalEmail(to: string, name: string, loginUrl: string) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('[Email] SMTP not configured — skipping approval. Would send to:', to)
+    return
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: 'Cairo', Arial, sans-serif; background: #09090b; color: #fafafa; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #18181b; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
+    .header { background: linear-gradient(135deg, #10b981, #059669); padding: 32px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; color: #fff; }
+    .header p { margin: 8px 0 0; color: rgba(255,255,255,0.7); font-size: 14px; }
+    .body { padding: 32px; text-align: center; }
+    .btn { display: inline-block; background: #10b981; color: #fff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 18px; font-weight: 600; margin: 24px 0; }
+    .btn:hover { background: #059669; }
+    .info { background: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center; }
+    .info p { margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6; }
+    .footer { text-align: center; padding: 24px; border-top: 1px solid #27272a; color: #71717a; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 تم تفعيل شركتك</h1>
+      <p>Safro Travel — حساب شركتك جاهز للاستخدام</p>
+    </div>
+    <div class="body">
+      <p style="font-size: 16px; color: #a1a1aa; margin-bottom: 8px;">أهلاً ${name},</p>
+      <p style="font-size: 16px; color: #a1a1aa;">تمت الموافقة على حساب شركتك وتفعيله. يمكنك الآن تسجيل الدخول والبدء في إدارة رحلاتك وحجوزاتك.</p>
+      <a href="${loginUrl}" class="btn">تسجيل الدخول</a>
+      <div class="info">
+        <p>من لوحة تحكم الشركة يمكنك إضافة الباصات، إنشاء الرحلات، إدارة الحجوزات، وعملاء الشركة.</p>
+      </div>
+    </div>
+    <div class="footer">
+      Safro Travel — فريق العمل<br/>
+      ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}
+    </div>
+  </div>
+</body>
+</html>
+  `
+
+  try {
+    await getTransporter().sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject: '🎉 تم تفعيل شركتك — Safro Travel',
+      html,
+    })
+    console.log('[Email] Company approval sent to:', to)
+  } catch (err) {
+    logger.error('[Email] Company approval failed:', err)
   }
 }

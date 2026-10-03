@@ -53,11 +53,11 @@ export default function StationDetailPage() {
   }, [stationId, router]);
 
   return (
-    <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="v2 min-h-dvh bg-[var(--sp-bg)]" dir={isRTL ? 'rtl' : 'ltr'}>
       <V2SiteHeader />
 
       <main className="v2-container max-w-4xl pb-16 pt-8 md:pt-10">
-        <Link href="/stations" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#5B6B84] hover:text-[#0B1B33]">
+        <Link href="/stations" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
           <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('stations.pageTitle')}
         </Link>
 
@@ -75,7 +75,7 @@ export default function StationDetailPage() {
               </span>
               <div>
                 <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33]">{station?.name}</h1>
-                <p className="text-[14.5px] tabular-nums text-[#5B6B84]">
+                <p className="text-[14.5px] tabular-nums text-[var(--sp-text-muted)]">
                   {station?.city} · {trips.length} {t('stations.tripsCount')}
                 </p>
               </div>
@@ -91,7 +91,7 @@ export default function StationDetailPage() {
                       <p className="text-balance text-[17px] font-extrabold text-[#0B1B33]">
                         {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
                       </p>
-                      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] tabular-nums text-[#5B6B84]">
+                      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] tabular-nums text-[var(--sp-text-muted)]">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="size-4" />
                           {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
@@ -105,7 +105,7 @@ export default function StationDetailPage() {
                         <span className="ms-auto text-[17px] font-extrabold text-[#0B1B33]">EGP {tr.price}</span>
                       </p>
                       {(tr.routeStops?.length || 0) > 0 && (
-                        <p className="mt-1.5 truncate text-[13px] text-[#5B6B84]">
+                        <p className="mt-1.5 truncate text-[13px] text-[var(--sp-text-muted)]">
                           {tr.routeStops.map((s) => s.name).join(isRTL ? ' ← ' : ' → ')}
                         </p>
                       )}

@@ -72,7 +72,7 @@ export default function CharterTripsPage() {
           <h1 className="text-2xl font-extrabold text-[#0B1B33]">
             {isRTL ? 'رحلات الشارتر (حجز الباص بالكامل)' : 'Charter Trips (Full Bus)'}
           </h1>
-          <p className="text-sm text-[#5B6B84] mt-1">
+          <p className="text-sm text-[var(--sp-text-muted)] mt-1">
             {isRTL
               ? 'اختر رحلة لحجز الأتوبيس بالكامل حصرياً لشركتك'
               : 'Select a scheduled trip to charter the entire bus for your company'}
@@ -81,7 +81,7 @@ export default function CharterTripsPage() {
 
         <Link
           href="/company/charter/history"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E6EBF2] text-xs font-bold text-[#0B1B33] hover:bg-slate-50 transition shadow-sm self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--sp-card)] border border-[var(--sp-line)] text-xs font-bold text-[#0B1B33] hover:bg-slate-50 transition shadow-sm self-start sm:self-auto"
         >
           <History size={16} className="text-[#1D5BD8]" />
           <span>{isRTL ? 'سجل طلبات الشارتر' : 'Charter Requests History'}</span>
@@ -89,16 +89,16 @@ export default function CharterTripsPage() {
       </div>
 
       {/* Filter / Search Bar */}
-      <form onSubmit={handleSearch} className="rounded-2xl border border-[#E6EBF2] bg-white p-4 md:p-5 shadow-sm">
+      <form onSubmit={handleSearch} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4 md:p-5 shadow-sm">
         <div className="grid sm:grid-cols-3 gap-3 items-end">
           <div>
-            <label className="block text-xs font-bold text-[#5B6B84] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--sp-text-muted)] mb-1.5">
               {isRTL ? 'محطة الانطلاق' : 'Origin Station'}
             </label>
             <select
               value={fromStationId}
               onChange={(e) => setFromStationId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-xs font-semibold text-[#0B1B33] focus:outline-none focus:border-[#1D5BD8]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-xs font-semibold text-[#0B1B33] focus:outline-none focus:border-[#1D5BD8]"
             >
               <option value="">{isRTL ? 'كل المحطات' : 'All Stations'}</option>
               {stations.map((s) => (
@@ -110,13 +110,13 @@ export default function CharterTripsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#5B6B84] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--sp-text-muted)] mb-1.5">
               {isRTL ? 'محطة الوصول' : 'Destination Station'}
             </label>
             <select
               value={toStationId}
               onChange={(e) => setToStationId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-xs font-semibold text-[#0B1B33] focus:outline-none focus:border-[#1D5BD8]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-xs font-semibold text-[#0B1B33] focus:outline-none focus:border-[#1D5BD8]"
             >
               <option value="">{isRTL ? 'كل المحطات' : 'All Stations'}</option>
               {stations.map((s) => (
@@ -160,7 +160,7 @@ export default function CharterTripsPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
-                className="rounded-2xl border border-[#E6EBF2] bg-white p-5 shadow-sm flex flex-col justify-between hover:border-[#1D5BD8]/40 transition group"
+                className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 shadow-sm flex flex-col justify-between hover:border-[#1D5BD8]/40 transition group"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
@@ -170,7 +170,7 @@ export default function CharterTripsPage() {
                         {trip.bus.type} ({trip.bus.seatCount} {isRTL ? 'مقعد' : 'seats'})
                       </span>
                     </V2StatusBadge>
-                    <span className="text-xs font-bold text-[#5B6B84]">
+                    <span className="text-xs font-bold text-[var(--sp-text-muted)]">
                       {trip.bus.name}
                     </span>
                   </div>
@@ -182,7 +182,7 @@ export default function CharterTripsPage() {
                     <span>{trip.destination}</span>
                   </h3>
 
-                  <div className="text-xs text-[#5B6B84] flex flex-wrap items-center gap-2 mb-4 font-medium">
+                  <div className="text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-2 mb-4 font-medium">
                     <Clock size={13} className="text-[#1D5BD8]" />
                     <span>
                       {new Date(trip.departure).toLocaleDateString(locale, {
@@ -200,11 +200,11 @@ export default function CharterTripsPage() {
 
                 <div className="border-t border-slate-100 pt-4 flex items-center justify-between gap-3">
                   <div>
-                    <span className="text-[11px] text-[#5B6B84] block font-medium">
+                    <span className="text-[11px] text-[var(--sp-text-muted)] block font-medium">
                       {isRTL ? 'سعر الأتوبيس بالكامل' : 'Charter Bus Price'}
                     </span>
                     <span className="text-xl font-extrabold text-emerald-600">
-                      {Number(displayPrice).toLocaleString(locale)} <span className="text-xs font-bold text-[#5B6B84]">{t('common.currency')}</span>
+                      {Number(displayPrice).toLocaleString(locale)} <span className="text-xs font-bold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
                     </span>
                   </div>
 

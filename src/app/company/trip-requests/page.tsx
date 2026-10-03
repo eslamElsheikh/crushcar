@@ -81,7 +81,7 @@ export default function CompanyTripRequestsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.tripRequests')}</h1>
-          <p className="mt-1 text-[14.5px] text-[#5B6B84]">{t('tripRequest.title')}</p>
+          <p className="mt-1 text-[14.5px] text-[var(--sp-text-muted)]">{t('tripRequest.title')}</p>
         </div>
         <V2Button onClick={() => setModal(true)}>
           <Plus className="size-5" /> {t('tripRequest.newRequest')}
@@ -103,12 +103,12 @@ export default function CompanyTripRequestsPage() {
         ) : (
           <div className="grid gap-3">
             {requests.map((r: any) => (
-              <div key={r.id} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <div key={r.id} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
                     {r.status === 'APPROVED' ? t('tripRequest.approved') : r.status === 'REJECTED' ? t('tripRequest.rejected') : t('tripRequest.pending')}
                   </V2StatusBadge>
-                  <span className="ms-auto flex items-center gap-1.5 text-[13px] tabular-nums text-[#5B6B84]">
+                  <span className="ms-auto flex items-center gap-1.5 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     <Users className="size-4" /> {r.passengerCount}
                     <CalendarDays className="ms-2 size-4" />
                     {r.date && new Date(r.date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -119,9 +119,9 @@ export default function CompanyTripRequestsPage() {
                     ? `${r.toStation?.name} ← ${r.fromStation?.name}`
                     : `${r.fromStation?.name} → ${r.toStation?.name}`}
                 </p>
-                {r.notes && <p className="mt-1 text-[13.5px] text-[#5B6B84]">{r.notes}</p>}
+                {r.notes && <p className="mt-1 text-[13.5px] text-[var(--sp-text-muted)]">{r.notes}</p>}
                 {r.adminNotes && (
-                  <p className="mt-2 rounded-xl bg-[#F6F8FC] px-4 py-2.5 text-[13px] text-[#5B6B84]">
+                  <p className="mt-2 rounded-xl bg-[var(--sp-inset)] px-4 py-2.5 text-[13px] text-[var(--sp-text-muted)]">
                     <strong className="text-[#0B1B33]">{t('tripRequest.adminNotes')}:</strong> {r.adminNotes}
                   </p>
                 )}
@@ -135,10 +135,10 @@ export default function CompanyTripRequestsPage() {
         {modal && (
           <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={t('tripRequest.newRequest')}>
             <div className="absolute inset-0 bg-[#0B1B33]/60" onClick={() => setModal(false)} />
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative max-h-[90dvh] w-full max-w-[520px] overflow-y-auto rounded-2xl bg-white p-6">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative max-h-[90dvh] w-full max-w-[520px] overflow-y-auto rounded-2xl bg-[var(--sp-card)] p-6">
               <div className="flex items-center justify-between">
                 <p className="text-[18px] font-extrabold text-[#0B1B33]">{t('tripRequest.newRequest')}</p>
-                <button onClick={() => setModal(false)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[#5B6B84] hover:bg-slate-100">
+                <button onClick={() => setModal(false)} aria-label="Close" className="grid size-9 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100">
                   <X className="size-5" />
                 </button>
               </div>

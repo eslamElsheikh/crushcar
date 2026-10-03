@@ -121,13 +121,13 @@ export default function AdminUsers() {
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate font-bold">{u.name}</span>
-                  <span className="block truncate text-[12.5px] font-normal tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{u.email}</span>
-                  {u.phone && <span className="block text-[12.5px] font-normal tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{u.phone}</span>}
+                  <span className="block truncate text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{u.email}</span>
+                  {u.phone && <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{u.phone}</span>}
                 </span>
               </span>,
               <V2StatusBadge key="r" tone={roleTone(u.role) as 'red' | 'blue' | 'slate'}>{roleLabel(u.role)}</V2StatusBadge>,
-              <span key="b" className="tabular-nums text-[#5B6B84]">{u.totalBookings ?? '—'}</span>,
-              <span key="c" className="tabular-nums text-[#5B6B84]">
+              <span key="b" className="tabular-nums text-[var(--sp-text-muted)]">{u.totalBookings ?? '—'}</span>,
+              <span key="c" className="tabular-nums text-[var(--sp-text-muted)]">
                 {u.createdAt ? new Date(u.createdAt).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' }) : '—'}
               </span>,
             ];
@@ -140,7 +140,7 @@ export default function AdminUsers() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-extrabold text-[#0B1B33]">{u.name}</p>
-                <p className="truncate text-[12.5px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>{u.email}</p>
+                <p className="truncate text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{u.email}</p>
               </div>
               <V2StatusBadge tone={roleTone(u.role) as 'red' | 'blue' | 'slate'}>{roleLabel(u.role)}</V2StatusBadge>
             </div>

@@ -98,7 +98,7 @@ export default function DepositRequestsPage() {
             key={f || 'all'}
             onClick={() => setFilter(f)}
             aria-pressed={filter === f}
-            className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-white text-[#5B6B84]'}`}
+            className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'}`}
           >
             {f || (isRTL ? 'الكل' : 'All')}
           </button>
@@ -120,7 +120,7 @@ export default function DepositRequestsPage() {
         ) : (
           <div className="grid gap-3">
             {requests.map((r: any) => (
-              <div key={r.id} className="rounded-2xl border border-[#E6EBF2] bg-white p-5">
+              <div key={r.id} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
                     EGP {Number(r.amount || 0).toLocaleString(locale)}
@@ -128,7 +128,7 @@ export default function DepositRequestsPage() {
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
                     {r.status === 'APPROVED' ? t('depositRequest.approved') : r.status === 'REJECTED' ? t('depositRequest.rejected') : t('depositRequest.pending')}
                   </V2StatusBadge>
-                  <span className="ms-auto text-[12.5px] tabular-nums text-[#5B6B84]">
+                  <span className="ms-auto text-[12.5px] tabular-nums text-[var(--sp-text-muted)]">
                     {r.createdAt && new Date(r.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                   </span>
                 </div>

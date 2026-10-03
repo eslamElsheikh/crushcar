@@ -221,7 +221,7 @@ export default function AdminDestinations() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {items.map((d) => (
-              <div key={d.id} className={cn('flex gap-3.5 rounded-2xl border border-[#E6EBF2] bg-white p-4', !d.isActive && 'opacity-60')}>
+              <div key={d.id} className={cn('flex gap-3.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4', !d.isActive && 'opacity-60')}>
                 <span className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-[#0A1E3C]">
                   {d.imageUrl ? (
                     <Image src={d.imageUrl} alt={d.nameAr} fill sizes="112px" className="object-cover" />
@@ -236,21 +236,21 @@ export default function AdminDestinations() {
                       {d.isActive ? (isRTL ? 'ظاهرة' : 'Visible') : (isRTL ? 'مخفية' : 'Hidden')}
                     </V2StatusBadge>
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-[12px] tabular-nums text-[#5B6B84]" dir="ltr" style={{ textAlign: 'start' }}>
+                  <p className="mt-0.5 truncate font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
                     {d.slug} · #{d.sortOrder}
                   </p>
                   <div className="mt-2 flex items-center gap-1">
-                    <button onClick={() => move(d, -1)} disabled={busy === d.id} aria-label="Move up" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100 disabled:opacity-40">
+                    <button onClick={() => move(d, -1)} disabled={busy === d.id} aria-label="Move up" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100 disabled:opacity-40">
                       <ArrowUp className="size-4" />
                     </button>
-                    <button onClick={() => move(d, 1)} disabled={busy === d.id} aria-label="Move down" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100 disabled:opacity-40">
+                    <button onClick={() => move(d, 1)} disabled={busy === d.id} aria-label="Move down" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100 disabled:opacity-40">
                       <ArrowDown className="size-4" />
                     </button>
-                    <button onClick={() => toggleActive(d)} aria-label="Toggle visibility" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100">
+                    <button onClick={() => toggleActive(d)} aria-label="Toggle visibility" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100">
                       {d.isActive ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                     <span className="ms-auto flex gap-1">
-                      <button onClick={() => openEdit(d)} aria-label="Edit" className="grid size-9 place-items-center rounded-lg text-[#5B6B84] hover:bg-slate-100 hover:text-[#0B1B33]">
+                      <button onClick={() => openEdit(d)} aria-label="Edit" className="grid size-9 place-items-center rounded-lg text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                         <Pencil className="size-4" />
                       </button>
                       <button onClick={() => setDeleting(d)} aria-label="Delete" className="grid size-9 place-items-center rounded-lg text-red-500 hover:bg-red-50">
@@ -307,13 +307,13 @@ export default function AdminDestinations() {
                   />
                 </label>
                 {pendingImage && (
-                  <button type="button" onClick={() => setPendingImage(null)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2.5 text-[13.5px] font-bold text-[#5B6B84] hover:bg-slate-200">
+                  <button type="button" onClick={() => setPendingImage(null)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2.5 text-[13.5px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-200">
                     <X className="size-4" /> {isRTL ? 'إزالة' : 'Remove'}
                   </button>
                 )}
               </span>
             </div>
-            <p className="mt-1.5 px-1 text-[12px] text-[#5B6B84]">JPEG/PNG/WebP · {isRTL ? 'حتى 5MB' : 'up to 5MB'}</p>
+            <p className="mt-1.5 px-1 text-[12px] text-[var(--sp-text-muted)]">JPEG/PNG/WebP · {isRTL ? 'حتى 5MB' : 'up to 5MB'}</p>
           </div>
           <V2Button type="submit" size="lg" disabled={saving || uploading} className="w-full">
             {t('common.save')}
@@ -322,7 +322,7 @@ export default function AdminDestinations() {
       </V2Modal>
 
       <V2Modal open={!!deleting} onClose={() => setDeleting(null)} title={isRTL ? 'حذف الوجهة' : 'Delete destination'}>
-        <p className="text-[14.5px] text-[#5B6B84]">
+        <p className="text-[14.5px] text-[var(--sp-text-muted)]">
           {isRTL ? `حذف "${deleting?.nameAr}" نهائيًا؟` : `Delete "${deleting?.nameAr}" permanently?`}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-2.5">

@@ -115,7 +115,7 @@ export default function CharterHistoryPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/company/charter"
-            className="p-2.5 rounded-xl border border-[#E6EBF2] bg-white text-[#5B6B84] hover:bg-slate-50 transition"
+            className="p-2.5 rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] text-[var(--sp-text-muted)] hover:bg-slate-50 transition"
           >
             <ArrowRight className="size-4 rotate-180 v2-flip-rtl" />
           </Link>
@@ -123,7 +123,7 @@ export default function CharterHistoryPage() {
             <h1 className="text-2xl font-extrabold text-[#0B1B33]">
               {isRTL ? 'سجل طلبات حجز الشارتر' : 'Charter Booking History'}
             </h1>
-            <p className="text-xs text-[#5B6B84] mt-0.5">
+            <p className="text-xs text-[var(--sp-text-muted)] mt-0.5">
               {isRTL ? 'متابعة حالة طلبات حجز الأتوبيسات الكاملة' : 'Track your company full bus charter reservations'}
             </p>
           </div>
@@ -148,7 +148,7 @@ export default function CharterHistoryPage() {
               'px-4 py-2 rounded-xl text-xs font-bold transition',
               filter === f.key
                 ? 'bg-[#0A1E3C] text-white shadow-sm'
-                : 'bg-white border border-[#E6EBF2] text-[#5B6B84] hover:bg-slate-50 hover:text-[#0B1B33]'
+                : 'bg-[var(--sp-card)] border border-[var(--sp-line)] text-[var(--sp-text-muted)] hover:bg-slate-50 hover:text-[#0B1B33]'
             )}
           >
             {f.label}
@@ -168,7 +168,7 @@ export default function CharterHistoryPage() {
           desc={isRTL ? 'لم تقدم شركتك أي طلبات حجز مطابقة في هذا القسم' : 'No charter requests match the selected status'}
         />
       ) : (
-        <div className="rounded-2xl border border-[#E6EBF2] bg-white overflow-hidden shadow-sm">
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] overflow-hidden shadow-sm">
           <div className="divide-y divide-slate-100">
             {bookings.map((booking, i) => (
               <motion.div
@@ -190,7 +190,7 @@ export default function CharterHistoryPage() {
                         : isRTL ? 'ملغى' : 'Cancelled'}
                     </V2StatusBadge>
 
-                    <span className="text-xs text-[#5B6B84] font-medium flex items-center gap-1">
+                    <span className="text-xs text-[var(--sp-text-muted)] font-medium flex items-center gap-1">
                       <Bus size={12} className="text-[#1D5BD8]" />
                       {booking.trip.bus.name} ({booking.trip.bus.type})
                     </span>
@@ -203,7 +203,7 @@ export default function CharterHistoryPage() {
                     <span>{booking.trip.destination}</span>
                   </h3>
 
-                  <p className="mt-1 text-xs text-[#5B6B84] flex flex-wrap items-center gap-3 font-medium">
+                  <p className="mt-1 text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-3 font-medium">
                     <span className="flex items-center gap-1">
                       <Clock size={12} className="text-[#1D5BD8]" />
                       {new Date(booking.trip.departure).toLocaleDateString(locale, {
@@ -217,7 +217,7 @@ export default function CharterHistoryPage() {
                   </p>
 
                   {booking.notes && (
-                    <p className="mt-2 text-xs text-[#5B6B84] bg-[#F6F8FC] rounded-lg px-3 py-1.5 border border-slate-200/60 inline-block">
+                    <p className="mt-2 text-xs text-[var(--sp-text-muted)] bg-[var(--sp-inset)] rounded-lg px-3 py-1.5 border border-slate-200/60 inline-block">
                       <strong className="text-[#0B1B33] font-bold">{isRTL ? 'ملاحظات: ' : 'Notes: '}</strong>
                       {booking.notes}
                     </p>
@@ -226,11 +226,11 @@ export default function CharterHistoryPage() {
 
                 <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                   <div className="text-start md:text-end">
-                    <span className="text-[11px] text-[#5B6B84] block font-medium">
+                    <span className="text-[11px] text-[var(--sp-text-muted)] block font-medium">
                       {isRTL ? 'المبلغ' : 'Price'}
                     </span>
                     <span className="text-lg font-extrabold text-emerald-600">
-                      {Number(booking.price || 0).toLocaleString()} <span className="text-xs font-bold text-[#5B6B84]">{t('common.currency')}</span>
+                      {Number(booking.price || 0).toLocaleString()} <span className="text-xs font-bold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
                     </span>
                   </div>
 
@@ -257,13 +257,13 @@ export default function CharterHistoryPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-[#E6EBF2]"
+              className="w-full max-w-md rounded-2xl bg-[var(--sp-card)] p-6 shadow-xl border border-[var(--sp-line)]"
             >
               <h3 className="text-lg font-extrabold text-[#0B1B33] mb-2 flex items-center gap-2">
                 <AlertTriangle size={18} className="text-amber-500" />
                 {isRTL ? 'طلب إلغاء حجز الشارتر' : 'Request Charter Cancellation'}
               </h3>
-              <p className="text-xs text-[#5B6B84] leading-relaxed my-3">
+              <p className="text-xs text-[var(--sp-text-muted)] leading-relaxed my-3">
                 {isRTL
                   ? 'هل أنت متأكد من رغبتك في إرسال طلب إلغاء هذا الحجز؟ سيتم مراجعة الطلب بواسطة الإدارة واسترداد المبلغ إلى المحفظة أو تسوية الائتمان.'
                   : 'Are you sure you want to request cancellation for this charter booking? The admin will review it and refund balances accordingly.'}
@@ -273,7 +273,7 @@ export default function CharterHistoryPage() {
                 <button
                   onClick={() => setCancelModal(null)}
                   disabled={!!cancellingId}
-                  className="px-4 py-2 rounded-xl border border-[#E6EBF2] bg-white text-xs font-bold text-[#5B6B84] hover:bg-slate-50 transition"
+                  className="px-4 py-2 rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] text-xs font-bold text-[var(--sp-text-muted)] hover:bg-slate-50 transition"
                 >
                   {isRTL ? 'تراجع' : 'Keep Booking'}
                 </button>

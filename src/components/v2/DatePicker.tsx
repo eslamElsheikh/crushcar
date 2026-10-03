@@ -246,7 +246,7 @@ export function V2DatePicker({
         {open && !disabled && (
           <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={label}>
             <div className="absolute inset-0 bg-[#0B1B33]/55" onClick={() => setOpen(false)} />
-            <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-[0_-12px_48px_rgba(11,27,51,0.25)]">
+            <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl bg-[var(--sp-card)] p-4 shadow-[0_-12px_48px_rgba(11,27,51,0.25)]">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[14px] font-extrabold text-[#0B1B33]">{label}</span>
                 <button
@@ -280,7 +280,7 @@ export function V2DatePicker({
             collisionPadding={12}
             role="dialog"
             aria-label={label}
-            className="z-50 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-[#E6EBF2] bg-white p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
+            className="z-50 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
           >
             {calendar}
           </Popover.Content>

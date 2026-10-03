@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -18,10 +18,20 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [regEnabled, setRegEnabled] = useState(true);
   const [error, setError] = useState('');
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
+
+  useEffect(() => {
+    fetch('/api/settings/individual-registration')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.enabled === false) setRegEnabled(false);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,7 +63,7 @@ export default function RegisterPage() {
     <V2AuthShell
       title={t('auth.createAccount')}
       sub={t('auth.joinToday')}
-      sideTitle={t('v2.heroTitleA') + ' ' + t('v2.heroTitleB')}
+      sideTitle={t('v2.heroTitleA')}
       sideSub={t('v2.heroSubtitle')}
     >
       <form onSubmit={handleSubmit} className="grid gap-4">
@@ -108,13 +118,21 @@ export default function RegisterPage() {
           </motion.p>
         )}
 
-        <V2Button type="submit" size="lg" disabled={loading} className="w-full">
+        {!regEnabled && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13.5px] font-bold text-amber-800">
+            {isRTL
+              ? 'تنبيه: التسجيل مغلق للأفراد حالياً. يمكنك استخدام خيار تسجيل الشركات بالأسفل.'
+              : 'Notice: Individual registration is currently closed. You may register as a company below.'}
+          </div>
+        )}
+
+        <V2Button type="submit" size="lg" disabled={loading || !regEnabled} className="w-full">
           {loading && <Loader2 className="size-5 animate-spin" />}
           {t('auth.createAccount')}
         </V2Button>
       </form>
 
-      <p className="mt-6 text-center text-[14.5px] text-[#5B6B84]">
+      <p className="mt-6 text-center text-[14.5px] text-[var(--sp-text-muted)]">
         {t('auth.alreadyAccount')}{' '}
         <Link href="/login" className="font-bold text-[#1D5BD8] hover:underline">
           {t('auth.signIn')}
@@ -123,7 +141,7 @@ export default function RegisterPage() {
 
       <Link
         href="/register/company"
-        className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-[#F6F8FC] px-4 py-3.5 text-[14.5px] font-bold text-[#0B1B33] hover:border-[#1D5BD8]/40"
+        className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-[var(--sp-inset)] px-4 py-3.5 text-[14.5px] font-bold text-[#0B1B33] hover:border-[#1D5BD8]/40"
       >
         <Building2 className="size-5 text-[#1D5BD8]" />
         {isRTL ? 'عندك شركة؟ سجل شركتك' : 'Have a company? Register it'}

@@ -83,12 +83,12 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
   if (!trip) {
     return (
       <div className="max-w-md mx-auto text-center py-16">
-        <div className="rounded-2xl border border-[#E6EBF2] bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-8 shadow-sm">
           <Bus size={40} className="mx-auto text-slate-400 mb-3" />
           <h3 className="text-lg font-extrabold text-[#0B1B33]">
             {isRTL ? 'الرحلة غير موجودة' : 'Trip not found'}
           </h3>
-          <p className="text-xs text-[#5B6B84] mt-1 mb-5">
+          <p className="text-xs text-[var(--sp-text-muted)] mt-1 mb-5">
             {isRTL ? 'ربما تم حجز هذه الرحلة بالفعل أو تغيير حالتها' : 'This trip may have already been reserved or removed'}
           </p>
           <Link
@@ -109,14 +109,14 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-lg mx-auto text-center py-12"
       >
-        <div className="rounded-3xl border border-[#E6EBF2] bg-white p-8 shadow-xl">
+        <div className="rounded-3xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-8 shadow-xl">
           <div className="size-16 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 size={36} />
           </div>
           <h2 className="text-2xl font-extrabold text-[#0B1B33]">
             {isRTL ? 'تم تقديم طلب الحجز بنجاح' : 'Request Submitted Successfully'}
           </h2>
-          <p className="text-xs text-[#5B6B84] mt-2 mb-6 leading-relaxed">
+          <p className="text-xs text-[var(--sp-text-muted)] mt-2 mb-6 leading-relaxed">
             {isRTL
               ? 'تم إرسال طلب حجز الأتوبيس بالكامل إلى الإدارة، وسيتم مراجعته وتأكيده وخصم الرصيد تلقائياً.'
               : 'Your full bus charter request was sent to the administration. It will be reviewed, confirmed, and balances processed.'}
@@ -130,7 +130,7 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
             </Link>
             <Link
               href="/company/charter"
-              className="px-6 py-3 rounded-xl border border-[#E6EBF2] bg-white text-xs font-bold text-[#5B6B84] hover:bg-slate-50 transition"
+              className="px-6 py-3 rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] text-xs font-bold text-[var(--sp-text-muted)] hover:bg-slate-50 transition"
             >
               {isRTL ? 'استعراض رحلات أخرى' : 'Browse other trips'}
             </Link>
@@ -147,14 +147,14 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
       {/* Back Link */}
       <Link
         href="/company/charter"
-        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5B6B84] hover:text-[#0B1B33] transition"
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition"
       >
         <ArrowRight className="size-4 rotate-180 v2-flip-rtl" />
         <span>{isRTL ? 'الرجوع إلى رحلات الشارتر' : 'Back to charter trips'}</span>
       </Link>
 
       {/* Main Details Card */}
-      <div className="rounded-2xl border border-[#E6EBF2] bg-white p-6 md:p-7 shadow-sm">
+      <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 md:p-7 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-100">
           <div>
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1D5BD8] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
@@ -169,19 +169,19 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
           </div>
 
           <div className="text-start sm:text-end">
-            <span className="text-[11px] font-medium text-[#5B6B84] block">
+            <span className="text-[11px] font-medium text-[var(--sp-text-muted)] block">
               {isRTL ? 'سعر حجز الأتوبيس' : 'Charter Price'}
             </span>
             <span className="text-2xl font-extrabold text-emerald-600">
-              {Number(busPrice).toLocaleString(locale)} <span className="text-xs font-bold text-[#5B6B84]">{t('common.currency')}</span>
+              {Number(busPrice).toLocaleString(locale)} <span className="text-xs font-bold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
             </span>
           </div>
         </div>
 
         {/* Bus & Date specs */}
         <div className="grid sm:grid-cols-3 gap-3 mb-6">
-          <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-            <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+          <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+            <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
               {isRTL ? 'الأوتوبيس' : 'Bus Details'}
             </span>
             <p className="text-xs font-extrabold text-[#0B1B33] flex items-center gap-1.5">
@@ -190,8 +190,8 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
             </p>
           </div>
 
-          <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-            <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+          <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+            <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
               {isRTL ? 'عدد المقاعد' : 'Total Seats'}
             </span>
             <p className="text-xs font-extrabold text-[#0B1B33] flex items-center gap-1.5">
@@ -200,8 +200,8 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
             </p>
           </div>
 
-          <div className="rounded-xl bg-[#F6F8FC] p-3.5 border border-slate-200/60">
-            <span className="text-[11px] font-bold text-[#5B6B84] block mb-1">
+          <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
+            <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
               {isRTL ? 'موعد الانطلاق' : 'Departure'}
             </span>
             <p className="text-xs font-extrabold text-[#0B1B33] flex items-center gap-1.5">
@@ -213,8 +213,8 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
 
         {/* Intermediate Stops if any */}
         {trip.tripStops && trip.tripStops.length > 0 && (
-          <div className="mb-6 rounded-xl bg-[#F6F8FC] p-4 border border-slate-200/60">
-            <span className="text-xs font-bold text-[#5B6B84] block mb-2">
+          <div className="mb-6 rounded-xl bg-[var(--sp-inset)] p-4 border border-slate-200/60">
+            <span className="text-xs font-bold text-[var(--sp-text-muted)] block mb-2">
               {isRTL ? 'مسار الرحلة والمحطات المتاحة' : 'Trip Route & Stops'}
             </span>
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -238,7 +238,7 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
             onChange={(e) => setNotes(e.target.value)}
             placeholder={isRTL ? 'اكتب أي تفاصيل إضافية عن الرحلة، أرقام التواصل، مكان التجمع...' : 'Enter any extra details, contacts, or pickup info...'}
             rows={3}
-            className="w-full px-4 py-3 rounded-xl bg-[#F6F8FC] border border-[#E6EBF2] text-xs font-medium text-[#0B1B33] placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-white transition resize-none"
+            className="w-full px-4 py-3 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-xs font-medium text-[#0B1B33] placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition resize-none"
           />
         </div>
 
