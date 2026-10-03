@@ -39,7 +39,7 @@ export function V2SiteFooter() {
         <nav aria-label={t('v2.support')}>
           <p className="text-[14.5px] font-bold text-white/90">{t('v2.support')}</p>
           <ul className="mt-4 grid gap-3 text-[14.5px] text-white/60">
-            <li><Link className="hover:text-white" href="/faq">Help Center</Link></li>
+            <li><Link className="hover:text-white" href="/faq">{lang === 'ar' ? 'مركز المساعدة' : 'Help Center'}</Link></li>
             <li><Link className="hover:text-white" href="/bookings">{t('v2.myBookings')}</Link></li>
             <li><Link className="hover:text-white" href="/profile">{t('v2.account')}</Link></li>
           </ul>
