@@ -218,7 +218,12 @@
     "viewTrips": "View Trips",
     "addBuses": "Add buses and design seat layouts",
     "createTrips": "Create and schedule trips",
-    "seeTrips": "See all available trips"
+    "seeTrips": "See all available trips",
+    "revenueChart": "Revenue Chart",
+    "noRevenueData": "No revenue data yet",
+    "7days": "7 days",
+    "30days": "30 days",
+    "90days": "90 days"
   },
   "trips": {
     "title": "Trips",
@@ -296,5 +301,23 @@
     "cancelled": "Cancelled",
     "guest": "Guest",
     "currency": "EGP"
+  },
+  "admin": {
+    "charterBookings": "Charter Bookings",
+    "charter": "Charter",
+    "buses": "Buses",
+    "companies": "Companies",
+    "tripRequests": "Trip Requests",
+    "depositRequests": "Deposit Requests",
+    "cancellations": "Cancellations",
+    "pendingCompanies": "Pending Companies",
+    "quickActions": "Quick Actions",
+    "auditLog": "Audit Log",
+    "settings": "System Settings"
+  },
+  "company": {
+    "charter": "Charter",
+    "charterBookings": "Charter Bookings",
+    "creditReport": "Credit Report"
   }
 }

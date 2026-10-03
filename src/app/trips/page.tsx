@@ -129,7 +129,7 @@ function TripCard({
           <p className="text-[24px] font-extrabold tabular-nums text-[#0B1B33]">
             {price.toLocaleString(locale)}
             <span className="ms-1.5 block text-[12.5px] font-medium text-[var(--sp-text-muted)] md:inline">
-              EGP {t('v2.perPassenger')}
+              {t('common.currency')} {t('v2.perPassenger')}
             </span>
           </p>
           {soldOut ? (
@@ -585,27 +585,27 @@ function TripsContent() {
                 <p className="truncate font-bold text-[#0B1B33]">
                   <span className="text-[var(--sp-text-muted)]">{t('v2.outboundStep')}: </span>
                   {isRTL ? `${pickedOut.destination} ← ${pickedOut.origin}` : `${pickedOut.origin} → ${pickedOut.destination}`}
-                  {' · '}<span className="tabular-nums">EGP {(pickedOut.calculatedPrice || pickedOut.price).toLocaleString(locale)}</span>
+                  {' · '}<span className="tabular-nums">{(pickedOut.calculatedPrice || pickedOut.price).toLocaleString(locale)} {t('common.currency')}</span>
                 </p>
                 <p className="truncate font-bold text-[#0B1B33]">
                   <span className="text-[var(--sp-text-muted)]">{t('v2.returnStep')}: </span>
                   {(() => {
                     const rt = returnTrips.find((x) => x.id === selectedReturnTrip);
                     return rt
-                      ? `${isRTL ? `${rt.destination} ← ${rt.origin}` : `${rt.origin} → ${rt.destination}`} · EGP ${(rt.calculatedPrice || rt.price).toLocaleString(locale)}`
+                      ? `${isRTL ? `${rt.destination} ← ${rt.origin}` : `${rt.origin} → ${rt.destination}`} · ${(rt.calculatedPrice || rt.price).toLocaleString(locale)} ${t('common.currency')}`
                       : '…';
                   })()}
                 </p>
               </div>
               <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3">
                 <p className="text-[18px] font-extrabold tabular-nums text-[#0B1B33]">
-                  {t('v2.total')}: EGP {(
+                  {t('v2.total')}: {(
                     (pickedOut.calculatedPrice || pickedOut.price) +
                     (() => {
                       const rt = returnTrips.find((x) => x.id === selectedReturnTrip);
                       return rt ? (rt.calculatedPrice || rt.price) : 0;
                     })()
-                  ).toLocaleString(locale)}
+                  ).toLocaleString(locale)} {t('common.currency')}
                 </p>
                 {selectedReturnTrip ? (
                   <Link

@@ -123,7 +123,7 @@ export default function DepositRequestsPage() {
               <div key={r.id} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
-                    EGP {Number(r.amount || 0).toLocaleString(locale)}
+                    {Number(r.amount || 0).toLocaleString(locale)} {t('common.currency')}
                   </p>
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
                     {r.status === 'APPROVED' ? t('depositRequest.approved') : r.status === 'REJECTED' ? t('depositRequest.rejected') : t('depositRequest.pending')}

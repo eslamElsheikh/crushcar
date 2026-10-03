@@ -238,7 +238,7 @@ export default function MyBookingsPage() {
                       {copied === b.reference ? t('v2.copied') : b.reference}
                     </button>
                     <span className="ms-auto text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
-                      EGP {b.total.toLocaleString(locale)}
+                      {b.total.toLocaleString(locale)} {t('common.currency')}
                     </span>
                   </div>
 
@@ -298,11 +298,11 @@ export default function MyBookingsPage() {
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
                   <div className="rounded-xl bg-emerald-50 p-3.5">
                     <p className="text-[12px] font-semibold text-emerald-700">{t('v2.refundPreview')} ({cancelInfo.refundPercent}%)</p>
-                    <p className="mt-1 text-[17px] font-extrabold tabular-nums text-emerald-700">EGP {cancelInfo.refundAmount.toLocaleString(locale)}</p>
+                    <p className="mt-1 text-[17px] font-extrabold tabular-nums text-emerald-700">{cancelInfo.refundAmount.toLocaleString(locale)} {t('common.currency')}</p>
                   </div>
                   <div className="rounded-xl bg-red-50 p-3.5">
                     <p className="text-[12px] font-semibold text-red-600">{t('v2.cancelFee')}</p>
-                    <p className="mt-1 text-[17px] font-extrabold tabular-nums text-red-600">EGP {cancelInfo.cancellationFee.toLocaleString(locale)}</p>
+                    <p className="mt-1 text-[17px] font-extrabold tabular-nums text-red-600">{cancelInfo.cancellationFee.toLocaleString(locale)} {t('common.currency')}</p>
                   </div>
                 </div>
               )}

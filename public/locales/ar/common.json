@@ -218,7 +218,12 @@
     "viewTrips": "عرض الرحلات",
     "addBuses": "أضف باصات وصمم المقاعد",
     "createTrips": "أنشئ وجدول الرحلات",
-    "seeTrips": "شوف كل الرحلات"
+    "seeTrips": "شوف كل الرحلات",
+    "revenueChart": "مخطط الإيرادات",
+    "noRevenueData": "لا توجد بيانات إيرادات بعد",
+    "7days": "7 أيام",
+    "30days": "30 يوم",
+    "90days": "90 يوم"
   },
   "trips": {
     "title": "الرحلات",
@@ -296,5 +301,23 @@
     "cancelled": "ملغى",
     "guest": "زائر",
     "currency": "ج.م"
+  },
+  "admin": {
+    "charterBookings": "حجوزات الشارتر",
+    "charter": "الشارتر",
+    "buses": "الباصات",
+    "companies": "الشركات",
+    "tripRequests": "طلبات الرحلات",
+    "depositRequests": "طلبات الشحن",
+    "cancellations": "الإلغاءات",
+    "pendingCompanies": "شركات معلقة",
+    "quickActions": "إجراءات سريعة",
+    "auditLog": "سجل العمليات",
+    "settings": "الإعدادات العامة"
+  },
+  "company": {
+    "charter": "الشارتر",
+    "charterBookings": "حجوزات الشارتر",
+    "creditReport": "تقرير الائتمان"
   }
 }

@@ -200,8 +200,8 @@ export default function AdminTrips() {
                 {new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
               </span>,
               <span key="b" className="text-[var(--sp-text-muted)]">{tr.bus?.name}</span>,
-              <span key="p" className="font-extrabold tabular-nums">EGP {tr.price.toLocaleString(locale)}</span>,
-              <V2StatusBadge key="s" tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{tr.status}</V2StatusBadge>,
+              <span key="p" className="font-extrabold tabular-nums">{tr.price.toLocaleString(locale)} {t('common.currency')}</span>,
+              <V2StatusBadge key="s" tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{t(tr.status) || tr.status}</V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
                 <Link href={`/admin/trips/${tr.id}/edit`} aria-label="Edit" className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                   <Pencil className="size-5" />
@@ -229,10 +229,10 @@ export default function AdminTrips() {
                 <p className="min-w-0 flex-1 truncate text-[15.5px] font-extrabold text-[#0B1B33]">
                   {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
                 </p>
-                <V2StatusBadge tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{tr.status}</V2StatusBadge>
+                <V2StatusBadge tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{t(tr.status) || tr.status}</V2StatusBadge>
               </div>
               <p className="mt-1.5 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
-                {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })} · EGP {tr.price.toLocaleString(locale)}
+                {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })} · {tr.price.toLocaleString(locale)} {t('common.currency')}
               </p>
               <div className="mt-3 flex gap-1.5">
                 <Link href={`/admin/trips/${tr.id}/edit`} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-center text-[13.5px] font-bold">{t('common.edit')}</Link>

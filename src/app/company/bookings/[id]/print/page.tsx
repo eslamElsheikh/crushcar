@@ -115,7 +115,7 @@ export default function CompanyPrintTicketPage() {
 
   const statusConfig: Record<string, { color: string; label: { ar: string; en: string } }> = {
     PAID: { color: 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30', label: { ar: 'مؤكد', en: 'CONFIRMED' } },
-    PENDING: { color: 'bg-amber-400/20 text-amber-200 border-amber-400/30', label: { ar: 'معلق', en: 'PENDING' } },
+    PENDING: { color: 'bg-amber-400/20 text-amber-200 border-amber-400/30', label: { ar: 'قيد الانتظار', en: 'PENDING' } },
     CANCELLED: { color: 'bg-red-400/20 text-red-200 border-red-400/30', label: { ar: 'ملغي', en: 'CANCELLED' } },
     BOARDED: { color: 'bg-blue-400/20 text-blue-200 border-blue-400/30', label: { ar: 'صعد', en: 'BOARDED' } },
   }
@@ -282,11 +282,11 @@ export default function CompanyPrintTicketPage() {
                   {ticket.collectAmount != null && ticket.collectAmount > 0 && (
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <span className="text-gray-500 text-xs font-bold">EGP</span>
+                        <span className="text-gray-500 text-xs font-bold">{isRTL ? 'ج.م' : 'EGP'}</span>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">{isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}</p>
-                        <p className="font-semibold text-gray-800">{ticket.collectAmount.toFixed(2)} EGP</p>
+                        <p className="font-semibold text-gray-800">{ticket.collectAmount.toFixed(2)} {isRTL ? 'ج.م' : 'EGP'}</p>
                       </div>
                     </div>
                   )}

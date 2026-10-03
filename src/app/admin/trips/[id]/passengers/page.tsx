@@ -118,7 +118,7 @@ export default function TripPassengersPage() {
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
               <span key="p" className="tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>,
               <V2StatusBadge key="st" tone={done ? 'green' : b.status === 'PAID' ? 'blue' : 'amber'}>
-                {done ? t('booking.boarded') : b.status}
+                {done ? t('booking.boarded') : (t(b.status) || b.status)}
               </V2StatusBadge>,
               done ? (
                 <span key="a" className="flex items-center justify-end gap-1 text-[13px] font-bold tabular-nums text-emerald-700">
@@ -147,7 +147,7 @@ export default function TripPassengersPage() {
                   <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-[#0B1B33]">
                     {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                   </p>
-                  <V2StatusBadge tone={done ? 'green' : 'amber'}>{done ? t('booking.boarded') : b.status}</V2StatusBadge>
+                  <V2StatusBadge tone={done ? 'green' : 'amber'}>{done ? t('booking.boarded') : (t(b.status) || b.status)}</V2StatusBadge>
                 </div>
                 {!done && (
                   <button

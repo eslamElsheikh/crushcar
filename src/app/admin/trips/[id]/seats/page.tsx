@@ -176,7 +176,7 @@ export default function TripSeatsPage() {
                   {isRTL ? 'لم يتم حجز هذا المقعد بعد' : 'Not booked for this trip'}
                 </p>
                 <p className="mt-3 text-[14.5px] font-extrabold text-[#1D5BD8]">
-                  EGP {Number(inspectSeat.seat?.price || trip?.price || 0).toLocaleString(locale)}
+                  {Number(inspectSeat.seat?.price || trip?.price || 0).toLocaleString(locale)} {t('common.currency')}
                 </p>
               </div>
             ) : (
@@ -184,7 +184,7 @@ export default function TripSeatsPage() {
                 <div className="flex items-center justify-between rounded-xl bg-[var(--sp-inset)] p-3.5">
                   <span className="text-[13px] font-bold text-[var(--sp-text-muted)]">{t('tripRequest.status')}</span>
                   <V2StatusBadge tone={inspectSeat.booking.status === 'BOARDED' || inspectSeat.booking.status === 'PAID' ? 'green' : 'amber'}>
-                    {inspectSeat.booking.status}
+                    {t(inspectSeat.booking.status) || inspectSeat.booking.status}
                   </V2StatusBadge>
                 </div>
 
@@ -212,7 +212,7 @@ export default function TripSeatsPage() {
                   <div className="rounded-xl bg-[var(--sp-inset)] p-3">
                     <span className="block text-[var(--sp-text-muted)]">{isRTL ? 'السعر' : 'Price'}</span>
                     <span className="font-bold text-[#0B1B33] tabular-nums">
-                      EGP {Number(inspectSeat.booking.total || 0).toLocaleString(locale)}
+                      {Number(inspectSeat.booking.total || 0).toLocaleString(locale)} {t('common.currency')}
                     </span>
                   </div>
                 </div>

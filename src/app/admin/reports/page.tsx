@@ -101,7 +101,7 @@ export default function AdminReports() {
                   {isRTL ? `${r.destination} ← ${r.origin}` : `${r.origin} → ${r.destination}`}
                 </p>
                 <span className="ms-auto text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
-                  EGP {r.revenue.toLocaleString(locale)}
+                  {r.revenue.toLocaleString(locale)} {t('common.currency')}
                 </span>
               </div>
               <p className="mt-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
@@ -159,7 +159,7 @@ export default function AdminReports() {
                 <span className="block truncate text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</span>
               </span>
               <span className="shrink-0 text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">
-                EGP {c.totalRevenue.toLocaleString(locale)}
+                {c.totalRevenue.toLocaleString(locale)} {t('common.currency')}
               </span>
             </div>
           ))}

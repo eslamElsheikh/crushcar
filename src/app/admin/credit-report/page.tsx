@@ -50,7 +50,7 @@ export default function AdminCreditReport() {
               <span key="n">
                 <span className="block font-bold">{c.name}</span>
                 <span className="block text-[12.5px] font-normal text-[var(--sp-text-muted)]">
-                  {c.subdomain} · <V2StatusBadge tone={c.paymentMode === 'CREDIT' ? 'blue' : c.paymentMode === 'PREPAID' ? 'green' : 'slate'}>{c.paymentMode}</V2StatusBadge>
+                  {c.subdomain} · <V2StatusBadge tone={c.paymentMode === 'CREDIT' ? 'blue' : c.paymentMode === 'PREPAID' ? 'green' : 'slate'}>{c.paymentMode === 'CREDIT' ? t('company.creditMode') : c.paymentMode === 'PREPAID' ? t('company.prepaidMode') : t('company.bothMode')}</V2StatusBadge>
                 </span>
               </span>,
               <span key="l" className="tabular-nums">{Number(c.creditLimit || 0).toLocaleString(locale)}</span>,
@@ -71,9 +71,9 @@ export default function AdminCreditReport() {
                 </Link>
               </div>
               <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-                <span className="rounded-lg bg-[var(--sp-inset)] px-2 py-2 text-[12px] font-bold tabular-nums">L: {Number(c.creditLimit || 0).toLocaleString(locale)}</span>
-                <span className="rounded-lg bg-amber-50 px-2 py-2 text-[12px] font-bold tabular-nums text-amber-700">O: {Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>
-                <span className="rounded-lg bg-emerald-50 px-2 py-2 text-[12px] font-bold tabular-nums text-emerald-700">W: {Number(c.walletBalance || 0).toLocaleString(locale)}</span>
+                <span className="rounded-lg bg-[var(--sp-inset)] px-2 py-2 text-[12px] font-bold tabular-nums">{isRTL ? 'الحد:' : 'L:'} {Number(c.creditLimit || 0).toLocaleString(locale)}</span>
+                <span className="rounded-lg bg-amber-50 px-2 py-2 text-[12px] font-bold tabular-nums text-amber-700">{isRTL ? 'المديونية:' : 'O:'} {Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>
+                <span className="rounded-lg bg-emerald-50 px-2 py-2 text-[12px] font-bold tabular-nums text-emerald-700">{isRTL ? 'المحفظة:' : 'W:'} {Number(c.walletBalance || 0).toLocaleString(locale)}</span>
               </div>
             </div>
           )}

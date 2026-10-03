@@ -45,6 +45,11 @@ const translations: Record<string, Record<Language, string>> = {
   'dashboard.createTrips': { ar: 'أنشئ وجدول الرحلات', en: 'Create and schedule trips' },
   'dashboard.seeTrips': { ar: 'شوف كل الرحلات', en: 'See all available trips' },
   'dashboard.reviewCompanies': { ar: 'راجع وفعّل الشركات', en: 'Review & activate companies' },
+  'dashboard.creditGranted': { ar: 'إجمالي الكريدت الممنوح', en: 'Total Credit Granted' },
+  'dashboard.creditUsed': { ar: 'الكريدت المستخدم', en: 'Credit Used' },
+  'dashboard.pendingDeposits': { ar: 'إيداعات معلقة', en: 'Pending Deposits' },
+  'dashboard.charter': { ar: 'حجوزات الشارتر', en: 'Charter Bookings' },
+  'dashboard.charterRevenue': { ar: 'إيراد الشارتر', en: 'Charter Revenue' },
 
   // Buses
   'buses.title': { ar: 'الباصات', en: 'Buses' },
@@ -375,6 +380,14 @@ const translations: Record<string, Record<Language, string>> = {
   'company.bookings': { ar: 'الحجوزات', en: 'Bookings' },
   'company.customers': { ar: 'العملاء', en: 'Customers' },
   'company.credit': { ar: 'الكريدت', en: 'Credit' },
+  'company.creditUsage': { ar: 'نسبة استخدام الكريدت', en: 'Credit Usage' },
+  'company.nearLimit': { ar: 'الكريدت قرب النفاد — اشحن رصيدك', en: 'Credit nearly exhausted — top up' },
+  'company.monthlySpend': { ar: 'الإنفاق الشهري', en: 'Monthly Spend' },
+  'company.charterVsSeats': { ar: 'شارتر مقابل مقاعد', en: 'Charter vs Seats' },
+  'company.charterBookings': { ar: 'حجوزات الشارتر', en: 'Charter Bookings' },
+  'company.seatBookings': { ar: 'حجوزات المقاعد', en: 'Seat Bookings' },
+  'company.pendingRequests': { ar: 'طلبات معلقة', en: 'Pending Requests' },
+  'company.dueInvoices': { ar: 'فواتير مستحقة', en: 'Due Invoices' },
   'company.invoices': { ar: 'الفواتير', en: 'Invoices' },
   'company.customerName': { ar: 'اسم العميل', en: 'Customer Name' },
   'company.customerEmail': { ar: 'البريد الإلكتروني', en: 'Email' },
@@ -654,6 +667,39 @@ const translations: Record<string, Record<Language, string>> = {
   'admin.quickActions': { ar: 'إجراءات سريعة', en: 'Quick Actions' },
   'admin.auditLog': { ar: 'سجل العمليات', en: 'Audit Log' },
   'admin.settings': { ar: 'الإعدادات العامة', en: 'System Settings' },
+  'admin.charterBookings': { ar: 'حجوزات الشارتر', en: 'Charter Bookings' },
+  'admin.charter': { ar: 'الشارتر', en: 'Charter' },
+  'admin.buses': { ar: 'الباصات', en: 'Buses' },
+  'admin.companies': { ar: 'الشركات', en: 'Companies' },
+  'charterBookings': { ar: 'حجوزات الشارتر', en: 'Charter Bookings' },
+  'company.charter': { ar: 'الشارتر', en: 'Charter' },
+  'booking.collectPlaceholder': { ar: 'مبلغ التحصيل (اختياري)', en: 'Collect amount (optional)' },
+  'booking.notesPlaceholder': { ar: 'ملاحظات إضافية...', en: 'Additional notes...' },
+  'registered': { ar: 'تم التسجيل بنجاح', en: 'Registered successfully' },
+  'FOR_EMPLOYEE': { ar: 'لموظف', en: 'For Employee' },
+  'FOR_CLIENT': { ar: 'لعميل', en: 'For Client' },
+  'CHARTER': { ar: 'شارتر', en: 'Charter' },
+
+  // Dashboard & Revenue Chart
+  'dashboard.revenueChart': { ar: 'مخطط الإيرادات', en: 'Revenue Chart' },
+  'dashboard.noRevenueData': { ar: 'لا توجد بيانات إيرادات بعد', en: 'No revenue data yet' },
+  'dashboard.7days': { ar: '7 أيام', en: '7 days' },
+  'dashboard.30days': { ar: '30 يوم', en: '30 days' },
+  'dashboard.90days': { ar: '90 يوم', en: '90 days' },
+
+  // Statuses
+  'PENDING': { ar: 'قيد الانتظار', en: 'Pending' },
+  'PAID': { ar: 'مؤكد', en: 'Confirmed' },
+  'CANCELLED': { ar: 'ملغي', en: 'Cancelled' },
+  'BOARDED': { ar: 'صعد', en: 'Boarded' },
+  'SCHEDULED': { ar: 'مجدولة', en: 'Scheduled' },
+  'IN_PROGRESS': { ar: 'جارية', en: 'In Progress' },
+  'COMPLETED': { ar: 'مكتملة', en: 'Completed' },
+  'APPROVED': { ar: 'تمت الموافقة', en: 'Approved' },
+  'REJECTED': { ar: 'مرفوض', en: 'Rejected' },
+  'status.pending': { ar: 'قيد الانتظار', en: 'Pending' },
+  'status.paid': { ar: 'مؤكد', en: 'Confirmed' },
+  'status.boarded': { ar: 'صعد', en: 'Boarded' },
 }
 
 export const useLangStore = create<LangState>()(
@@ -661,7 +707,37 @@ export const useLangStore = create<LangState>()(
     (set, get) => ({
       lang: 'ar',
       setLang: (lang) => set({ lang }),
-      t: (key) => translations[key]?.[get().lang] || key,
+      t: (key) => {
+        if (!key) return ''
+        const curLang = get().lang
+        if (translations[key]?.[curLang]) {
+          return translations[key][curLang]
+        }
+        // Cross-prefix fallback (admin.* <-> company.* <-> nav.*)
+        const dotIdx = key.indexOf('.')
+        if (dotIdx !== -1) {
+          const suffix = key.slice(dotIdx + 1)
+          const prefixes = ['admin', 'company', 'nav', 'dashboard', 'status', 'booking']
+          for (const p of prefixes) {
+            const candidate = `${p}.${suffix}`
+            if (candidate !== key && translations[candidate]?.[curLang]) {
+              return translations[candidate][curLang]
+            }
+          }
+          if (translations[suffix]?.[curLang]) {
+            return translations[suffix][curLang]
+          }
+        }
+        const upper = key.toUpperCase()
+        if (translations[upper]?.[curLang]) {
+          return translations[upper][curLang]
+        }
+        const lastPart = key.split('.').pop()?.toUpperCase()
+        if (lastPart && translations[lastPart]?.[curLang]) {
+          return translations[lastPart][curLang]
+        }
+        return key
+      },
     }),
     { name: 'crushcar-lang' }
   )

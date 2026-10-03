@@ -157,9 +157,9 @@ export default function AdminBookings() {
                 </span>
               </span>,
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
-              <span key="p" className="font-extrabold tabular-nums">EGP {Number(b.total || 0).toLocaleString(locale)}</span>,
+              <span key="p" className="font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</span>,
               <V2StatusBadge key="st" tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>
-                {t(`booking.${b.status.toLowerCase()}`)}
+                {t(b.status) || b.status}
               </V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
                 {b.status === 'PENDING' && (
@@ -187,10 +187,10 @@ export default function AdminBookings() {
                 <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-[#0B1B33]">
                   {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                 </p>
-                <V2StatusBadge tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>{b.status}</V2StatusBadge>
+                <V2StatusBadge tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>{t(b.status) || b.status}</V2StatusBadge>
               </div>
               <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
-              <p className="mt-1 text-[14px] font-extrabold tabular-nums">EGP {Number(b.total || 0).toLocaleString(locale)}</p>
+              <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>
               <div className="mt-3 flex gap-1.5">
                 {b.status === 'PENDING' && (
                   <button onClick={() => setConfirmId(b.id)} className="flex-1 rounded-xl bg-emerald-50 py-2.5 text-[13.5px] font-bold text-emerald-700">

@@ -103,7 +103,7 @@ export default function CompanyBookingsPage() {
                     </V2StatusBadge>
                     <span className="font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
-                      EGP {(b.total || 0).toLocaleString(locale)}
+                      {(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                     </span>
                   </div>
                   <p className="mt-2.5 truncate text-[15.5px] font-extrabold text-[#0B1B33]">

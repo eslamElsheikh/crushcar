@@ -186,7 +186,7 @@ export default function CompanyNewBookingPage() {
           {credit && (
             <p className="mb-4 flex items-center gap-2 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13.5px] font-semibold tabular-nums text-[#0B1B33]">
               <Wallet className="size-5 text-emerald-600" />
-              {t('company.walletBalance')}: {Number(credit.walletBalance || 0).toLocaleString(locale)} EGP
+              {t('company.walletBalance')}: {Number(credit.walletBalance || 0).toLocaleString(locale)} {t('common.currency')}
             </p>
           )}
           <div className="grid gap-3.5 md:grid-cols-2">
@@ -251,7 +251,7 @@ export default function CompanyNewBookingPage() {
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     <span>{new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} · {tr.bus?.name}</span>
                     <V2StatusBadge tone={left > 0 ? 'green' : 'red'}>{left > 0 ? `${left} ${t('v2.seatsLeft')}` : t('v2.soldOut')}</V2StatusBadge>
-                    <span className="ms-auto text-[16px] font-extrabold text-[#0B1B33]">EGP {(tr.calculatedPrice || tr.price).toLocaleString(locale)}</span>
+                    <span className="ms-auto text-[16px] font-extrabold text-[#0B1B33]">{(tr.calculatedPrice || tr.price).toLocaleString(locale)} {t('common.currency')}</span>
                   </p>
                 </button>
               );
@@ -318,7 +318,7 @@ export default function CompanyNewBookingPage() {
                 )}
                 <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
                   <span className="text-[14px] font-extrabold text-[#0B1B33]">{t('v2.total')} ({seats.length} {isRTL ? 'مقعد' : 'seats'})</span>
-                  <span className="text-[19px] font-extrabold tabular-nums text-[#0B1B33]">EGP {total.toLocaleString(locale)}</span>
+                  <span className="text-[19px] font-extrabold tabular-nums text-[#0B1B33]">{total.toLocaleString(locale)} {t('common.currency')}</span>
                 </div>
               </>
             )}
@@ -366,7 +366,7 @@ export default function CompanyNewBookingPage() {
               <div key={s} className="rounded-2xl border border-slate-200 p-4">
                 <p className="flex items-center gap-2 text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
                   <User className="size-5 text-[#1D5BD8]" /> {isRTL ? 'مقعد' : 'Seat'} {s}
-                  <span className="ms-auto text-[14px] text-[var(--sp-text-muted)]">EGP {priceOf(s).toLocaleString(locale)}</span>
+                  <span className="ms-auto text-[14px] text-[var(--sp-text-muted)]">{priceOf(s).toLocaleString(locale)} {t('common.currency')}</span>
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   <V2Input value={names[s] || ''} onChange={(e) => setNames({ ...names, [s]: e.target.value })} placeholder={t('company.passengerName')} aria-label={`${t('company.passengerName')} ${s}`} />
@@ -380,7 +380,7 @@ export default function CompanyNewBookingPage() {
             <button onClick={() => setStep(2)} className="rounded-xl px-4 py-3 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">{t('v2.back')}</button>
             <V2Button size="lg" disabled={submitting || seats.length === 0} onClick={submit}>
               {submitting && <Loader2 className="size-5 animate-spin" />}
-              {t('v2.confirmBooking')} · EGP {total.toLocaleString(locale)}
+              {t('v2.confirmBooking')} · {total.toLocaleString(locale)} {t('common.currency')}
             </V2Button>
           </div>
         </div>

@@ -73,8 +73,8 @@ export default function CompanyInvoicesPage() {
                     {inv.periodEnd && new Date(inv.periodEnd).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   <p className="mt-0.5 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
-                    {t('company.invoiceTotal')}: EGP {Number(inv.totalAmount || 0).toLocaleString(locale)}
-                    {' · '}{t('company.invoiceRemaining')}: EGP {Number((inv.totalAmount || 0) - (inv.paidAmount || 0)).toLocaleString(locale)}
+                    {t('company.invoiceTotal')}: {Number(inv.totalAmount || 0).toLocaleString(locale)} {t('common.currency')}
+                    {' · '}{t('company.invoiceRemaining')}: {Number((inv.totalAmount || 0) - (inv.paidAmount || 0)).toLocaleString(locale)} {t('common.currency')}
                     {inv.dueDate && ` · ${t('company.dueDate')}: ${new Date(inv.dueDate).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`}
                   </p>
                 </div>

@@ -108,7 +108,9 @@ export default function StationsPage() {
                           <span className="shrink-0 tabular-nums text-[var(--sp-text-muted)]">
                             {new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <span className="shrink-0 font-extrabold tabular-nums text-[#0B1B33]">EGP {tr.price}</span>
+                          <span className="shrink-0 font-extrabold tabular-nums text-[#0B1B33]">
+                            {tr.price.toLocaleString(locale)} {t('common.currency')}
+                          </span>
                         </Link>
                       ))}
                     </div>

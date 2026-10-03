@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Wallet, Bus, TrendingUp, Clock, ArrowRight, Building2, User } from 'lucide-react';
+import { Ticket, Wallet, Bus, TrendingUp, Clock, ArrowRight, Building2, User, CreditCard } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
@@ -13,6 +13,12 @@ import { cn } from '@/lib/utils';
 
 /* V2 admin dashboard — same /api/analytics + pending-companies + /api/jobs/transition as V1.
    Real data only, no hardcoded fake KPI deltas. */
+
+interface Overview {
+  credit: { totalLimit: number; totalOutstanding: number; totalWallet: number; usagePercent: number; activeCompanies: number };
+  deposits: { pendingCount: number; pendingTotal: number };
+  charter: { requested: number; confirmed: number; cancelled: number; revenue: number };
+}
 
 interface Analytics {
   totalBookings: number;
@@ -30,6 +36,7 @@ export default function AdminDashboard() {
   const locale = isRTL ? 'ar-EG' : 'en-US';
 
   const [data, setData] = useState<Analytics | null>(null);
+  const [ov, setOv] = useState<Overview | null>(null);
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -59,6 +66,11 @@ export default function AdminDashboard() {
     fetch('/api/admin/companies/pending', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d)) setPendingCount(d.length); })
+      .catch(() => {});
+
+    fetch(`/api/admin/overview?range=${range}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setOv(d); })
       .catch(() => {});
   }, [range]);
 
@@ -97,7 +109,7 @@ export default function AdminDashboard() {
                 onClick={() => setRange(r)}
                 className={`rounded-lg px-3.5 py-2 text-[13px] font-bold tabular-nums transition ${range === r ? 'bg-[#0A1E3C] text-white' : 'text-[var(--sp-text-muted)]'}`}
               >
-                {r}
+                {r === '7d' ? t('dashboard.7days') : r === '30d' ? t('dashboard.30days') : t('dashboard.90days')}
               </button>
             ))}
           </div>
@@ -161,13 +173,59 @@ export default function AdminDashboard() {
         />
       </div>
 
+      {/* Credit + Charter KPI Cards */}
+      {ov ? (
+        <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+          <Link href="/admin/credit-report" className="block transition hover:-translate-y-0.5">
+            <V2StatCard
+              label={t('dashboard.creditGranted')}
+              value={`${ov.credit.totalLimit.toLocaleString(locale)} ${t('common.currency')}`}
+              sub={isRTL ? `${ov.credit.activeCompanies} شركة نشطة` : `${ov.credit.activeCompanies} active companies`}
+              icon={<CreditCard className="size-5 text-[#1D5BD8]" />}
+            />
+          </Link>
+          <Link href="/admin/credit-report" className="block transition hover:-translate-y-0.5">
+            <V2StatCard
+              label={t('dashboard.creditUsed')}
+              value={`${ov.credit.totalOutstanding.toLocaleString(locale)} ${t('common.currency')}`}
+              sub={`${ov.credit.usagePercent}%`}
+              icon={<TrendingUp className={cn('size-5', ov.credit.usagePercent >= 80 ? 'text-red-500' : 'text-amber-600')} />}
+            />
+          </Link>
+          <Link href="/admin/deposit-requests" className="block transition hover:-translate-y-0.5">
+            <V2StatCard
+              label={t('dashboard.pendingDeposits')}
+              value={ov.deposits.pendingCount.toLocaleString(locale)}
+              sub={`${ov.deposits.pendingTotal.toLocaleString(locale)} ${t('common.currency')}`}
+              icon={<Wallet className="size-5 text-purple-600" />}
+            />
+          </Link>
+          <Link href="/admin/charter-bookings" className="block transition hover:-translate-y-0.5">
+            <V2StatCard
+              label={t('dashboard.charter')}
+              value={ov.charter.confirmed.toLocaleString(locale)}
+              sub={isRTL
+                ? `${ov.charter.requested} معلق · ${ov.charter.revenue.toLocaleString(locale)} ${t('common.currency')}`
+                : `${ov.charter.requested} pending · ${ov.charter.revenue.toLocaleString(locale)} ${t('common.currency')}`}
+              icon={<Bus className="size-5 text-emerald-600" />}
+            />
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4" role="status">
+          {[0, 1, 2, 3].map((i) => (
+            <V2Skeleton key={i} className="h-32 rounded-2xl" />
+          ))}
+        </div>
+      )}
+
       {/* Main Grid: Revenue Trend + Recent Bookings Feed */}
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_380px]">
         {/* Revenue Trend Area Chart */}
         <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="flex items-center justify-between">
             <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('dashboard.revenueChart')}</p>
-            <span className="text-[12.5px] font-bold text-[var(--sp-text-muted)]">{range}</span>
+            <span className="text-[12.5px] font-bold text-[var(--sp-text-muted)]">{range === '7d' ? t('dashboard.7days') : range === '30d' ? t('dashboard.30days') : t('dashboard.90days')}</span>
           </div>
           {(data?.chartData?.length || 0) > 0 ? (
             <div className="mt-4 h-72" dir="ltr">
@@ -228,7 +286,7 @@ export default function AdminDashboard() {
                         {Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                       </p>
                       <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
-                        {b.status}
+                        {t(b.status) || b.status}
                       </V2StatusBadge>
                     </div>
                   </div>

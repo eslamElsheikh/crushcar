@@ -100,7 +100,7 @@ export default function CompanyCreditPage() {
             </span>
             <p className="mt-3 truncate text-[13px] font-semibold text-[var(--sp-text-muted)]">{c.label}</p>
             <p className="mt-1 text-[21px] font-extrabold tabular-nums text-[#0B1B33]">
-              {c.value.toLocaleString(locale)} <span className="text-[13px] font-semibold text-[var(--sp-text-muted)]">EGP</span>
+              {c.value.toLocaleString(locale)} <span className="text-[13px] font-semibold text-[var(--sp-text-muted)]">{t('common.currency')}</span>
             </p>
           </div>
         ))}
@@ -126,7 +126,7 @@ export default function CompanyCreditPage() {
             <div className="mt-5 grid gap-2">
               {requests.map((r: any) => (
                 <div key={r.id} className="flex items-center gap-2.5 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13.5px]">
-                  <span className="font-extrabold tabular-nums text-[#0B1B33]">EGP {Number(r.amount || 0).toLocaleString(locale)}</span>
+                  <span className="font-extrabold tabular-nums text-[#0B1B33]">{Number(r.amount || 0).toLocaleString(locale)} {t('common.currency')}</span>
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
                     {r.status === 'APPROVED' ? t('depositRequest.approved') : r.status === 'REJECTED' ? t('depositRequest.rejected') : t('depositRequest.pending')}
                   </V2StatusBadge>
@@ -154,7 +154,7 @@ export default function CompanyCreditPage() {
                   </span>
                 </span>
                 <span className={`shrink-0 text-[15px] font-extrabold tabular-nums ${Number(w.amount) < 0 ? 'text-red-600' : 'text-emerald-700'}`} dir="ltr">
-                  {Number(w.amount) < 0 ? '−' : '+'}EGP {Math.abs(Number(w.amount || 0)).toLocaleString(locale)}
+                  {Number(w.amount) < 0 ? '−' : '+'} {Math.abs(Number(w.amount || 0)).toLocaleString(locale)} {t('common.currency')}
                 </span>
               </div>
             ))}

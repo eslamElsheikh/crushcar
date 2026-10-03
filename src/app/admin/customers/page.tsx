@@ -78,7 +78,7 @@ export default function AdminCustomers() {
               </span>,
               <span key="p" className="tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.phone || '—'}</span>,
               <span key="b" className="font-bold tabular-nums">{(c.totalBookings || 0).toLocaleString(locale)}</span>,
-              <span key="r" className="font-extrabold tabular-nums">EGP {Number(c.totalRevenue || 0).toLocaleString(locale)}</span>,
+              <span key="r" className="font-extrabold tabular-nums">{Number(c.totalRevenue || 0).toLocaleString(locale)} {t('common.currency')}</span>,
             ];
             return cells[i];
           }}
@@ -87,7 +87,7 @@ export default function AdminCustomers() {
               <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{c.name}</p>
               <p className="truncate text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{c.email}</p>
               <p className="mt-1.5 text-[13.5px] tabular-nums text-[var(--sp-text-muted)]">
-                {(c.totalBookings || 0)} · EGP {Number(c.totalRevenue || 0).toLocaleString(locale)}
+                {(c.totalBookings || 0)} · {Number(c.totalRevenue || 0).toLocaleString(locale)} {t('common.currency')}
               </p>
             </div>
           )}

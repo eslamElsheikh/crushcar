@@ -102,7 +102,7 @@ export default function StationDetailPage() {
                         <V2StatusBadge tone={tr.availableSeats > 0 ? 'green' : 'red'}>
                           {tr.availableSeats > 0 ? `${tr.availableSeats} ${t('v2.seatsLeft')}` : t('v2.soldOut')}
                         </V2StatusBadge>
-                        <span className="ms-auto text-[17px] font-extrabold text-[#0B1B33]">EGP {tr.price}</span>
+                        <span className="ms-auto text-[17px] font-extrabold text-[#0B1B33]">{tr.price.toLocaleString(locale)} {t('common.currency')}</span>
                       </p>
                       {(tr.routeStops?.length || 0) > 0 && (
                         <p className="mt-1.5 truncate text-[13px] text-[var(--sp-text-muted)]">
