@@ -503,7 +503,14 @@ const translations: Record<string, Record<Language, string>> = {
   'depositRequest.confirmDeposit': { ar: 'تأكيد طلب الشحن', en: 'Confirm Deposit Request' },
   'admin.pendingCompanies': { ar: 'شركات معلقة', en: 'Pending Companies' },
   'auth.registerCompany': { ar: 'تسجيل شركتك', en: 'Register Your Company' },
-  'auth.orCompany': { ar: 'أو سجل شركتك', en: 'or register your company' },
+  // Common actions & terms
+  'common.save': { ar: 'حفظ', en: 'Save' },
+  'common.cancel': { ar: 'إلغاء', en: 'Cancel' },
+  'common.delete': { ar: 'حذف', en: 'Delete' },
+  'common.edit': { ar: 'تعديل', en: 'Edit' },
+  'common.add': { ar: 'إضافة', en: 'Add' },
+  'common.currency': { ar: 'ج.م', en: 'EGP' },
+  'common.error': { ar: 'حدث خطأ', en: 'An error occurred' },
 
   // V2 design system (single source of truth for redesigned pages)
   'v2.brand': { ar: 'سفرو', en: 'Safro' },
