@@ -253,6 +253,15 @@ const translations: Record<string, Record<Language, string>> = {
   'common.guest': { ar: 'زائر', en: 'Guest' },
   'common.currency': { ar: 'ج.م', en: 'EGP' },
 
+  // Upload
+  'upload.invalidType': { ar: 'صيغة الملف غير مدعومة (يسمح فقط بـ JPG, PNG, WebP)', en: 'Invalid file type (JPG, PNG, WebP allowed)' },
+  'upload.tooLarge': { ar: 'حجم الملف كبير جداً (الحد الأقصى 5 ميجابايت)', en: 'File too large (max 5MB)' },
+  'upload.invalidImage': { ar: 'الملف ليس صورة صالحة', en: 'File is not a valid image' },
+  'upload.failed': { ar: 'فشل رفع الملف', en: 'File upload failed' },
+  'upload.sizeRange': { ar: 'حجم الصورة يجب أن يكون بين 1 بايت و 5 ميجابايت', en: 'Image size must be between 1 byte and 5 MB' },
+  'upload.networkError': { ar: 'خطأ في الاتصال بالشبكة أثناء الرفع', en: 'Network error during upload' },
+  'upload.errorSaving': { ar: 'خطأ أثناء حفظ الصورة', en: 'Error saving photo' },
+
   // Stations
   'station.title': { ar: 'المحطات', en: 'Stations' },
   'station.manage': { ar: 'إدارة محطات الباص', en: 'Manage Bus Stations' },

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Settings, Image as ImageIcon, Upload, Loader2, Check, AlertCircle, Building2, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
-import { cn } from '@/lib/utils';
+import { cn, localizeUploadError } from '@/lib/utils';
 import { V2Button } from '@/components/v2/Button';
 
 export default function CompanySettingsPage() {
@@ -71,11 +71,11 @@ export default function CompanySettingsPage() {
         setPreview(null);
         toast.success(isRTL ? 'تم رفع شعار الشركة بنجاح' : 'Company logo uploaded successfully');
       } else {
-        toast.error(data.error || (isRTL ? 'فشل رفع الشعار' : 'Upload failed'));
+        toast.error(localizeUploadError(data.error, isRTL));
         setPreview(null);
       }
     } catch {
-      toast.error(isRTL ? 'خطأ في رفع الملف' : 'Upload error');
+      toast.error(localizeUploadError('network error', isRTL));
       setPreview(null);
     } finally {
       setUploading(false);

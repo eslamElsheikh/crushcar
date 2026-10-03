@@ -12,6 +12,7 @@ import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Field, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2Skeleton } from '@/components/v2/ui';
+import { localizeUploadError } from '@/lib/utils';
 
 /* V2 profile — same GET/PUT /api/profile flows as V1. */
 
@@ -62,7 +63,7 @@ export default function ProfilePage() {
       setTimeout(() => setSaved(false), 3000);
     } else {
       const err = await res.json();
-      setError(err.error || 'Error saving photo');
+      setError(isRTL ? 'خطأ أثناء حفظ الصورة' : (err.error || 'Error saving photo'));
     }
   }
 
@@ -78,13 +79,13 @@ export default function ProfilePage() {
       const res = await fetch('/api/profile/upload', { method: 'POST', body: fd });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || 'Upload failed');
+        setError(localizeUploadError(err.error, isRTL));
         return;
       }
       const { url } = await res.json();
       await saveAvatar(url);
     } catch {
-      setError('Network error');
+      setError(localizeUploadError('network error', isRTL));
     } finally {
       setUploading(false);
     }
@@ -95,6 +96,8 @@ export default function ProfilePage() {
     setError('');
     try {
       await saveAvatar(null);
+    } catch {
+      setError(localizeUploadError('network error', isRTL));
     } finally {
       setUploading(false);
     }

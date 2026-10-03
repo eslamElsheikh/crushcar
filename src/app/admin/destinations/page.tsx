@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Plus, Pencil, Trash2, Loader2, ArrowUp, ArrowDown, Eye, EyeOff, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, localizeUploadError } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Modal } from '@/components/v2/admin';
 import { V2Field, V2Input } from '@/components/v2/Field';
@@ -75,12 +75,12 @@ export default function AdminDestinations() {
       const res = await fetch('/api/admin/destinations/upload', { method: 'POST', credentials: 'include', body: fd });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || t('common.error'));
+        toast.error(localizeUploadError(data.error, isRTL));
         return null;
       }
       return data.url as string;
     } catch {
-      toast.error(t('common.error'));
+      toast.error(localizeUploadError('network error', isRTL));
       return null;
     } finally {
       setUploading(false);
