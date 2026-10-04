@@ -448,6 +448,11 @@ function TripDetailPageContent() {
             confirmed.push(...data.bookings);
           } else {
             allOk = false;
+            if (res.status === 401) {
+              toast.error(isRTL ? 'انتهت جلستك، يرجى تسجيل الدخول' : 'Session expired, please sign in');
+              router.push('/login');
+              break;
+            }
             toast.error(data.error || t('common.error'));
           }
         }
@@ -493,6 +498,11 @@ function TripDetailPageContent() {
             successCount++;
             confirmed.push(data.booking);
           } else {
+            if (res.status === 401) {
+              toast.error(isRTL ? 'انتهت جلستك، يرجى تسجيل الدخول' : 'Session expired, please sign in');
+              router.push('/login');
+              break;
+            }
             if (data.error === 'SEAT_TAKEN') {
               toast.error(isRTL ? `المقعد ${seat.seatLabel} محجوز` : `Seat ${seat.seatLabel} is taken`);
             } else {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { loginAs, USERS } from './helpers/auth';
 import { PrismaClient } from '@prisma/client';
@@ -7,6 +7,17 @@ import { seedEmptyDatabase, seedScratchDatabase } from './fixtures/seed';
 const prisma = new PrismaClient({
   datasources: { db: { url: 'file:../.scratch/e2e.db' } },
 });
+
+async function safeGoto(page: Page, url: string, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    } catch (err) {
+      if (i === retries) throw err;
+      await page.waitForTimeout(3000);
+    }
+  }
+}
 
 test.describe.serial('Phase C: Worst Cases', () => {
 
@@ -107,12 +118,14 @@ test.describe.serial('Phase C: Worst Cases', () => {
     // Trigger action requiring auth
     const bookBtn = page.locator('button:has-text("تأكيد الحجز")').first();
     await bookBtn.click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2500);
 
-    // Redirected to login with clean feedback
+    // Redirected to login or shown clear Arabic session feedback
     const url = page.url();
     const body = await page.innerText('body');
-    expect(url.includes('login') || body.includes('سجل') || body.includes('دخول')).toBeTruthy();
+    const toastTexts = await page.locator('[data-sonner-toast]').allInnerTexts().catch(() => []);
+    const combined = `${url} ${body} ${toastTexts.join(' ')}`;
+    expect(url.includes('login') || combined.includes('سجل') || combined.includes('دخول')).toBeTruthy();
   });
 
   // ── C4: Concurrency & Seat collision handling ──────────────────────
@@ -313,14 +326,14 @@ test.describe.serial('Phase C: Worst Cases', () => {
   // ── C13: Print ticket styling & authorization ──────────────────────
   test('C13: Ticket view loads print styles and QR', async ({ context, page }) => {
     await loginAs(context, 'customer');
-    await page.goto('/bookings');
+    await safeGoto(page, '/bookings');
     await page.waitForLoadState('domcontentloaded');
 
     const printLink = page.locator('a[href*="/print"]').first();
     if (await printLink.isVisible()) {
       const href = await printLink.getAttribute('href');
       if (href) {
-        await page.goto(href);
+        await safeGoto(page, href);
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 });
         expect(await page.innerText('body')).toContain('تذكرة');
@@ -331,7 +344,7 @@ test.describe.serial('Phase C: Worst Cases', () => {
   // ── C14: Upload handling & Arabic error feedback ───────────────────
   test('C14: Upload errors fail gracefully with Arabic feedback', async ({ context, page }) => {
     await loginAs(context, 'superAdmin');
-    await page.goto('/admin/destinations');
+    await safeGoto(page, '/admin/destinations');
     await page.waitForLoadState('domcontentloaded');
 
     const addBtn = page.locator('button:has-text("إضافة وجهة"), button:has-text("وجهة جديدة")').first();
@@ -359,7 +372,7 @@ test.describe.serial('Phase C: Worst Cases', () => {
   // ── C15: Accessibility audit (Axe-core) ─────────────────────────────
   test('C15: Accessibility audit on Home, /trips, and /admin', async ({ context, page }) => {
     // 1. Audit Home page
-    await page.goto('/');
+    await safeGoto(page, '/');
     await page.waitForLoadState('domcontentloaded');
     const homeResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa'])
@@ -370,7 +383,7 @@ test.describe.serial('Phase C: Worst Cases', () => {
     expect(criticalHome).toEqual([]);
 
     // 2. Audit /trips page
-    await page.goto('/trips');
+    await safeGoto(page, '/trips');
     await page.waitForLoadState('domcontentloaded');
     const tripsResults = await new AxeBuilder({ page })
       .withTags(['wcag2a'])

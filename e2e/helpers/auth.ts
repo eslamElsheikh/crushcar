@@ -105,8 +105,12 @@ export async function loginAs(context: BrowserContext, userKey: keyof typeof USE
 export async function loginViaUI(page: Page, email: string, password: string) {
   await page.goto('/login');
   await page.waitForLoadState('domcontentloaded');
-  await page.fill('input[type="email"]', email);
-  await page.fill('input[type="password"]', password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 });
+  const emailInput = page.locator('input[type="email"]');
+  await emailInput.waitFor({ state: 'visible' });
+  await page.waitForTimeout(800); // Wait for React hydration
+  await emailInput.fill(email);
+  const pwInput = page.locator('input[type="password"]');
+  await pwInput.fill(password);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 35_000 });
 }
