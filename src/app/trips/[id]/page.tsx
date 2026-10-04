@@ -520,8 +520,9 @@ function TripDetailPageContent() {
       }
     } catch {
       toast.error(t('common.error'));
+    } finally {
+      setBooking(false);
     }
-    setBooking(false);
   }
 
   function getSeatAt(rowIdx: number, col: number, seatsList?: Seat[]): Seat | undefined {

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 export async function seedScratchDatabase(databaseUrl?: string) {
-  let url = databaseUrl || process.env.DATABASE_URL || 'file:../.scratch/e2e.db'
+  let url = databaseUrl || 'file:../.scratch/e2e.db'
   if (url.includes('dev.db')) {
     url = 'file:../.scratch/e2e.db'
   }
@@ -19,19 +19,19 @@ export async function seedScratchDatabase(databaseUrl?: string) {
 
   try {
     // Clean existing tables in correct dependency order
-    await prisma.$transaction([
-      prisma.reminder.deleteMany(),
-      prisma.seatBlock.deleteMany(),
-      prisma.seatHold.deleteMany(),
+    const cleanQueries = [
+      (prisma as any).reminder?.deleteMany?.(),
+      (prisma as any).seatBlock?.deleteMany?.(),
+      (prisma as any).seatHold?.deleteMany?.(),
       prisma.booking.deleteMany(),
       prisma.companyBooking.deleteMany(),
-      prisma.charterBooking.deleteMany(),
+      (prisma as any).charterBooking?.deleteMany?.(),
       prisma.walletTransaction.deleteMany(),
       prisma.depositRequest.deleteMany(),
       prisma.tripRequest.deleteMany(),
       prisma.invoice.deleteMany(),
       prisma.companyCustomer.deleteMany(),
-      prisma.creditLog.deleteMany(),
+      (prisma as any).creditLog?.deleteMany?.(),
       prisma.tripStop.deleteMany(),
       prisma.trip.deleteMany(),
       prisma.seat.deleteMany(),
@@ -39,20 +39,24 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       prisma.busStation.deleteMany(),
       prisma.bus.deleteMany(),
       prisma.station.deleteMany(),
-      prisma.destination.deleteMany(),
+      (prisma as any).destination?.deleteMany?.(),
       prisma.faq.deleteMany(),
-      prisma.auditLog.deleteMany(),
-      prisma.siteSetting.deleteMany(),
+      (prisma as any).auditLog?.deleteMany?.(),
+      (prisma as any).siteSetting?.deleteMany?.(),
       prisma.user.deleteMany(),
       prisma.company.deleteMany(),
-    ])
+    ].filter(Boolean);
 
-    await prisma.siteSetting.create({
-      data: {
-        key: 'individualRegistrationEnabled',
-        value: 'true',
-      },
-    })
+    await prisma.$transaction(cleanQueries);
+
+    if ((prisma as any).siteSetting?.create) {
+      await (prisma as any).siteSetting.create({
+        data: {
+          key: 'individualRegistrationEnabled',
+          value: 'true',
+        },
+      });
+    }
 
     console.log('[E2E Seed] Cleaned previous records and enabled registration')
 
@@ -84,7 +88,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
         plan: 'PRO',
         creditLimit: 10000,
         walletBalance: 5000,
-        outstandingBalance: 2000,
+        outstandingBalance: 0,
         paymentMode: 'BOTH',
         billingCycle: 'MONTHLY',
         isActive: true,
@@ -266,6 +270,13 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       }
     }
     await prisma.seat.createMany({ data: coachSeats })
+
+    await prisma.busStation.createMany({
+      data: [
+        { busId: coachBus.id, name: 'القاهرة', order: 1 },
+        { busId: coachBus.id, name: 'الغردقة', order: 2 },
+      ],
+    })
 
     // Bus 2: 20 seats VIP bus with tiered seat prices
     const vipBus = await prisma.bus.create({
@@ -585,6 +596,28 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
+    // 8. Charter Trip (Full bus reservation)
+    await prisma.trip.create({
+      data: {
+        id: 'trip-charter-full',
+        busId: coachBus.id,
+        origin: 'القاهرة',
+        destination: 'الغردقة',
+        departure: addDays(7, 8),
+        arrival: addDays(7, 14),
+        price: 220,
+        busPrice: 7500,
+        bookingMode: 'BUS',
+        status: 'SCHEDULED',
+        tripStops: {
+          create: [
+            { stationId: 'st-cairo', stopOrder: 1, priceFromOrigin: 0 },
+            { stationId: 'st-hurghada', stopOrder: 2, priceFromOrigin: 220 },
+          ],
+        },
+      },
+    })
+
     // ── 6. Create Destinations ───────────────────────────────────────
     const destinations = [
       { slug: 'alexandria', nameAr: 'الإسكندرية', nameEn: 'Alexandria', imageUrl: '/destinations/alexandria.jpg', sortOrder: 1, isActive: true },
@@ -699,13 +732,13 @@ export async function seedEmptyDatabase(databaseUrl?: string) {
   const prisma = new PrismaClient({ datasources: { db: { url } } })
   try {
     // Clear all trips, bookings, customers, destinations, invoices, requests
-    await prisma.$transaction([
-      prisma.reminder.deleteMany(),
-      prisma.seatBlock.deleteMany(),
-      prisma.seatHold.deleteMany(),
+    const emptyQueries = [
+      (prisma as any).reminder?.deleteMany?.(),
+      (prisma as any).seatBlock?.deleteMany?.(),
+      (prisma as any).seatHold?.deleteMany?.(),
       prisma.booking.deleteMany(),
       prisma.companyBooking.deleteMany(),
-      prisma.charterBooking.deleteMany(),
+      (prisma as any).charterBooking?.deleteMany?.(),
       prisma.walletTransaction.deleteMany(),
       prisma.depositRequest.deleteMany(),
       prisma.tripRequest.deleteMany(),
@@ -713,8 +746,9 @@ export async function seedEmptyDatabase(databaseUrl?: string) {
       prisma.companyCustomer.deleteMany(),
       prisma.tripStop.deleteMany(),
       prisma.trip.deleteMany(),
-      prisma.destination.deleteMany(),
-    ])
+      (prisma as any).destination?.deleteMany?.(),
+    ].filter(Boolean);
+    await prisma.$transaction(emptyQueries);
     console.log('[E2E Seed Empty] Cleared all trips, bookings, customers, destinations!')
   } finally {
     await prisma.$disconnect()

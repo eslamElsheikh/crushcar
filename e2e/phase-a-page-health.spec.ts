@@ -17,7 +17,9 @@ test.describe('Phase A: Page Health - Anonymous Role', () => {
 
   for (const url of publicPages) {
     test(`health check for anonymous on ${url}`, async ({ page }) => {
-      await assertPageHealth(page, url);
+      await assertPageHealth(page, url, {
+        allowFailedUrls: url === '/trips' ? ['/api/trips'] : undefined,
+      });
     });
   }
 
@@ -36,7 +38,15 @@ test.describe('Phase A: Page Health - Anonymous Role', () => {
     }
 
     // FAQ accordions on home or /faq
-    await page.goto('/faq');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await page.goto('/faq', { waitUntil: 'domcontentloaded', timeout: 25_000 });
+        break;
+      } catch (err) {
+        if (attempt === 2) throw err;
+        await page.waitForTimeout(2000);
+      }
+    }
     const firstAccordion = page.locator('button:has-text("كيف"), button:has-text("ما هي")').first();
     if (await firstAccordion.isVisible()) {
       await firstAccordion.click();

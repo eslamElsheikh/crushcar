@@ -69,36 +69,25 @@ export const USERS: Record<string, TestUser & { password: string }> = {
 
 export async function loginAs(context: BrowserContext, userKey: keyof typeof USERS) {
   const user = USERS[userKey];
-  const token = await encode({
-    token: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      companyId: user.companyId,
-      sub: user.id,
-    },
-    secret: AUTH_SECRET,
-    salt: 'next-auth.session-token',
-  });
+  const payload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    companyId: user.companyId,
+    sub: user.id,
+  };
+
+  const [tokenNextAuth, tokenAuthJs] = await Promise.all([
+    encode({ token: payload, secret: AUTH_SECRET, salt: 'next-auth.session-token' }),
+    encode({ token: payload, secret: AUTH_SECRET, salt: 'authjs.session-token' }),
+  ]);
 
   await context.addCookies([
-    {
-      name: 'next-auth.session-token',
-      value: token,
-      domain: '127.0.0.1',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
-    {
-      name: 'next-auth.session-token',
-      value: token,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    },
+    { name: 'next-auth.session-token', value: tokenNextAuth, domain: '127.0.0.1', path: '/', httpOnly: true, sameSite: 'Lax' },
+    { name: 'next-auth.session-token', value: tokenNextAuth, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' },
+    { name: 'authjs.session-token', value: tokenAuthJs, domain: '127.0.0.1', path: '/', httpOnly: true, sameSite: 'Lax' },
+    { name: 'authjs.session-token', value: tokenAuthJs, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' },
   ]);
 }
 

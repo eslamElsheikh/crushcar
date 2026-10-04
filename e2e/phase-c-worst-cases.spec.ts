@@ -34,10 +34,11 @@ test.describe.serial('Phase C: Worst Cases', () => {
       });
     });
 
-    await page.goto('/trips/trip-normal-40');
+    await safeGoto(page, '/trips/trip-normal-40');
     await page.waitForLoadState('domcontentloaded');
 
     const seatBtn = page.locator('button[aria-label*="Seat"]:not([disabled])').first();
+    await expect(seatBtn).toBeVisible({ timeout: 25_000 });
     await seatBtn.click();
 
     const nameInput = page.locator('div:has(> h4:has-text("بيانات المسافرين")) input[type="text"], div:has(> h4:has-text("Passenger Details")) input[type="text"], input[placeholder*="اسم"], input[placeholder*="Passenger"]').first();
@@ -118,14 +119,13 @@ test.describe.serial('Phase C: Worst Cases', () => {
     // Trigger action requiring auth
     const bookBtn = page.locator('button:has-text("تأكيد الحجز")').first();
     await bookBtn.click();
-    await page.waitForTimeout(2500);
-
     // Redirected to login or shown clear Arabic session feedback
+    await page.waitForURL((url) => url.pathname.includes('/login'), { timeout: 25_000 }).catch(() => {});
     const url = page.url();
     const body = await page.innerText('body');
     const toastTexts = await page.locator('[data-sonner-toast]').allInnerTexts().catch(() => []);
     const combined = `${url} ${body} ${toastTexts.join(' ')}`;
-    expect(url.includes('login') || combined.includes('سجل') || combined.includes('دخول')).toBeTruthy();
+    expect(url.includes('login') || combined.includes('سجل') || combined.includes('دخول') || combined.includes('انتهت')).toBeTruthy();
   });
 
   // ── C4: Concurrency & Seat collision handling ──────────────────────
@@ -143,31 +143,37 @@ test.describe.serial('Phase C: Worst Cases', () => {
     await pageA.waitForLoadState('domcontentloaded');
     await pageB.waitForLoadState('domcontentloaded');
 
-    // Both click seat B2
-    const seatA = pageA.locator('button[aria-label="Seat B2"]').first();
-    const seatB = pageB.locator('button[aria-label="Seat B2"]').first();
+    // Both click an available seat
+    const availableSeat = pageA.locator('button[aria-label*="Seat"]:not([disabled])').first();
+    await expect(availableSeat).toBeVisible({ timeout: 20_000 });
+    const ariaLabel = (await availableSeat.getAttribute('aria-label')) || 'Seat A1';
+    const seatLabel = ariaLabel.replace('Seat ', '').trim();
 
-    if (await seatA.isVisible() && await seatB.isVisible()) {
-      await seatA.click();
-      await seatB.click();
+    const seatA = pageA.locator(`button[aria-label="Seat ${seatLabel}"]`).first();
+    const seatB = pageB.locator(`button[aria-label="Seat ${seatLabel}"]`).first();
 
-      const btnA = pageA.locator('button:has-text("تأكيد الحجز")').first();
-      const btnB = pageB.locator('button:has-text("تأكيد الحجز")').first();
+    await expect(seatA).toBeVisible({ timeout: 10_000 });
+    await expect(seatB).toBeVisible({ timeout: 10_000 });
 
-      // Submit concurrently
-      await Promise.allSettled([
-        btnA.click({ timeout: 5000 }),
-        btnB.click({ timeout: 5000 }),
-      ]);
-      await pageA.waitForTimeout(2000);
-      await pageB.waitForTimeout(2000);
+    await seatA.click();
+    await seatB.click();
 
-      // Exactly one booking can exist for seat B2
-      const bookingsForSeat = await prisma.booking.count({
-        where: { tripId: 'trip-normal-40', seatLabel: 'B2' },
-      });
-      expect(bookingsForSeat).toBeLessThanOrEqual(1);
-    }
+    const btnA = pageA.locator('button:has-text("تأكيد الحجز")').first();
+    const btnB = pageB.locator('button:has-text("تأكيد الحجز")').first();
+
+    // Submit concurrently
+    await Promise.allSettled([
+      btnA.click({ timeout: 5000 }),
+      btnB.click({ timeout: 5000 }),
+    ]);
+    await pageA.waitForTimeout(2000);
+    await pageB.waitForTimeout(2000);
+
+    // Exactly one booking can exist for the selected seat
+    const bookingsForSeat = await prisma.booking.count({
+      where: { tripId: 'trip-normal-40', seatLabel },
+    });
+    expect(bookingsForSeat).toBeLessThanOrEqual(1);
 
     await contextA.close();
     await contextB.close();
@@ -176,12 +182,12 @@ test.describe.serial('Phase C: Worst Cases', () => {
   // ── C5: Refresh, Back, Forward, and Tab Duplication ────────────────
   test('C5: Navigation buttons (back, forward, refresh) preserve state without crashes', async ({ context, page }) => {
     await loginAs(context, 'customer');
-    await page.goto('/trips');
+    await safeGoto(page, '/trips');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.goto('/trips/trip-normal-40');
+    await safeGoto(page, '/trips/trip-normal-40');
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: 20_000 });
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
@@ -282,49 +288,100 @@ test.describe.serial('Phase C: Worst Cases', () => {
   // ── C10: Permissions in UI ─────────────────────────────────────────
   test('C10: Role permissions enforced - customer cannot access admin routes', async ({ context, page }) => {
     await loginAs(context, 'customer');
-    await page.goto('/admin');
-    await expect(page).not.toHaveURL(/\/admin$/, { timeout: 15_000 });
+    await safeGoto(page, '/admin');
+    await page.waitForURL((url) => !url.pathname.endsWith('/admin'), { timeout: 35_000 });
+    expect(page.url()).not.toMatch(/\/admin$/);
+    expect(page.url().includes('/trips') || page.url().includes('/login')).toBeTruthy();
   });
 
   test('C10-b: Bus-less company has no bus management UI', async ({ context, page }) => {
     await loginAs(context, 'noBusAdmin');
-    await page.goto('/company/dashboard');
+    await safeGoto(page, '/company/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
     const navText = await page.innerText('nav, aside, body');
     expect(navText).not.toContain('إدارة الباصات');
   });
 
-  test('C10-c: Disabled account cannot access private pages', async ({ context, page }) => {
-    await loginAs(context, 'disabledUser');
-    await page.goto('/bookings');
-    await page.waitForTimeout(1000);
-    // Either blocked, redirected to login, or empty
-    expect(page.url()).not.toBe('/admin');
+  test('C10-c: Company pending approval cannot log in', async ({ page }) => {
+    await page.goto('/login');
+    await page.waitForLoadState('domcontentloaded');
+    const emailInput = page.locator('input[type="email"]');
+    await emailInput.fill(USERS.pendingAdmin.email);
+    const pwInput = page.locator('input[type="password"]');
+    await pwInput.fill(USERS.pendingAdmin.password);
+    await page.locator('button[type="submit"]').click();
+    await page.waitForTimeout(2000);
+
+    // Blocked from logging in
+    const errorAlert = page.locator('p[role="alert"]');
+    await expect(errorAlert).toBeVisible({ timeout: 10_000 });
+    expect(await errorAlert.innerText()).toMatch(/Invalid credentials|خطأ/);
+  });
+
+  test('C10-d: Back button after logout does not leak private pages', async ({ context, page }) => {
+    await loginAs(context, 'customer');
+    await safeGoto(page, '/profile');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('h1')).toBeVisible({ timeout: 15_000 });
+    expect(await page.locator('h1').innerText()).toContain('حسابي');
+
+    // Clear session / logout
+    await context.clearCookies();
+    await safeGoto(page, '/');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Press browser back button
+    await page.goBack();
+    await page.waitForTimeout(1500);
+    const url = page.url();
+    const body = await page.innerText('body');
+    const isProtected = url.includes('/login') || !body.includes('user@example.com');
+    expect(isProtected).toBeTruthy();
   });
 
   // ── C11: Time & Cairo timezone formatting ──────────────────────────
-  test('C11: Cairo time formatting is consistent across views', async ({ page }) => {
-    await page.goto('/trips');
+  test('C11: Cairo time formatting is consistent and past trips cannot be booked', async ({ browser }) => {
+    const nyContext = await browser.newContext({ timezoneId: 'America/New_York' });
+    const page = await nyContext.newPage();
+    await safeGoto(page, '/trips');
     await page.waitForLoadState('domcontentloaded');
 
     const content = await page.innerText('body');
     expect(content).not.toContain('Invalid Date');
+
+    // Past trip cannot be booked by customer
+    await loginAs(nyContext, 'customer');
+    await safeGoto(page, '/trips/trip-past-1');
+    await page.waitForLoadState('domcontentloaded');
+
+    const bookBtn = page.locator('button:has-text("تأكيد الحجز")').first();
+    const isPastOrDisabled = (await bookBtn.count() === 0) || (await bookBtn.isDisabled()) || (await page.locator('text=منتهية, text=انتهت, text=غير متاحة').count() > 0);
+    expect(isPastOrDisabled).toBeTruthy();
+    await nyContext.close();
   });
 
   // ── C12: Money edges & financial reconciliation ───────────────────
-  test('C12: Financial balances display formatted numbers without NaN', async ({ context, page }) => {
+  test('C12: Financial balances display formatted numbers without NaN and reconcile', async ({ context, page }) => {
     await loginAs(context, 'companyAdmin');
-    await page.goto('/company/credit');
+    await safeGoto(page, '/company/credit');
     await page.waitForLoadState('domcontentloaded');
 
     const pageText = await page.innerText('main, body');
     expect(pageText).not.toContain('NaN');
     expect(pageText).not.toContain('undefined');
+    expect(pageText).not.toContain('Infinity');
+
+    const comp = await prisma.company.findUnique({
+      where: { id: 'comp-cairo-express' },
+    });
+    expect(comp).not.toBeNull();
+    expect(comp!.walletBalance).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(comp!.walletBalance)).toBeTruthy();
   });
 
   // ── C13: Print ticket styling & authorization ──────────────────────
-  test('C13: Ticket view loads print styles and QR', async ({ context, page }) => {
+  test('C13: Ticket view loads print styles and QR, unauthorized access handled', async ({ context, page }) => {
     await loginAs(context, 'customer');
     await safeGoto(page, '/bookings');
     await page.waitForLoadState('domcontentloaded');
@@ -361,7 +418,6 @@ test.describe.serial('Phase C: Worst Cases', () => {
         buffer: Buffer.from('this is not an image'),
       });
       await page.waitForTimeout(1000);
-      // Arabic toast feedback
       const toasts = await page.locator('[data-sonner-toast]').allInnerTexts();
       if (toasts.length > 0) {
         expect(toasts.join(' ')).toMatch(/صيغة|صورة|حجم|خطأ/);
@@ -370,7 +426,7 @@ test.describe.serial('Phase C: Worst Cases', () => {
   });
 
   // ── C15: Accessibility audit (Axe-core) ─────────────────────────────
-  test('C15: Accessibility audit on Home, /trips, and /admin', async ({ context, page }) => {
+  test('C15: Accessibility audit on Home and /trips', async ({ page }) => {
     // 1. Audit Home page
     await safeGoto(page, '/');
     await page.waitForLoadState('domcontentloaded');

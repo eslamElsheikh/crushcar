@@ -241,11 +241,33 @@ test.describe.serial('Phase B: Golden Journey - Company Manager', () => {
   });
 
   test('Step 3: Full-trip booking (حجز الرحلة كاملة)', async ({ page }) => {
-    await page.goto('/company/bookings/new');
+    await page.goto('/company/charter');
     await page.waitForLoadState('domcontentloaded');
 
-    expect(await page.locator('h1').innerText()).toContain('حجز');
-    await expect(page.locator('ol[aria-label="Steps"]')).toBeVisible({ timeout: 10_000 });
+    // Charter trips page renders header
+    expect(await page.locator('h1').innerText()).toContain('الشارتر');
+
+    // Click on available charter trip button (exclude history link)
+    const tripBtn = page.locator('a:has-text("حجز الأتوبيس"), a[href^="/company/charter/trip-"]').first();
+    await expect(tripBtn).toBeVisible({ timeout: 15_000 });
+    await tripBtn.click();
+
+    await page.waitForURL((url) => url.pathname.includes('/company/charter/trip-'));
+    await page.waitForLoadState('domcontentloaded');
+
+    // Notes textarea
+    const notesInput = page.locator('textarea').first();
+    if (await notesInput.isVisible()) {
+      await notesInput.fill('حجز باص كامل لنقل وفد الشركة إلى الغردقة');
+    }
+
+    // Submit charter booking request
+    const submitBtn = page.locator('button:has-text("تأكيد وإرسال طلب حجز الشارتر"), button:has-text("Submit Charter")').first();
+    await expect(submitBtn).toBeVisible({ timeout: 10_000 });
+    await submitBtn.click();
+
+    // Verify confirmation modal or success message
+    await expect(page.locator('h2:has-text("تم تقديم طلب الحجز بنجاح"), div:has-text("تم تقديم طلب الحجز بنجاح")').first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('Step 4: Company customer CRUD (Add, Edit, Delete)', async ({ page }) => {
@@ -638,14 +660,16 @@ test.describe.serial('Phase B: Cross-Role Chain', () => {
     await customerPage.locator('[role="status"]').waitFor({ state: 'detached', timeout: 15_000 }).catch(() => {});
 
     const cancelBtn = customerPage.locator('article button:has-text("إلغاء الحجز")').first();
-    if (await cancelBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await cancelBtn.click();
-      const alertdialog = customerPage.locator('[role="alertdialog"]');
-      if (await alertdialog.isVisible({ timeout: 15_000 }).catch(() => false)) {
-        await alertdialog.locator('button:has-text("تأكيد")').click();
-        await customerPage.waitForTimeout(1000);
-      }
-    }
+    await expect(cancelBtn).toBeVisible({ timeout: 15_000 });
+    await cancelBtn.click();
+
+    const alertdialog = customerPage.locator('[role="alertdialog"]');
+    await expect(alertdialog).toBeVisible({ timeout: 15_000 });
+    // Verify refund matches expected 100% tier (booking created within 60 mins)
+    const alertText = await alertdialog.innerText();
+    expect(alertText).toMatch(/240|استرداد|مسترد/);
+    await alertdialog.locator('button:has-text("تأكيد")').click();
+    await customerPage.waitForTimeout(1500);
 
     // ── 5. Cancellation shows in admin cancellations queue ───────────
     await adminPage.goto('/admin/cancellations');
@@ -665,21 +689,27 @@ test.describe.serial('Phase B: Cross-Role Chain', () => {
 
     const depositInput = companyPage.locator('input[type="number"], input[placeholder*="1000"]').first();
     await depositInput.fill(String(depositAmount));
-    await companyPage.locator('button:has-text("إرسال الطلب"), button:has-text("إرسال")').first().click();
+    const submitDepositBtn = companyPage.locator('button:has-text("إرسال الطلب"), button:has-text("إرسال")').first();
+    await submitDepositBtn.click();
     await companyPage.waitForTimeout(1500);
 
     // Admin approves the latest deposit request
     await adminPage.goto('/admin/deposit-requests');
     await adminPage.waitForLoadState('domcontentloaded');
+    await adminPage.locator('[role="status"]').waitFor({ state: 'detached', timeout: 15_000 }).catch(() => {});
+
     const approveBtn = adminPage.locator('button:has-text("موافقة")').first();
-    if (await approveBtn.isVisible()) {
-      await approveBtn.click();
-      await adminPage.waitForTimeout(1500);
-    }
+    await expect(approveBtn).toBeVisible({ timeout: 15_000 });
+    const [patchRes] = await Promise.all([
+      adminPage.waitForResponse((r) => r.url().includes('/api/admin/deposit-requests/') && r.request().method() === 'PATCH', { timeout: 20_000 }),
+      approveBtn.click(),
+    ]);
+    expect(patchRes.status()).toBe(200);
+    await adminPage.waitForTimeout(500);
 
     // Verify company wallet increased by exactly depositAmount
     const updatedComp = await prisma.company.findUnique({ where: { id: 'comp-cairo-express' } });
-    expect(updatedComp?.walletBalance).toBeGreaterThanOrEqual(initialWallet);
+    expect(updatedComp?.walletBalance).toBe(initialWallet + depositAmount);
 
     await adminContext.close();
     await customerContext.close();

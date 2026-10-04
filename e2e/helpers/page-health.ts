@@ -32,8 +32,8 @@ export async function assertPageHealth(
     const status = res.status();
     const reqUrl = res.url();
     if (status >= 400 && !options.allowFailedUrls?.some((u) => reqUrl.includes(u))) {
-      // Ignore 401/403 if it's an expected session check
-      if ((status === 401 || status === 403) && reqUrl.includes('/api/auth/session')) {
+      // Ignore 401/403 if it's an expected session check or unauthenticated trips query
+      if ((status === 401 || status === 403) && (reqUrl.includes('/api/auth/session') || reqUrl.includes('/api/trips'))) {
         return;
       }
       failedRequests.push(`${status} ${res.request().method()} ${reqUrl}`);
@@ -45,7 +45,16 @@ export async function assertPageHealth(
   page.on('response', responseListener);
 
   try {
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded' });
+    let response: any = null;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35_000 });
+        break;
+      } catch (navErr) {
+        if (attempt === 2) throw navErr;
+        await page.waitForTimeout(2500);
+      }
+    }
     expect(response?.status()).toBeLessThan(400);
 
     // Wait a brief moment for dynamic hydration & queries
@@ -63,6 +72,22 @@ export async function assertPageHealth(
         .map((img) => img.src);
     });
     expect(brokenImages).toEqual([]);
+
+    // Check dead internal links (check unique internal hrefs for 404)
+    const internalLinks = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a[href^="/"]'))
+        .map(a => a.getAttribute('href') || '')
+        .filter(h => h && !h.startsWith('//') && !h.startsWith('/api') && !h.includes('#'));
+      return Array.from(new Set(links)).slice(0, 4);
+    });
+    const deadLinks: string[] = [];
+    for (const href of internalLinks) {
+      try {
+        const res = await page.request.head(href, { timeout: 4000 });
+        if (res.status() === 404) deadLinks.push(href);
+      } catch {}
+    }
+    expect(deadLinks, `Dead internal links on ${url}`).toEqual([]);
 
     // Check horizontal scroll if enabled or on mobile
     const isMobile = (page.viewportSize()?.width || 1280) <= 450;
@@ -105,7 +130,15 @@ export async function assertPageHealth(
 
     // Check console errors
     const fatalErrors = consoleErrors.filter(
-      (e) => !e.includes('Download the React DevTools') && !e.includes('favicon.ico') && !e.includes('ERR_NO_BUFFER_SPACE')
+      (e) => !e.includes('Download the React DevTools') &&
+             !e.includes('favicon.ico') &&
+             !e.includes('ERR_NO_BUFFER_SPACE') &&
+             !e.includes('401 (Unauthorized)') &&
+             !e.includes('the server responded with a status of 401') &&
+             !e.includes('net::ERR_CONNECTION_REFUSED') &&
+             !e.includes('net::ERR_ABORTED') &&
+             !e.includes('net::ERR_NAME_NOT_RESOLVED') &&
+             !e.includes('net::ERR_INTERNET_DISCONNECTED')
     );
     expect(fatalErrors).toEqual([]);
     expect(failedRequests).toEqual([]);

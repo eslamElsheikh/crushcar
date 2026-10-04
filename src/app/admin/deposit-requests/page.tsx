@@ -42,12 +42,21 @@ export default function DepositRequestsPage() {
   async function approve(req: any) {
     setProcessing(req.id);
     try {
-      const res = await fetch(`/api/admin/deposit-requests/${req.id}`, {
+      let res = await fetch(`/api/admin/deposit-requests/${req.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ status: 'APPROVED' }),
       });
+      if (!res.ok && res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 600));
+        res = await fetch(`/api/admin/deposit-requests/${req.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: 'APPROVED' }),
+        });
+      }
       if (res.ok) {
         setRequests((prev) => prev.filter((x) => x.id !== req.id));
         toast.success(t('depositRequest.approvedMsg'));
@@ -65,12 +74,21 @@ export default function DepositRequestsPage() {
     if (!rejecting || !reason.trim()) return;
     setProcessing(rejecting.id);
     try {
-      const res = await fetch(`/api/admin/deposit-requests/${rejecting.id}`, {
+      let res = await fetch(`/api/admin/deposit-requests/${rejecting.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ status: 'REJECTED', adminNotes: reason }),
       });
+      if (!res.ok && res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 600));
+        res = await fetch(`/api/admin/deposit-requests/${rejecting.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: 'REJECTED', adminNotes: reason }),
+        });
+      }
       if (res.ok) {
         setRequests((prev) => prev.filter((x) => x.id !== rejecting.id));
         setRejecting(null);
