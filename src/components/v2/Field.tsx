@@ -31,8 +31,8 @@ export function V2Field({
 export interface V2InputProps extends InputHTMLAttributes<HTMLInputElement> {}
 
 export const V2Input = forwardRef<HTMLInputElement, V2InputProps>(
-  ({ className, ...rest }, ref) => (
-    <input ref={ref} className={cn('v2-input', className)} {...rest} />
+  ({ className, type = 'text', ...rest }, ref) => (
+    <input ref={ref} type={type} className={cn('v2-input', className)} {...rest} />
   )
 );
 V2Input.displayName = 'V2Input';
