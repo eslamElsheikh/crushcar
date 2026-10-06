@@ -468,6 +468,8 @@ function TripDetailPageContent() {
         // CUSTOMER: use regular booking endpoint (one per seat)
         const hasRoundTrip = !!(returnTripId && returnSeats);
         const customerRoundTripGroupId = hasRoundTrip ? crypto.randomUUID() : undefined;
+        // One group per checkout so group-pay covers all seats at once.
+        const checkoutGroupId = crypto.randomUUID();
         let successCount = 0;
 
         for (let i = 0; i < allSeats.length; i++) {
@@ -490,6 +492,7 @@ function TripDetailPageContent() {
               fromStationId: seat.fromStationId,
               toStationId: seat.toStationId,
               roundTripGroupId: customerRoundTripGroupId,
+              groupId: checkoutGroupId,
             }),
             credentials: 'include',
           });
@@ -1469,6 +1472,19 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
           <Ticket size={16} />
           {isRTL ? 'عرض حجوزاتي' : 'View My Bookings'}
         </button>
+        {confirmedBookings.length > 0 && (() => {
+          const isCompany = sessionRole === 'COMPANY_ADMIN';
+          const firstId = first?.id;
+          if (isCompany || !firstId) return null;
+          return (
+            <a
+              href={`/bookings/${firstId}/pay`}
+              className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-md"
+            >
+              {isRTL ? 'ادفع الآن' : 'Pay now'}
+            </a>
+          );
+        })()}
         <button
           onClick={onBookAnother}
           className="flex-1 py-3.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-[#0B1B33] font-bold text-sm transition flex items-center justify-center gap-2"

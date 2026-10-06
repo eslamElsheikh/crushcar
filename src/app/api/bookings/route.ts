@@ -18,8 +18,10 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * take
 
     const type = searchParams.get('type')
+    const groupId = searchParams.get('groupId')
     const where: Record<string, unknown> = {}
     if (tripId) where.tripId = tripId
+    if (groupId) where.groupId = groupId
     if (ref) where.reference = { contains: ref.toUpperCase() }
     if (q) {
       where.OR = [
@@ -119,7 +121,7 @@ export async function POST(req: NextRequest) {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { tripId, seatLabel, passengerName, passengerPhone, fromStationId, toStationId, holdId }: {
+    const { tripId, seatLabel, passengerName, passengerPhone, fromStationId, toStationId, holdId, groupId }: {
       tripId: string
       seatLabel: string
       passengerName?: string
@@ -127,6 +129,7 @@ export async function POST(req: NextRequest) {
       fromStationId?: string | null
       toStationId?: string | null
       holdId?: string
+      groupId?: string | null
     } = await req.json()
     if (!tripId || !seatLabel) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -218,6 +221,7 @@ export async function POST(req: NextRequest) {
           total,
           fromStopOrder,
           toStopOrder,
+          groupId: groupId || null,
         },
         include: {
           trip: {

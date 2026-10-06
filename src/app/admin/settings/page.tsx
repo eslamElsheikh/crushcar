@@ -15,9 +15,12 @@ export default function AdminSettingsPage() {
 
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [expiryHours, setExpiryHours] = useState('6');
+  const [vodafone, setVodafone] = useState('');
+  const [instapay, setInstapay] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [savedExpiry, setSavedExpiry] = useState(false);
+  const [savedWallets, setSavedWallets] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -31,6 +34,12 @@ export default function AdminSettingsPage() {
         setRegistrationEnabled(data.individualRegistrationEnabled !== 'false');
         if (data.companyBookingExpiryHours) {
           setExpiryHours(data.companyBookingExpiryHours);
+        }
+        if (data['payments.vodafone_number']) {
+          setVodafone(data['payments.vodafone_number']);
+        }
+        if (data['payments.instapay_handle']) {
+          setInstapay(data['payments.instapay_handle']);
         }
       } else {
         toast.error(isRTL ? 'تعذر تحميل الإعدادات' : 'Failed to load settings');
@@ -98,6 +107,32 @@ export default function AdminSettingsPage() {
       }
     } catch {
       toast.error(isRTL ? 'خطأ في الاتصال' : 'Connection error');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function saveWallets() {
+    setSaving('wallets');
+    setSavedWallets(false);
+    try {
+      const entries = [
+        { key: 'payments.vodafone_number', value: vodafone.trim() },
+        { key: 'payments.instapay_handle', value: instapay.trim() },
+      ];
+      for (const e of entries) {
+        const res = await fetch('/api/admin/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(e),
+        });
+        if (!res.ok) throw new Error('save failed');
+      }
+      setSavedWallets(true);
+      toast.success(isRTL ? 'تم حفظ أرقام المحافظ' : 'Wallet numbers saved');
+      setTimeout(() => setSavedWallets(false), 3000);
+    } catch {
+      toast.error(isRTL ? 'فشل حفظ التعديل' : 'Failed to save');
     } finally {
       setSaving(null);
     }
@@ -282,6 +317,70 @@ export default function AdminSettingsPage() {
               {isRTL ? '(الحد الأدنى 1 ساعة، الحد الأقصى 168 ساعة = 7 أيام)' : '(Min 1 hour, max 168 hours = 7 days)'}
             </span>
           </div>
+        </motion.div>
+
+        {/* Payment Wallets Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl border border-slate-200/80 bg-[var(--sp-card)] p-6 shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex items-start gap-4 mb-5">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <Building2 className="size-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-[#0B1B33]">
+                {isRTL ? 'أرقام محافظ الدفع' : 'Payment Wallet Numbers'}
+              </h3>
+              <p className="text-sm text-slate-500">
+                {isRTL
+                  ? 'تظهر هذه الأرقام للعملاء ومديري الشركات في صفحات الدفع والشحن.'
+                  : 'These numbers are shown to customers and company managers on payment pages.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.methodVodafone')}</label>
+              <input
+                value={vodafone}
+                onChange={(e) => { setVodafone(e.target.value); setSavedWallets(false); }}
+                dir="ltr"
+                placeholder="01xxxxxxxxx"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-[var(--sp-card)] px-3.5 py-2.5 text-[15px] font-bold tabular-nums text-[#0B1B33] focus:border-[#0066FF] focus:outline-none focus:ring-2 focus:ring-[#0066FF]/20"
+              />
+            </div>
+            <div>
+              <label className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.methodInstapay')}</label>
+              <input
+                value={instapay}
+                onChange={(e) => { setInstapay(e.target.value); setSavedWallets(false); }}
+                dir="ltr"
+                placeholder="name@instapay"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-[var(--sp-card)] px-3.5 py-2.5 text-[15px] font-bold tabular-nums text-[#0B1B33] focus:border-[#0066FF] focus:outline-none focus:ring-2 focus:ring-[#0066FF]/20"
+              />
+            </div>
+          </div>
+
+          <V2Button
+            onClick={saveWallets}
+            disabled={saving === 'wallets'}
+            variant="primary"
+            size="md"
+            className="mt-4 gap-2"
+          >
+            {saving === 'wallets' ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : savedWallets ? (
+              <Check className="size-4 text-emerald-400" />
+            ) : null}
+            {savedWallets
+              ? isRTL ? 'تم الحفظ' : 'Saved'
+              : isRTL ? 'حفظ الأرقام' : 'Save numbers'}
+          </V2Button>
         </motion.div>
       </div>
     </div>

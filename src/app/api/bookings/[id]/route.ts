@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { id } = await params
-    const { status, reason, adminOverride, action, passengerName, passengerPhone, passengerHotel } = await req.json()
+    const { status, reason, adminOverride, action, passengerName, passengerPhone, passengerHotel, paymentMethod, paymentProofUrl, paymentNotes, applyToGroup } = await req.json()
 
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -49,6 +49,60 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (booking.userId !== session.user.id && session.user.role !== 'COMPANY_ADMIN' && session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const PAYMENT_METHODS = ['VODAFONE_CASH', 'INSTAPAY', 'CASH', 'BANK']
+    const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
+
+    // Customer attaches a transfer proof (single booking or whole group).
+    if (action === 'SUBMIT_PROOF') {
+      if (booking.userId !== session.user.id) {
+        return NextResponse.json({ error: 'Only the booking owner can pay' }, { status: 403 })
+      }
+      if (booking.status !== 'PENDING') {
+        return NextResponse.json({ error: 'Booking is not pending' }, { status: 400 })
+      }
+      if (!PAYMENT_METHODS.includes(paymentMethod)) {
+        return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
+      }
+      if (typeof paymentProofUrl !== 'string' || !PROOF_RE.test(paymentProofUrl)) {
+        return NextResponse.json({ error: 'Invalid proof URL' }, { status: 400 })
+      }
+      const data = {
+        paymentMethod,
+        paymentProofUrl,
+        paymentNotes: paymentNotes || '',
+        paymentStatus: 'PENDING',
+        paymentRejectReason: '',
+      }
+      if (applyToGroup && booking.groupId) {
+        await prisma.booking.updateMany({
+          where: { groupId: booking.groupId, userId: session.user.id, status: 'PENDING' },
+          data,
+        })
+      } else {
+        await prisma.booking.update({ where: { id }, data })
+      }
+      const updated = await prisma.booking.findUnique({ where: { id } })
+      return NextResponse.json({ ...updated })
+    }
+
+    // Admin asks for a new proof instead of cancelling.
+    if (action === 'REQUEST_PROOF') {
+      if (session.user.role === 'CUSTOMER') {
+        return NextResponse.json({ error: 'Only admins can request a new proof' }, { status: 403 })
+      }
+      if (booking.status !== 'PENDING') {
+        return NextResponse.json({ error: 'Booking is not pending' }, { status: 400 })
+      }
+      if (!reason || typeof reason !== 'string') {
+        return NextResponse.json({ error: 'A reason is required' }, { status: 400 })
+      }
+      const updated = await prisma.booking.update({
+        where: { id },
+        data: { paymentStatus: 'REJECTED', paymentRejectReason: reason },
+      })
+      return NextResponse.json({ ...updated })
     }
 
     if (action === 'UPDATE') {

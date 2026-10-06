@@ -32,15 +32,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No company linked' }, { status: 400 })
     }
 
-    const { amount } = await req.json()
+    const { amount, method, attachmentUrl, attachmentName, notes } = await req.json()
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+    }
+
+    const METHODS = ['VODAFONE_CASH', 'INSTAPAY', 'CASH', 'BANK']
+    if (method !== undefined && !METHODS.includes(method)) {
+      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
+    }
+    const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
+    if (attachmentUrl !== undefined && (typeof attachmentUrl !== 'string' || !PROOF_RE.test(attachmentUrl))) {
+      return NextResponse.json({ error: 'Invalid proof URL' }, { status: 400 })
     }
 
     const depositRequest = await prisma.depositRequest.create({
       data: {
         companyId: session.user.companyId,
         amount,
+        method: method || null,
+        notes: notes || '',
+        attachmentUrl: attachmentUrl || '',
+        attachmentName: attachmentName || '',
       },
     })
 

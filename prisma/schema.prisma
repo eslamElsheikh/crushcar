@@ -178,6 +178,13 @@ model Booking {
   passengerHotel  String    @default("")
   status          String    @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
   paidAt          DateTime?
+  // Manual transfer proof (customer pays after booking, admin reviews)
+  paymentMethod       String?   // VODAFONE_CASH | INSTAPAY | CASH | BANK
+  paymentProofUrl     String?   // /api/uploads/... screenshot of the transfer
+  paymentNotes        String?   @default("")
+  paymentStatus       String    @default("NONE") // NONE | PENDING | REJECTED (awaiting review / needs new proof)
+  paymentRejectReason String?   @default("")
+  groupId             String?   // links seats booked in one checkout (group pay)
   boarded         Boolean   @default(false)
   boardedAt       DateTime?
   total           Float
@@ -302,7 +309,9 @@ model DepositRequest {
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   amount         Float
-  status         String   @default("PENDING")
+  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  method         String?  // VODAFONE_CASH | INSTAPAY | CASH | BANK
+  notes          String?  @default("")
   adminNotes     String   @default("")
   attachmentUrl  String   @default("")
   attachmentName String   @default("")

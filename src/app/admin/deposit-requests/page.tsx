@@ -153,6 +153,29 @@ export default function DepositRequestsPage() {
                 <p className="mt-1.5 text-[14px] font-semibold text-[#0B1B33]">
                   {r.company?.name || r.companyName || ''}
                 </p>
+                {(r.method || r.attachmentUrl || r.notes) && (
+                  <div className="mt-2.5 grid gap-2.5 rounded-xl border border-slate-200 p-3.5">
+                    {r.method && (
+                      <p className="text-[13.5px] font-extrabold text-[#0B1B33]">
+                        {t('pay.method')}: <span className="font-bold text-[#1D5BD8]">{
+                          r.method === 'VODAFONE_CASH' ? t('pay.methodVodafone')
+                          : r.method === 'INSTAPAY' ? t('pay.methodInstapay')
+                          : r.method === 'CASH' ? t('pay.methodCash')
+                          : r.method === 'BANK' ? t('pay.methodBank') : r.method
+                        }</span>
+                      </p>
+                    )}
+                    {r.attachmentUrl && (
+                      <a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.attachmentUrl} alt="" className="max-h-56 w-full object-contain bg-slate-50" />
+                      </a>
+                    )}
+                    {r.notes && (
+                      <p className="text-[13px] text-[var(--sp-text-muted)]">{r.notes}</p>
+                    )}
+                  </div>
+                )}
                 {r.status === 'PENDING' && (
                   <div className="mt-3.5 flex gap-2">
                     <V2Button disabled={processing === r.id} onClick={() => approve(r)} className="flex-1">

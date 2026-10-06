@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Wallet, CreditCard, TrendingUp, Plus, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Wallet, CreditCard, TrendingUp, Plus, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2Field, V2Input } from '@/components/v2/Field';
@@ -9,6 +9,13 @@ import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge, V2Skeleton } from '@/components/v2/ui';
 
 /* V2 company credit — same credit/wallet/deposit-request APIs as V1. */
+
+const METHODS = [
+  { key: 'VODAFONE_CASH', labelKey: 'pay.methodVodafone' },
+  { key: 'INSTAPAY', labelKey: 'pay.methodInstapay' },
+  { key: 'CASH', labelKey: 'pay.methodCash' },
+  { key: 'BANK', labelKey: 'pay.methodBank' },
+] as const;
 
 export default function CompanyCreditPage() {
   const t = useLangStore((s) => s.t);
@@ -21,22 +28,53 @@ export default function CompanyCreditPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('');
+  const [proofUrl, setProofUrl] = useState('');
+  const [notes, setNotes] = useState('');
+  const [wallets, setWallets] = useState({ vodafone: '', instapay: '' });
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/company/credit').then((r) => r.json()),
       fetch('/api/company/wallet?page=1&take=20').then((r) => r.json()),
       fetch('/api/company/deposit-requests').then((r) => r.json()),
+      fetch('/api/settings/payment').then((r) => r.json()).catch(() => ({})),
     ])
-      .then(([c, w, d]) => {
+      .then(([c, w, d, p]) => {
         setCredit(c);
         setTx(w.data || []);
         setRequests(d.data || []);
+        setWallets({ vodafone: p.vodafone || '', instapay: p.instapay || '' });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function uploadProof(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('proof', file);
+      const res = await fetch('/api/uploads/payment-proof', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || t('common.error'));
+        return;
+      }
+      const { url } = await res.json();
+      setProofUrl(url);
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function submitDeposit() {
     const value = Number(amount);
@@ -44,17 +82,28 @@ export default function CompanyCreditPage() {
       toast.error(isRTL ? 'أدخل مبلغًا صحيحًا' : 'Enter a valid amount');
       return;
     }
+    if (!method) {
+      toast.error(t('pay.needMethod'));
+      return;
+    }
+    if (!proofUrl) {
+      toast.error(t('pay.needProof'));
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/company/deposit-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: value }),
+        body: JSON.stringify({ amount: value, method, attachmentUrl: proofUrl, attachmentName: 'transfer-proof', notes }),
       });
       const data = await res.json();
       if (res.ok) {
         setRequests((prev) => [data.data || data, ...prev]);
         setAmount('');
+        setMethod('');
+        setProofUrl('');
+        setNotes('');
         toast.success(t('depositRequest.success'));
       } else {
         toast.error(data.error || t('common.error'));
@@ -119,7 +168,76 @@ export default function CompanyCreditPage() {
               />
             </V2Field>
           </div>
-          <V2Button disabled={submitting} onClick={submitDeposit} className="mt-4 w-full">
+          {(wallets.vodafone || wallets.instapay) && (
+            <div className="mt-3 grid gap-2 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13px]">
+              {wallets.vodafone && (
+                <p className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-[#0B1B33]">{t('pay.methodVodafone')}</span>
+                  <span className="font-extrabold tabular-nums text-[#0B1B33]" dir="ltr">{wallets.vodafone}</span>
+                </p>
+              )}
+              {wallets.instapay && (
+                <p className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-[#0B1B33]">{t('pay.methodInstapay')}</span>
+                  <span className="font-extrabold tabular-nums text-[#0B1B33]" dir="ltr">{wallets.instapay}</span>
+                </p>
+              )}
+            </div>
+          )}
+          <div className="mt-4">
+            <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.method')}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('pay.method')}>
+              {METHODS.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={method === m.key}
+                  onClick={() => setMethod(m.key)}
+                  className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
+                    method === m.key
+                      ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                      : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
+                  }`}
+                >
+                  {t(m.labelKey)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.proof')}</p>
+            <p className="mt-0.5 px-1 text-[12px] text-[var(--sp-text-muted)]">{t('pay.proofHint')}</p>
+            <div className="mt-2">
+              {proofUrl ? (
+                <div className="flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={proofUrl} alt="" className="h-20 w-20 rounded-xl border border-[var(--sp-line)] object-cover" />
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                    className="text-[13px] font-semibold text-[#1D5BD8] underline-offset-2 hover:underline disabled:opacity-60">
+                    {t('pay.changeImage')}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white px-4 py-6 text-[13.5px] font-bold text-[var(--sp-text-muted)] transition hover:border-[#1D5BD8] hover:text-[#1D5BD8] disabled:opacity-60"
+                >
+                  {uploading ? <Loader2 className="size-5 animate-spin" /> : <Upload className="size-5" />}
+                  {uploading ? t('pay.uploading') : t('pay.proof')}
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadProof} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <V2Field label={t('pay.notes')}>
+              <V2Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('pay.notesPh')} />
+            </V2Field>
+          </div>
+          <V2Button disabled={submitting || uploading} onClick={submitDeposit} className="mt-4 w-full">
             {submitting && <Loader2 className="size-5 animate-spin" />} {t('depositRequest.submit')}
           </V2Button>
           {requests.length > 0 && (

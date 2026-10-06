@@ -31,6 +31,7 @@ interface Booking {
   cancelledAt?: string | null;
   refundAmount?: number | null;
   cancellationFee?: number | null;
+  paymentStatus?: string | null;
   trip: { id: string; origin: string; destination: string; departure: string; arrival: string; bus: { name: string } };
 }
 
@@ -257,6 +258,18 @@ export default function MyBookingsPage() {
                     <Link href={`/bookings/${b.id}`} className="v2-btn-ghost px-5 py-2.5 text-[14px]">
                       {t('v2.viewTicket')}
                     </Link>
+                    {b.status === 'PENDING' && (
+                      <Link
+                        href={`/bookings/${b.id}/pay`}
+                        className="v2-btn-primary px-5 py-2.5 text-[14px]"
+                      >
+                        {b.paymentStatus === 'PENDING'
+                          ? t('pay.pending')
+                          : b.paymentStatus === 'REJECTED'
+                            ? t('pay.rejected')
+                            : (isRTL ? 'ادفع الآن' : 'Pay now')}
+                      </Link>
+                    )}
                     <Link href={`/bookings/${b.id}/print`} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">
                       <Printer className="size-4" /> {t('v2.printTicket')}
                     </Link>

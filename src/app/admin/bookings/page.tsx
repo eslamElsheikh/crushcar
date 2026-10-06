@@ -31,6 +31,8 @@ export default function AdminBookings() {
   const [pages, setPages] = useState(1);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [requesting, setRequesting] = useState(false);
   const [edit, setEdit] = useState<any>(null);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -81,6 +83,42 @@ export default function AdminBookings() {
       setConfirming(false);
     }
   }
+
+  async function requestProof() {
+    if (!confirmId || !rejectReason.trim()) return;
+    setRequesting(true);
+    try {
+      const res = await fetch(`/api/bookings/${confirmId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'REQUEST_PROOF', reason: rejectReason.trim() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setBookings((prev) => prev.map((b) => (b.id === confirmId ? { ...b, paymentStatus: updated.paymentStatus, paymentRejectReason: updated.paymentRejectReason } : b)));
+        setConfirmId(null);
+        setRejectReason('');
+        toast.success(t('pay.requestSent') || 'Done');
+      } else {
+        toast.error(t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setRequesting(false);
+    }
+  }
+
+  function methodLabel(m?: string | null) {
+    if (m === 'VODAFONE_CASH') return t('pay.methodVodafone');
+    if (m === 'INSTAPAY') return t('pay.methodInstapay');
+    if (m === 'CASH') return t('pay.methodCash');
+    if (m === 'BANK') return t('pay.methodBank');
+    return m || '—';
+  }
+
+  const confirmBooking = confirmId ? bookings.find((b) => b.id === confirmId) : null;
 
   async function saveEdit() {
     if (!edit) return;
@@ -162,9 +200,19 @@ export default function AdminBookings() {
                 {t(b.status) || b.status}
               </V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
+                {b.status === 'PENDING' && b.paymentProofUrl && (
+                  <button
+                    onClick={() => { setConfirmId(b.id); setRejectReason(''); }}
+                    aria-label={t('pay.proof')}
+                    className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 hover:ring-2 hover:ring-[#1D5BD8]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={b.paymentProofUrl} alt="" className="size-full object-cover" />
+                  </button>
+                )}
                 {b.status === 'PENDING' && (
                   <button
-                    onClick={() => setConfirmId(b.id)}
+                    onClick={() => { setConfirmId(b.id); setRejectReason(''); }}
                     className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-[13px] font-bold text-emerald-700 hover:bg-emerald-100"
                   >
                     {t('payment.confirmBtn')}
@@ -193,7 +241,7 @@ export default function AdminBookings() {
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>
               <div className="mt-3 flex gap-1.5">
                 {b.status === 'PENDING' && (
-                  <button onClick={() => setConfirmId(b.id)} className="flex-1 rounded-xl bg-emerald-50 py-2.5 text-[13.5px] font-bold text-emerald-700">
+                  <button onClick={() => { setConfirmId(b.id); setRejectReason(''); }} className="flex-1 rounded-xl bg-emerald-50 py-2.5 text-[13.5px] font-bold text-emerald-700">
                     {t('payment.confirmBtn')}
                   </button>
                 )}
@@ -210,16 +258,42 @@ export default function AdminBookings() {
         <V2Pagination page={page} pages={pages} onPage={(p) => load(p, tab, search, refSearch)} />
       </div>
 
-      <V2Modal open={!!confirmId} onClose={() => setConfirmId(null)} title={t('payment.confirmTitle')}>
+      <V2Modal open={!!confirmId} onClose={() => { setConfirmId(null); setRejectReason(''); }} title={t('payment.confirmTitle')}>
         <p className="text-[14.5px] text-[var(--sp-text-muted)]">{t('payment.pendingDesc')}</p>
-        <div className="mt-5 grid grid-cols-2 gap-2.5">
-          <button onClick={() => setConfirmId(null)} className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]">
+        {confirmBooking?.paymentProofUrl && (
+          <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 p-3.5">
+            <p className="text-[13.5px] font-extrabold text-[#0B1B33]">
+              {t('pay.method')}: <span className="font-bold text-[#1D5BD8]">{methodLabel(confirmBooking.paymentMethod)}</span>
+            </p>
+            <a href={confirmBooking.paymentProofUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={confirmBooking.paymentProofUrl} alt="" className="max-h-64 w-full object-contain bg-slate-50" />
+            </a>
+            {confirmBooking.paymentNotes && (
+              <p className="text-[13px] text-[var(--sp-text-muted)]">{confirmBooking.paymentNotes}</p>
+            )}
+          </div>
+        )}
+        <div className="mt-4">
+          <V2Field label={t('pay.reasonLabel')}>
+            <V2Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={t('pay.reasonPh')} />
+          </V2Field>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2.5">
+          <button onClick={() => { setConfirmId(null); setRejectReason(''); }} className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]">
             {t('common.cancel')}
           </button>
           <V2Button disabled={confirming} onClick={confirmPaid}>
             {confirming ? <Loader2 className="size-5 animate-spin" /> : null} {t('payment.confirmBtn')}
           </V2Button>
         </div>
+        <button
+          onClick={requestProof}
+          disabled={requesting || !rejectReason.trim()}
+          className="mt-2.5 w-full rounded-xl border border-amber-300 bg-amber-50 py-3 text-[14px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+        >
+          {requesting ? <Loader2 className="mx-auto size-5 animate-spin" /> : t('pay.requestNew')}
+        </button>
       </V2Modal>
 
       <V2Modal open={!!edit} onClose={() => setEdit(null)} title={t('common.edit')}>
