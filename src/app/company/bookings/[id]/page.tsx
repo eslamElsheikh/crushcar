@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
+import { V2StatusBadge } from '@/components/v2/ui'
 
 export default function CompanyBookingDetail() {
   const params = useParams()
@@ -160,75 +161,75 @@ export default function CompanyBookingDetail() {
   if (loading) return <div className="flex justify-center py-20"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
   if (!booking) return null
 
-  const statusColors: Record<string, string> = {
-    PENDING: 'bg-amber-500/20 text-amber-400',
-    PAID: 'bg-emerald-500/20 text-emerald-400',
-    CANCELLED: 'bg-red-500/20 text-red-400',
-    BOARDED: 'bg-blue-500/20 text-blue-400',
+  const statusTone: Record<string, 'amber' | 'green' | 'red' | 'blue'> = {
+    PENDING: 'amber',
+    PAID: 'green',
+    CANCELLED: 'red',
+    BOARDED: 'blue',
   }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <Link href="/company/bookings" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
-          <ArrowLeft size={16} /> {isRTL ? 'عودة' : 'Back to bookings'}
+        <Link href="/company/bookings" className="inline-flex items-center gap-2 text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition text-sm">
+          <ArrowLeft size={16} className="v2-flip-rtl" /> {isRTL ? 'عودة' : 'Back to bookings'}
         </Link>
         <div className="flex items-center gap-2">
           <Link
             href={`/company/bookings/${booking.id}/print`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm hover:bg-blue-500/20 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-[#1D5BD8] text-sm hover:bg-slate-50 transition"
           >
             <Printer size={14} /> {booking?.roundTripGroupId ? (isRTL ? 'طباعة (ذهاب وعودة)' : 'Print (Round Trip)') : (isRTL ? 'طباعة' : 'Print')}
           </Link>
-          <button onClick={startEditing} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-700/50 border border-zinc-600/50 text-zinc-300 text-sm hover:bg-zinc-700 transition">
+          <button onClick={startEditing} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-[#1D5BD8] text-sm hover:bg-slate-50 transition">
             <Pencil size={14} /> {isRTL ? 'تعديل' : 'Edit'}
           </button>
         </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 border border-white/5">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="v2-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-white">{booking.reference}</h1>
-            <p className="text-zinc-400 text-sm mt-1">
+            <h1 className="text-2xl font-bold text-[#0B1B33]">{booking.reference}</h1>
+            <p className="text-[var(--sp-text-muted)] text-sm mt-1">
               {booking.bookingType === 'FOR_CLIENT' ? t('company.forClient') : t('company.forEmployee')}
             </p>
           </div>
-          <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${statusColors[booking.status]}`}>
+          <V2StatusBadge tone={statusTone[booking.status] || 'blue'}>
             {t(`booking.${booking.status.toLowerCase()}`) || booking.status}
-          </span>
+          </V2StatusBadge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-zinc-300">
-              <MapPin size={18} className="text-blue-400" />
+            <div className="flex items-center gap-3 text-[#0B1B33]">
+              <MapPin size={18} className="text-[#1D5BD8]" />
               <div>
-                <p className="text-xs text-zinc-500">{isRTL ? 'من' : 'From'}</p>
+                <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'من' : 'From'}</p>
                 <p>{booking.actualOrigin || booking.trip?.origin}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-zinc-300">
-              <MapPin size={18} className="text-red-400" />
+            <div className="flex items-center gap-3 text-[#0B1B33]">
+              <MapPin size={18} className="text-red-600" />
               <div>
-                <p className="text-xs text-zinc-500">{isRTL ? 'إلى' : 'To'}</p>
+                <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'إلى' : 'To'}</p>
                 <p>{booking.actualDestination || booking.trip?.destination}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-zinc-300">
-              <Clock size={18} className="text-amber-400" />
+            <div className="flex items-center gap-3 text-[#0B1B33]">
+              <Clock size={18} className="text-amber-600" />
               <div>
-                <p className="text-xs text-zinc-500">{isRTL ? 'الانطلاق' : 'Departure'}</p>
+                <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'الانطلاق' : 'Departure'}</p>
                 <p>{booking.trip?.departure ? new Date(booking.trip.departure).toLocaleString() : '-'}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-zinc-300">
-              <Ticket size={18} className="text-purple-400" />
+            <div className="flex items-center gap-3 text-[#0B1B33]">
+              <Ticket size={18} className="text-purple-600" />
               <div>
-                <p className="text-xs text-zinc-500">{isRTL ? 'المقعد' : 'Seat'}</p>
+                <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'المقعد' : 'Seat'}</p>
                 <p className="font-semibold">{booking.seatLabel}</p>
               </div>
             </div>
@@ -239,78 +240,78 @@ export default function CompanyBookingDetail() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder={isRTL ? 'اسم المسافر' : 'Passenger name'}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-[#0B1B33] text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#1D5BD8]"
                 />
                 <input
                   type="tel"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
                   placeholder={isRTL ? 'رقم التليفون' : 'Phone'}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-[#0B1B33] text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#1D5BD8]"
                 />
                 <input
                   type="text"
                   value={editHotel}
                   onChange={(e) => setEditHotel(e.target.value)}
                   placeholder={isRTL ? 'اسم الفندق' : 'Hotel name'}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-[#0B1B33] text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#1D5BD8]"
                 />
                 <input
                   type="number"
                   value={editCollect}
                   onChange={(e) => setEditCollect(e.target.value)}
                   placeholder={isRTL ? 'مبلغ التحصيل' : 'Collect amount'}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-[#0B1B33] text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#1D5BD8]"
                 />
                 <textarea
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
                   placeholder={isRTL ? 'ملاحظات' : 'Notes'}
                   rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-800/60 border border-white/10 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500/50 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-[#0B1B33] text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#1D5BD8] resize-none"
                 />
                 <div className="flex gap-2 pt-1">
                   <button onClick={saveEdit} className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition">{isRTL ? 'حفظ' : 'Save'}</button>
-                  <button onClick={() => setEditing(false)} className="px-4 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs transition">{isRTL ? 'إلغاء' : 'Cancel'}</button>
+                  <button onClick={() => setEditing(false)} className="px-4 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#0B1B33] text-xs transition">{isRTL ? 'إلغاء' : 'Cancel'}</button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 text-zinc-300">
-                  <User size={18} className="text-emerald-400" />
+                <div className="flex items-center gap-3 text-[#0B1B33]">
+                  <User size={18} className="text-emerald-600" />
                   <div>
-                    <p className="text-xs text-zinc-500">{isRTL ? 'المسافر' : 'Passenger'}</p>
+                    <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'المسافر' : 'Passenger'}</p>
                     <p>{booking.passengerName || '-'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-zinc-300">
-                  <Phone size={18} className="text-cyan-400" />
+                <div className="flex items-center gap-3 text-[#0B1B33]">
+                  <Phone size={18} className="text-cyan-600" />
                   <div>
-                    <p className="text-xs text-zinc-500">{isRTL ? 'التليفون' : 'Phone'}</p>
+                    <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'التليفون' : 'Phone'}</p>
                     <p>{booking.passengerPhone || '-'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-zinc-300">
-                  <MapPin size={18} className="text-amber-400" />
+                <div className="flex items-center gap-3 text-[#0B1B33]">
+                  <MapPin size={18} className="text-amber-600" />
                   <div>
-                    <p className="text-xs text-zinc-500">{isRTL ? 'الفندق' : 'Hotel'}</p>
+                    <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'الفندق' : 'Hotel'}</p>
                     <p>{booking.passengerHotel || '-'}</p>
                   </div>
                 </div>
                 {booking.collectAmount != null && booking.collectAmount > 0 && (
-                  <div className="flex items-center gap-3 text-zinc-300">
-                    <CreditCard size={18} className="text-pink-400" />
+                  <div className="flex items-center gap-3 text-[#0B1B33]">
+                    <CreditCard size={18} className="text-pink-600" />
                     <div>
-                      <p className="text-xs text-zinc-500">{isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}</p>
+                      <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}</p>
                       <p>{booking.collectAmount.toFixed(2)} EGP</p>
                     </div>
                   </div>
                 )}
                 {booking.passengerNotes && (
-                  <div className="flex items-center gap-3 text-zinc-300">
-                    <AlertCircle size={18} className="text-zinc-400" />
+                  <div className="flex items-center gap-3 text-[#0B1B33]">
+                    <AlertCircle size={18} className="text-[var(--sp-text-muted)]" />
                     <div>
-                      <p className="text-xs text-zinc-500">{isRTL ? 'ملاحظات' : 'Notes'}</p>
+                      <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'ملاحظات' : 'Notes'}</p>
                       <p className="text-sm">{booking.passengerNotes}</p>
                     </div>
                   </div>
@@ -320,21 +321,21 @@ export default function CompanyBookingDetail() {
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-white/5">
+        <div className="mt-6 pt-6 border-t border-slate-100">
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">{isRTL ? 'الإجمالي' : 'Total'}</span>
-            <span className="text-2xl font-bold text-white">{(booking.total || 0).toFixed(2)} EGP</span>
+            <span className="text-[var(--sp-text-muted)]">{isRTL ? 'الإجمالي' : 'Total'}</span>
+            <span className="text-2xl font-bold text-[#0B1B33]">{(booking.total || 0).toFixed(2)} EGP</span>
           </div>
           {(booking.paidFromWallet || 0) > 0 && (
             <div className="flex items-center justify-between mt-2 text-sm">
-              <span className="text-zinc-500">{t('company.paidFromWallet')}</span>
-              <span className="text-emerald-400">{(booking.paidFromWallet || 0).toFixed(2)} EGP</span>
+              <span className="text-[var(--sp-text-muted)]">{t('company.paidFromWallet')}</span>
+              <span className="text-emerald-600">{(booking.paidFromWallet || 0).toFixed(2)} EGP</span>
             </div>
           )}
           {(booking.paidOnCredit || 0) > 0 && (
             <div className="flex items-center justify-between mt-1 text-sm">
-              <span className="text-zinc-500">{t('company.paidOnCredit')}</span>
-              <span className="text-blue-400">{(booking.paidOnCredit || 0).toFixed(2)} EGP</span>
+              <span className="text-[var(--sp-text-muted)]">{t('company.paidOnCredit')}</span>
+              <span className="text-[#1D5BD8]">{(booking.paidOnCredit || 0).toFixed(2)} EGP</span>
             </div>
           )}
         </div>
@@ -342,26 +343,26 @@ export default function CompanyBookingDetail() {
         {booking.status === 'PENDING' && (
           <>
             {companyInfo && (
-              <div className="mt-6 p-4 rounded-xl bg-zinc-800/50 border border-zinc-700/50 space-y-2 text-sm">
+              <div className="mt-6 p-4 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-zinc-400">{isRTL ? 'المحفظة' : 'Wallet'}</span>
-                  <span className={(companyInfo.walletBalance || 0) >= (booking.total || 0) ? 'text-emerald-400' : 'text-red-400'}>
+                  <span className="text-[var(--sp-text-muted)]">{isRTL ? 'المحفظة' : 'Wallet'}</span>
+                  <span className={(companyInfo.walletBalance || 0) >= (booking.total || 0) ? 'text-emerald-600' : 'text-red-600'}>
                     {(companyInfo.walletBalance || 0).toFixed(2)} EGP
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-400">{isRTL ? 'المديونية' : 'Outstanding'}</span>
-                  <span className="text-amber-400">{(companyInfo.outstandingBalance || 0).toFixed(2)} EGP</span>
+                  <span className="text-[var(--sp-text-muted)]">{isRTL ? 'المديونية' : 'Outstanding'}</span>
+                  <span className="text-amber-600">{(companyInfo.outstandingBalance || 0).toFixed(2)} EGP</span>
                 </div>
                 {companyInfo.paymentMode !== 'PREPAID' && (
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">{isRTL ? 'حد الكريديت' : 'Credit Limit'}</span>
-                    <span className="text-blue-400">{(companyInfo.creditLimit || 0).toFixed(2)} EGP</span>
+                    <span className="text-[var(--sp-text-muted)]">{isRTL ? 'حد الكريديت' : 'Credit Limit'}</span>
+                    <span className="text-[#1D5BD8]">{(companyInfo.creditLimit || 0).toFixed(2)} EGP</span>
                   </div>
                 )}
-                <div className="flex justify-between pt-2 border-t border-zinc-700/50 font-semibold">
-                  <span className="text-zinc-300">{isRTL ? 'المطلوب' : 'Required'}</span>
-                  <span className="text-white">{(booking.total || 0).toFixed(2)} EGP</span>
+                <div className="flex justify-between pt-2 border-t border-slate-200 font-semibold">
+                  <span className="text-[#0B1B33]">{isRTL ? 'المطلوب' : 'Required'}</span>
+                  <span className="text-[#0B1B33]">{(booking.total || 0).toFixed(2)} EGP</span>
                 </div>
               </div>
             )}
@@ -369,7 +370,7 @@ export default function CompanyBookingDetail() {
               <button onClick={() => updateStatus('PAID')} className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition text-sm font-medium">
                 {isRTL ? 'تأكيد الدفع' : 'Confirm Payment'}
               </button>
-              <button onClick={() => updateStatus('CANCELLED')} className="px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 transition text-sm">
+              <button onClick={() => updateStatus('CANCELLED')} className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition text-sm">
                 {isRTL ? 'إلغاء' : 'Cancel'}
               </button>
             </div>
@@ -381,7 +382,7 @@ export default function CompanyBookingDetail() {
             <button
               onClick={handleCancelClick}
               disabled={cancelling}
-              className="w-full py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 transition text-sm font-medium disabled:opacity-50"
+              className="w-full py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition text-sm font-medium disabled:opacity-50"
             >
               {cancelling ? (isRTL ? 'جارٍ...' : 'Cancelling...') : (isRTL ? 'إلغاء الحجز' : 'Cancel Booking')}
             </button>
@@ -391,15 +392,15 @@ export default function CompanyBookingDetail() {
         {/* Cancellation info for cancelled bookings */}
         {booking.status === 'CANCELLED' && (booking.cancelledAt || booking.refundAmount != null) && (
           <div className="mt-6 p-4 rounded-xl bg-red-500/5 border border-red-500/20 space-y-3">
-            <h3 className="text-sm font-semibold text-red-400">{isRTL ? 'معلومات الإلغاء' : 'Cancellation Info'}</h3>
+            <h3 className="text-sm font-semibold text-red-600">{isRTL ? 'معلومات الإلغاء' : 'Cancellation Info'}</h3>
             {booking.cancelledAt && (
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 text-sm text-[var(--sp-text-muted)]">
                 <Clock size={14} />
                 <span>{new Date(booking.cancelledAt).toLocaleString()}</span>
               </div>
             )}
             {booking.cancellationReason && (
-              <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <div className="flex items-center gap-2 text-sm text-[var(--sp-text-muted)]">
                 <AlertCircle size={14} />
                 <span>{booking.cancellationReason}</span>
               </div>
@@ -407,28 +408,28 @@ export default function CompanyBookingDetail() {
             {booking.refundAmount != null && booking.refundAmount > 0 && (
               <>
                 <div className="flex items-center gap-2 text-sm">
-                  <CreditCard size={14} className="text-emerald-400" />
-                  <span className="text-zinc-400">{isRTL ? 'الاسترداد' : 'Refund'}:</span>
-                  <span className="text-emerald-400 font-semibold">{booking.refundAmount.toFixed(2)} EGP</span>
+                  <CreditCard size={14} className="text-emerald-600" />
+                  <span className="text-[var(--sp-text-muted)]">{isRTL ? 'الاسترداد' : 'Refund'}:</span>
+                  <span className="text-emerald-600 font-semibold">{booking.refundAmount.toFixed(2)} EGP</span>
                 </div>
                 {booking.cancellationFee > 0 && (
                   <div className="flex items-center gap-2 text-sm">
-                    <CreditCard size={14} className="text-red-400" />
-                    <span className="text-zinc-400">{isRTL ? 'الرسوم' : 'Fee'}:</span>
-                    <span className="text-red-400 font-semibold">{booking.cancellationFee.toFixed(2)} EGP</span>
+                    <CreditCard size={14} className="text-red-600" />
+                    <span className="text-[var(--sp-text-muted)]">{isRTL ? 'الرسوم' : 'Fee'}:</span>
+                    <span className="text-red-600 font-semibold">{booking.cancellationFee.toFixed(2)} EGP</span>
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-sm pt-1 border-t border-red-500/10">
+                <div className="flex items-center gap-2 text-sm pt-1 border-t border-red-100">
                   {booking.refundProcessedAt ? (
                     <>
                       <CheckCircle size={14} className="text-emerald-500" />
-                      <span className="text-emerald-400">{isRTL ? 'تم صرف المبلغ' : 'Refund processed'}</span>
-                      <span className="text-zinc-500 text-xs">{new Date(booking.refundProcessedAt).toLocaleDateString()}</span>
+                      <span className="text-emerald-600">{isRTL ? 'تم صرف المبلغ' : 'Refund processed'}</span>
+                      <span className="text-[var(--sp-text-muted)] text-xs">{new Date(booking.refundProcessedAt).toLocaleDateString()}</span>
                     </>
                   ) : (
                     <>
                       <Clock size={14} className="text-amber-500" />
-                      <span className="text-amber-400">{isRTL ? 'في انتظار معالجة الأدمن' : 'Pending admin processing'}</span>
+                      <span className="text-amber-600">{isRTL ? 'في انتظار معالجة الأدمن' : 'Pending admin processing'}</span>
                     </>
                   )}
                 </div>
@@ -439,37 +440,37 @@ export default function CompanyBookingDetail() {
       </motion.div>
 
       {booking.pairedBooking && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 border border-white/5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="v2-card p-5 md:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">{isRTL ? 'الحجز المرتبط' : 'Paired Booking'}</h2>
-            <span className="text-xs text-zinc-500">{isRTL ? 'رحلة الذهاب/العودة' : 'Round Trip Leg'}</span>
+            <h2 className="text-lg font-semibold text-[#0B1B33]">{isRTL ? 'الحجز المرتبط' : 'Paired Booking'}</h2>
+            <span className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'رحلة الذهاب/العودة' : 'Round Trip Leg'}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-zinc-300">
-                <MapPin size={16} className="text-blue-400" />
+              <div className="flex items-center gap-2 text-[#0B1B33]">
+                <MapPin size={16} className="text-[#1D5BD8]" />
                 <p className="text-sm">{booking.pairedBooking.trip.origin} → {booking.pairedBooking.trip.destination}</p>
               </div>
-              <div className="flex items-center gap-2 text-zinc-300">
-                <Clock size={16} className="text-amber-400" />
+              <div className="flex items-center gap-2 text-[#0B1B33]">
+                <Clock size={16} className="text-amber-600" />
                 <p className="text-sm">{new Date(booking.pairedBooking.trip.departure).toLocaleString()}</p>
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-zinc-300">
-                <Ticket size={16} className="text-purple-400" />
+              <div className="flex items-center gap-2 text-[#0B1B33]">
+                <Ticket size={16} className="text-purple-600" />
                 <p className="text-sm">{isRTL ? 'مقعد' : 'Seat'}: {booking.pairedBooking.seatLabel}</p>
               </div>
-              <div className="flex items-center gap-2 text-zinc-300">
-                <User size={16} className="text-emerald-400" />
+              <div className="flex items-center gap-2 text-[#0B1B33]">
+                <User size={16} className="text-emerald-600" />
                 <p className="text-sm">{booking.pairedBooking.passengerName}</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
-            <span className="text-sm text-zinc-400">{isRTL ? 'الإجمالي' : 'Total'}: <strong className="text-white">{(booking.pairedBooking.total || 0).toFixed(2)} EGP</strong></span>
-            <Link href={`/company/bookings/${booking.pairedBooking.id}`} className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition">
-              {isRTL ? 'عرض التفاصيل' : 'View Details'} <ArrowRight size={14} />
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+            <span className="text-sm text-[var(--sp-text-muted)]">{isRTL ? 'الإجمالي' : 'Total'}: <strong className="text-[#0B1B33]">{(booking.pairedBooking.total || 0).toFixed(2)} EGP</strong></span>
+            <Link href={`/company/bookings/${booking.pairedBooking.id}`} className="inline-flex items-center gap-1.5 text-sm text-[#1D5BD8] hover:text-[#1447ad] transition">
+              {isRTL ? 'عرض التفاصيل' : 'View Details'} <ArrowRight size={14} className="v2-flip-rtl" />
             </Link>
           </div>
         </motion.div>
@@ -482,20 +483,20 @@ export default function CompanyBookingDetail() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative glass rounded-2xl p-8 max-w-md w-full border border-zinc-700 shadow-2xl"
+            className="relative v2-card p-6 md:p-8 max-w-md w-full shadow-2xl"
           >
             <button
               onClick={() => setCancelModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition"
+              className="absolute top-4 right-4 p-2 rounded-lg hover:bg-slate-100 text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition"
             >
               <X size={16} />
             </button>
 
             <div className="text-center mb-6">
               <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-                <AlertCircle size={28} className="text-red-400" />
+                <AlertCircle size={28} className="text-red-600" />
               </div>
-              <h3 className={cn('text-lg font-bold text-white mb-2', isRTL && 'font-[Cairo]')}>
+              <h3 className={cn('text-lg font-bold text-[#0B1B33] mb-2', isRTL && 'font-[Cairo]')}>
                 {t('cancel.confirmTitle')}
               </h3>
             </div>
@@ -509,20 +510,20 @@ export default function CompanyBookingDetail() {
                   'bg-red-500/5 border-red-500/20'
                 )}>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-zinc-400">{t('cancel.refundAmount')}</span>
-                    <span className={cn('font-bold', cancelInfo.refundPercent === 100 ? 'text-emerald-400' : cancelInfo.refundPercent > 0 ? 'text-amber-400' : 'text-red-400')}>
+                    <span className="text-sm text-[var(--sp-text-muted)]">{t('cancel.refundAmount')}</span>
+                    <span className={cn('font-bold', cancelInfo.refundPercent === 100 ? 'text-emerald-600' : cancelInfo.refundPercent > 0 ? 'text-amber-600' : 'text-red-600')}>
                       {cancelInfo.refundAmount.toFixed(2)} {isRTL ? 'ج.م' : 'EGP'}
                     </span>
                   </div>
                   {cancelInfo.cancellationFee > 0 && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-zinc-400">{t('cancel.fee')}</span>
-                      <span className="text-red-400 font-bold">{cancelInfo.cancellationFee.toFixed(2)} {isRTL ? 'ج.م' : 'EGP'}</span>
+                      <span className="text-sm text-[var(--sp-text-muted)]">{t('cancel.fee')}</span>
+                      <span className="text-red-600 font-bold">{cancelInfo.cancellationFee.toFixed(2)} {isRTL ? 'ج.م' : 'EGP'}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-zinc-500 mb-4">
+                <div className="flex items-center gap-2 text-xs text-[var(--sp-text-muted)] mb-4">
                   <Clock size={12} />
                   <span>
                     {cancelInfo.refundPercent === 100 ? t('cancel.freeWindow') :
@@ -532,11 +533,11 @@ export default function CompanyBookingDetail() {
                 </div>
 
                 <div className="mb-6">
-                  <label className="text-sm text-zinc-400 mb-2 block">{t('cancel.reason')}</label>
+                  <label className="text-sm text-[var(--sp-text-muted)] mb-2 block">{t('cancel.reason')}</label>
                   <select
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-900/80 border border-white/5 focus:border-blue-500/50 focus:outline-none text-sm text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-[#1D5BD8] focus:outline-none text-sm text-[#0B1B33]"
                   >
                     <option value="">{isRTL ? 'اختر السبب' : 'Select reason'}</option>
                     <option value="changed_plans">{t('cancel.reasonChangedPlans')}</option>
@@ -548,7 +549,7 @@ export default function CompanyBookingDetail() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setCancelModal(false)}
-                    className="flex-1 py-2.5 rounded-xl glass border border-zinc-700 text-zinc-400 hover:text-white hover:bg-white/5 transition text-sm font-medium"
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[#0B1B33] hover:bg-slate-50 transition text-sm font-medium"
                   >
                     {isRTL ? 'تراجع' : 'Keep it'}
                   </button>
@@ -562,10 +563,10 @@ export default function CompanyBookingDetail() {
               </>
             ) : (
               <div className="rounded-xl p-4 bg-red-500/5 border border-red-500/20 text-center">
-                <p className="text-red-400 text-sm">{t('cancel.cannotCancel')}</p>
+                <p className="text-red-600 text-sm">{t('cancel.cannotCancel')}</p>
                 <button
                   onClick={() => setCancelModal(false)}
-                  className="mt-4 px-6 py-2 rounded-xl glass border border-zinc-700 text-zinc-400 hover:text-white transition text-sm"
+                  className="mt-4 px-6 py-2 rounded-xl border border-slate-200 text-[#0B1B33] hover:bg-slate-50 transition text-sm"
                 >
                   {isRTL ? 'إغلاق' : 'Close'}
                 </button>
