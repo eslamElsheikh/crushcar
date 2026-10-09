@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import {
+  activeTripWhere,
+  getRevenueBreakdown,
+  getRevenueByDay,
+  rangeStart,
+  tripCompanyScope,
+} from '@/lib/analytics'
+
+const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90 }
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,105 +17,101 @@ export async function GET(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    console.log('📊 Analytics - user:', session.user.email, 'role:', session.user.role, 'companyId:', session.user.companyId)
-
     const { searchParams } = new URL(req.url)
     const range = searchParams.get('range') || '30d'
-    const requestedCompanyId = searchParams.get('companyId')
+    const days = RANGE_DAYS[range] ?? RANGE_DAYS['30d']
+    const startDate = rangeStart(days)
+    const now = new Date()
 
-    const days = range === '7d' ? 7 : range === '90d' ? 90 : 30
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    const companyId =
+      session.user.role === 'SUPER_ADMIN'
+        ? searchParams.get('companyId') || undefined
+        : session.user.companyId ?? undefined
 
-    const companyId = session.user.role === 'SUPER_ADMIN'
-      ? (requestedCompanyId || undefined)
-      : session.user.companyId
+    const baseWhere = tripCompanyScope(companyId)
+    const companyFilter = companyId ? { companyId } : {}
 
-    console.log('📊 Analytics - using companyId:', companyId, 'days:', days)
+    const [totals, revenueByDay, activeTrips, recentBookings, recentCompanyBookings, cancellations] =
+      await Promise.all([
+        getRevenueBreakdown(prisma, { companyId, since: startDate }),
+        getRevenueByDay(prisma, { companyId, since: startDate }),
+        prisma.trip.count({ where: activeTripWhere(companyId, now) }),
+        prisma.booking.findMany({
+          where: baseWhere,
+          include: {
+            trip: { include: { bus: true } },
+            user: { select: { name: true, email: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+        }),
+        prisma.companyBooking.findMany({
+          where: companyFilter,
+          include: {
+            trip: { include: { bus: true } },
+            company: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 2,
+        }),
+        Promise.all([
+          prisma.booking.count({
+            where: { status: 'CANCELLED', refundProcessedAt: null, refundAmount: { not: null }, ...baseWhere },
+          }),
+          prisma.companyBooking.count({
+            where: { status: 'CANCELLED', refundProcessedAt: null, refundAmount: { not: null }, ...companyFilter },
+          }),
+        ]),
+      ])
 
-    const baseWhere = companyId ? { trip: { bus: { companyId } } } : {}
-
-    const totalBookingsCount = await prisma.booking.count({ where: baseWhere })
-    console.log('📊 totalBookings:', totalBookingsCount)
-
-    const baseWhereCancelled = companyId ? { trip: { bus: { companyId } } } : {}
-
-    const [
-      totalBookings,
-      totalRevenue,
-      activeTrips,
-      recentBookings,
-      revenueByDay,
-      customerCancellationsPending,
-      companyCancellationsPending,
-      customerCancellationsProcessed,
-      companyCancellationsProcessed,
-    ] = await Promise.all([
-      Promise.resolve(totalBookingsCount),
-      prisma.booking.aggregate({
-        where: { status: 'PAID', createdAt: { gte: startDate }, ...baseWhere },
-        _sum: { total: true },
-      }),
-      prisma.trip.count({
-        where: { status: 'SCHEDULED', ...(companyId ? { bus: { companyId } } : {}) },
-      }),
-      prisma.booking.findMany({
-        where: baseWhere,
-        include: {
-          trip: { include: { bus: true } },
-          user: { select: { name: true, email: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-      prisma.booking.findMany({
-        where: { status: 'PAID', createdAt: { gte: startDate }, ...baseWhere },
-        select: { createdAt: true, total: true },
-        orderBy: { createdAt: 'asc' },
-      }),
-      prisma.booking.count({
-        where: { status: 'CANCELLED', refundProcessedAt: null, ...baseWhereCancelled },
-      }),
-      prisma.companyBooking.count({
-        where: { status: 'CANCELLED', refundProcessedAt: null, refundAmount: { not: null } },
-      }),
-      prisma.booking.count({
-        where: { status: 'CANCELLED', refundProcessedAt: { not: null }, ...baseWhereCancelled },
-      }),
-      prisma.companyBooking.count({
-        where: { status: 'CANCELLED', refundProcessedAt: { not: null } },
-      }),
-    ])
-
-    console.log('📊 revenue:', totalRevenue._sum.total, 'activeTrips:', activeTrips, 'recentBookings:', recentBookings.length)
-
-    // Group by day
-    const revenueMap = new Map<string, number>()
-    for (const entry of revenueByDay) {
-      const day = entry.createdAt.toISOString().split('T')[0]
-      revenueMap.set(day, (revenueMap.get(day) || 0) + (entry.total || 0))
-    }
-
-    const chartData = Array.from(revenueMap.entries()).map(([day, revenue]) => ({
-      day,
-      revenue: Math.round(revenue * 100) / 100,
-    }))
+    const [customerPending, companyPending] = cancellations
 
     return NextResponse.json({
-      totalBookings,
-      totalRevenue: totalRevenue._sum.total || 0,
+      range,
+      since: startDate.toISOString(),
+      totalBookings: totals.bookings.total,
+      totalRevenue: totals.total,
+      revenue: totals,
       activeTrips,
-      recentBookings: recentBookings.map(b => ({ ...b, paidAt: b.paidAt ? b.paidAt.toISOString() : null })),
-      chartData,
+      chartData: revenueByDay,
       cancellations: {
-        customerPending: customerCancellationsPending,
-        companyPending: companyCancellationsPending,
-        customerProcessed: customerCancellationsProcessed,
-        companyProcessed: companyCancellationsProcessed,
+        customerPending,
+        companyPending,
+        pendingTotal: customerPending + companyPending,
       },
+      recentBookings: [
+        ...recentBookings.map((b) => ({
+          id: b.id,
+          _type: 'customer',
+          status: b.status,
+          total: b.total,
+          seatLabel: b.seatLabel,
+          passengerName: b.passengerName,
+          createdAt: b.createdAt.toISOString(),
+          paidAt: b.paidAt ? b.paidAt.toISOString() : null,
+          user: b.user,
+          company: null,
+          trip: b.trip,
+        })),
+        ...recentCompanyBookings.map((b) => ({
+          id: b.id,
+          _type: 'company',
+          status: b.status,
+          total: b.total,
+          seatLabel: b.seatLabel,
+          passengerName: b.passengerName,
+          createdAt: b.createdAt.toISOString(),
+          paidAt: b.paidAt ? b.paidAt.toISOString() : null,
+          user: null,
+          company: b.company,
+          trip: b.trip,
+        })),
+      ]
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        .slice(0, 8),
     })
   } catch (err) {
-    console.error(err)
+    console.error('[analytics]', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

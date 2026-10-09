@@ -13,6 +13,7 @@ export default function AdminCustomers() {
   const locale = isRTL ? 'ar-EG' : 'en-US';
 
   const [customers, setCustomers] = useState<any[]>([]);
+  const [stats, setStats] = useState({ totalCustomers: 0, totalBookings: 0, totalRevenue: 0, avgBookingsPerCustomer: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -26,6 +27,7 @@ export default function AdminCustomers() {
       if (res.ok) {
         const data = await res.json();
         setCustomers(data.data || []);
+        if (data.stats) setStats(data.stats);
         if (data.pagination) {
           setTotal(data.pagination.total || 0);
           setPages(data.pagination.pages || 1);
@@ -40,17 +42,20 @@ export default function AdminCustomers() {
     return () => clearTimeout(timer);
   }, [load, search]);
 
-  const totalBookings = customers.reduce((s, c) => s + (c.totalBookings || 0), 0);
-
   return (
     <div>
       <V2PageHeader title={t('nav.customers')} sub={isRTL ? `${total} عميل` : `${total} customers`} />
 
-      <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
-        <V2StatCard label={isRTL ? 'إجمالي الحجوزات' : 'Total Bookings'} value={totalBookings.toLocaleString(locale)} />
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <V2StatCard label={isRTL ? 'إجمالي العملاء' : 'Total Customers'} value={stats.totalCustomers.toLocaleString(locale)} />
+        <V2StatCard label={isRTL ? 'إجمالي الحجوزات' : 'Total Bookings'} value={stats.totalBookings.toLocaleString(locale)} />
         <V2StatCard
-          label={isRTL ? 'متوسط الحجز' : 'Avg per Customer'}
-          value={customers.length > 0 ? (totalBookings / customers.length).toFixed(1) : '0'}
+          label={isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'}
+          value={`${stats.totalRevenue.toLocaleString(locale)} ${t('common.currency')}`}
+        />
+        <V2StatCard
+          label={isRTL ? 'متوسط الحجز للعميل' : 'Avg per Customer'}
+          value={stats.avgBookingsPerCustomer.toFixed(1)}
         />
       </div>
 

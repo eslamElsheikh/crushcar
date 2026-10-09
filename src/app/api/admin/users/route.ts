@@ -16,11 +16,18 @@ export async function GET(req: NextRequest) {
       where: session.user.role === 'COMPANY_ADMIN'
         ? { companyId: session.user.companyId }
         : {},
-      include: {
-        bookings: { select: { id: true, status: true } },
-      },
       orderBy: { createdAt: 'desc' },
     })
+
+    const counts = await prisma.booking.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: users.map((u) => u.id) },
+        status: { in: ['PAID', 'BOARDED'] },
+      },
+      _count: true,
+    })
+    const countByUser = new Map(counts.map((c) => [c.userId, c._count]))
 
     return NextResponse.json(users.map(u => ({
       id: u.id,
@@ -30,7 +37,7 @@ export async function GET(req: NextRequest) {
       role: u.role,
       companyId: u.companyId,
       createdAt: u.createdAt.toISOString(),
-      totalBookings: u.bookings.length,
+      totalBookings: countByUser.get(u.id) ?? 0,
     })))
   } catch (err) {
     console.error(err)

@@ -15,18 +15,27 @@ import { cn } from '@/lib/utils';
    Real data only, no hardcoded fake KPI deltas. */
 
 interface Overview {
-  credit: { totalLimit: number; totalOutstanding: number; totalWallet: number; usagePercent: number; activeCompanies: number };
+  credit: {
+    totalLimit: number;
+    totalOutstanding: number;
+    totalWallet: number;
+    usagePercent: number;
+    activeCompanies: number;
+    totalCompanies: number;
+  };
   deposits: { pendingCount: number; pendingTotal: number };
   charter: { requested: number; confirmed: number; cancelled: number; revenue: number };
+  activeTrips: number;
 }
 
 interface Analytics {
   totalBookings: number;
   totalRevenue: number;
   activeTrips: number;
-  chartData?: { day?: string; label?: string; revenue: number; bookings?: number }[];
+  revenue?: { customer: number; company: number; charter: number; total: number };
+  chartData?: { day?: string; label?: string; revenue: number }[];
   recentBookings?: any[];
-  cancellations?: { customerPending: number; companyPending: number };
+  cancellations?: { customerPending: number; companyPending: number; pendingTotal: number };
 }
 
 export default function AdminDashboard() {
@@ -51,11 +60,10 @@ export default function AdminDashboard() {
     fetch(`/api/analytics?range=${range}`, { credentials: 'include' })
       .then((r) => r.json())
       .then((res) => {
-        // Normalize chart data day/label key
         if (res?.chartData) {
           res.chartData = res.chartData.map((c: any) => ({
             ...c,
-            label: c.label || c.day || '',
+            label: shortDay(c.day),
           }));
         }
         setData(res);
@@ -74,7 +82,21 @@ export default function AdminDashboard() {
       .catch(() => {});
   }, [range]);
 
-  const pendingCancel = (data?.cancellations?.customerPending || 0) + (data?.cancellations?.companyPending || 0);
+  const pendingCancel = data?.cancellations?.pendingTotal ?? 0;
+  const rangeLabel = range === '7d' ? t('dashboard.7days') : range === '30d' ? t('dashboard.30days') : t('dashboard.90days');
+  const revenueSub = isRTL
+    ? `أفراد ${fmtMoney(data?.revenue?.customer)} · شركات ${fmtMoney(data?.revenue?.company)} · شارترو ${fmtMoney(data?.revenue?.charter)}`
+    : `Customers ${fmtMoney(data?.revenue?.customer)} · Companies ${fmtMoney(data?.revenue?.company)} · Charter ${fmtMoney(data?.revenue?.charter)}`;
+
+  function fmtMoney(n: number | undefined) {
+    return (n ?? 0).toLocaleString(locale);
+  }
+
+  function shortDay(iso?: string) {
+    if (!iso) return '';
+    const d = new Date(`${iso}T00:00:00Z`);
+    return new Intl.DateTimeFormat(isRTL ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(d);
+  }
 
   if (loading) {
     return (
@@ -154,11 +176,13 @@ export default function AdminDashboard() {
         <V2StatCard
           label={t('dashboard.totalBookings')}
           value={(data?.totalBookings ?? 0).toLocaleString(locale)}
+          sub={rangeLabel}
           icon={<Ticket className="size-5 text-[#1D5BD8]" />}
         />
         <V2StatCard
           label={t('dashboard.totalRevenue')}
           value={`${(data?.totalRevenue ?? 0).toLocaleString(locale)} ${t('common.currency')}`}
+          sub={revenueSub}
           icon={<Wallet className="size-5 text-emerald-600" />}
         />
         <V2StatCard
@@ -167,7 +191,7 @@ export default function AdminDashboard() {
           icon={<Bus className="size-5 text-amber-600" />}
         />
         <V2StatCard
-          label={t('admin.cancellations')}
+          label={t('admin.cancellationsKpi')}
           value={pendingCancel.toLocaleString(locale)}
           icon={<TrendingUp className="size-5 text-red-500" />}
         />
@@ -265,7 +289,7 @@ export default function AdminDashboard() {
               </p>
             ) : (
               data.recentBookings.slice(0, 6).map((b: any) => {
-                const name = b.user?.name || b.passengerName || t('common.guest');
+                const name = b.user?.name || b.company?.name || b.passengerName || t('common.guest');
                 const initial = name.slice(0, 1).toUpperCase();
                 return (
                   <div key={b.id} className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-[var(--sp-inset)]">

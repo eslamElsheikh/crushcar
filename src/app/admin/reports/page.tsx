@@ -5,6 +5,7 @@ import { Download, MapPin, Users } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2StatCard, V2Tabs } from '@/components/v2/admin';
@@ -17,12 +18,19 @@ interface RouteData {
   revenue: number; bookedSeats: number; totalSeats: number; occupancy: number;
 }
 interface MonthlyData { month: string; revenue: number }
-interface TopCustomer { userId: string; name: string; email: string; totalRevenue: number }
+interface TopCustomer { key: string; name: string; email: string; totalRevenue: number }
 interface Report {
   routeData: RouteData[];
   monthlyData: MonthlyData[];
   topCustomers: TopCustomer[];
-  summary: { totalBookings: number; cancelledBookings: number };
+  summary: {
+    totalBookings: number;
+    cancelledBookings: number;
+    totalRoutes: number;
+    activeTrips: number;
+    upcomingTrips: number;
+    revenue: { customer: number; company: number; charter: number; total: number };
+  };
 }
 
 export default function AdminReports() {
@@ -74,10 +82,11 @@ export default function AdminReports() {
         }
       />
 
-      <div className="mt-5 grid gap-3.5 sm:grid-cols-3">
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         <V2StatCard label={isRTL ? 'إجمالي الحجوزات' : 'Total Bookings'} value={(data?.summary.totalBookings ?? 0).toLocaleString(locale)} icon={<Users className="size-5 text-[#1D5BD8]" />} />
         <V2StatCard label={isRTL ? 'الحجوزات الملغاة' : 'Cancelled'} value={(data?.summary.cancelledBookings ?? 0).toLocaleString(locale)} icon={<Users className="size-5 text-red-500" />} />
-        <V2StatCard label={isRTL ? 'إجمالي المسارات' : 'Total Routes'} value={(data?.routeData.length ?? 0).toLocaleString(locale)} icon={<MapPin className="size-5 text-emerald-600" />} />
+        <V2StatCard label={isRTL ? 'إجمالي المسارات' : 'Total Routes'} value={(data?.summary.totalRoutes ?? 0).toLocaleString(locale)} sub={isRTL ? `${data?.summary.upcomingTrips ?? 0} قادمة` : `${data?.summary.upcomingTrips ?? 0} upcoming`} icon={<MapPin className="size-5 text-emerald-600" />} />
+        <V2StatCard label={isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'} value={`${(data?.summary.revenue.total ?? 0).toLocaleString(locale)} ${t('common.currency')}`} sub={isRTL ? `أفراد ${(data?.summary.revenue.customer ?? 0).toLocaleString(locale)} · شركات ${(data?.summary.revenue.company ?? 0).toLocaleString(locale)} · شارترو ${(data?.summary.revenue.charter ?? 0).toLocaleString(locale)}` : `Customers ${(data?.summary.revenue.customer ?? 0).toLocaleString(locale)} · Companies ${(data?.summary.revenue.company ?? 0).toLocaleString(locale)} · Charter ${(data?.summary.revenue.charter ?? 0).toLocaleString(locale)}`} icon={<BarChart3 className="size-5 text-purple-600" />} />
       </div>
 
       <div className="mt-5">
@@ -149,8 +158,8 @@ export default function AdminReports() {
 
       {tab === 'customers' && (
         <div className="mt-4 grid gap-3">
-          {(data?.topCustomers || []).map((c, i) => (
-            <div key={c.userId} className="flex items-center gap-3.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
+{(data?.topCustomers || []).map((c, i) => (
+              <div key={c.key} className="flex items-center gap-3.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
               <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl text-[15px] font-extrabold tabular-nums', i === 0 ? 'bg-[#1D5BD8] text-white' : 'bg-[#EFF4FF] text-[#1D5BD8]')}>
                 {i + 1}
               </span>

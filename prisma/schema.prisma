@@ -1,4 +1,4 @@
-// CrushCar Bus Booking Platform - Prisma Schema
+// safrotravel Bus Booking Platform - Prisma Schema
 
 generator client {
   provider = "prisma-client-js"
@@ -44,7 +44,6 @@ model Company {
   buses            Bus[]
   companyCustomers CompanyCustomer[]
   companyBookings  CompanyBooking[]
-  invoices         Invoice[]
   walletTransactions WalletTransaction[]
   tripRequests     TripRequest[]
   depositRequests  DepositRequest[]
@@ -137,6 +136,8 @@ model Trip {
   seatHolds   SeatHold[]
   seatBlocks  SeatBlock[]
   createdAt   DateTime   @default(now())
+
+  @@index([status, departure])
 }
 
 model TripStop {
@@ -179,7 +180,7 @@ model Booking {
   status          String    @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
   paidAt          DateTime?
   // Manual transfer proof (customer pays after booking, admin reviews)
-  paymentMethod       String?   // VODAFONE_CASH | INSTAPAY | CASH | BANK
+  paymentMethod       String?   // VODAFONE_CASH | INSTAPAY
   paymentProofUrl     String?   // /api/uploads/... screenshot of the transfer
   paymentNotes        String?   @default("")
   paymentStatus       String    @default("NONE") // NONE | PENDING | REJECTED (awaiting review / needs new proof)
@@ -201,6 +202,10 @@ model Booking {
   refundProcessedBy String?
   createdAt         DateTime  @default(now())
   reminders         Reminder[]
+
+  @@index([status, createdAt])
+  @@index([tripId, status])
+  @@index([userId, status])
 }
 
 model Reminder {
@@ -269,22 +274,9 @@ model CompanyBooking {
   refundProcessedBy String?
   boardedAt         DateTime?
   roundTripGroupId  String?
-}
 
-model Invoice {
-  id              String   @id @default(cuid())
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id])
-  periodStart     DateTime
-  periodEnd       DateTime
-  totalAmount     Float
-  paidAmount      Float    @default(0)
-  status          String   @default("PENDING") // PENDING | PARTIAL | PAID | OVERDUE
-  dueDate         DateTime
-  paidAt          DateTime?
-  notes           String?  @default("")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  @@index([companyId, status])
+  @@index([createdAt, status])
 }
 
 model TripRequest {
@@ -310,7 +302,7 @@ model DepositRequest {
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   amount         Float
   status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
-  method         String?  // VODAFONE_CASH | INSTAPAY | CASH | BANK
+  method         String?  // VODAFONE_CASH | INSTAPAY
   notes          String?  @default("")
   adminNotes     String   @default("")
   attachmentUrl  String   @default("")
@@ -326,7 +318,7 @@ model WalletTransaction {
   type        String   // DEPOSIT | BOOKING_CHARGE | REFUND | ADJUSTMENT
   amount      Float    // positive = add, negative = deduct
   description String   @default("")
-  reference   String?  @default("") // bookingId or invoiceId
+  reference   String?  @default("") // bookingId
   createdAt   DateTime @default(now())
 }
 
@@ -360,6 +352,7 @@ model CharterBooking {
   @@index([companyId])
   @@index([status])
   @@index([companyId, status])
+  @@index([status, createdAt])
 }
 
 model SiteSetting {

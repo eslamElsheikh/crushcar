@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import {
+  REVENUE_STATUS_FILTER,
+  activeTripWhere,
+  businessMonth,
+  rangeStart,
+  round2,
+} from '@/lib/analytics'
+
+const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '180d': 180 }
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,15 +23,16 @@ export async function GET(req: NextRequest) {
     const company = await prisma.company.findUnique({ where: { id: companyId } })
     if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
 
-    const availableCredit = company.creditLimit - company.outstandingBalance
-    const usagePercent = company.creditLimit > 0
-      ? Math.round((company.outstandingBalance / company.creditLimit) * 100)
-      : 0
+    const availableCredit = round2(company.creditLimit - company.outstandingBalance)
+    const usagePercent =
+      company.creditLimit > 0
+        ? Math.round((company.outstandingBalance / company.creditLimit) * 100)
+        : 0
 
-    const sixAgo = new Date()
-    sixAgo.setDate(1)
-    sixAgo.setMonth(sixAgo.getMonth() - 5)
-    sixAgo.setHours(0, 0, 0, 0)
+    const { searchParams } = new URL(req.url)
+    const range = searchParams.get('range') || '180d'
+    const days = RANGE_DAYS[range] ?? RANGE_DAYS['180d']
+    const since = rangeStart(days)
 
     const [
       totalBookings,
@@ -32,40 +42,43 @@ export async function GET(req: NextRequest) {
       charterConfirmed,
       charterRevenue,
       pendingTripRequests,
-      dueInvoices,
+      activeTrips,
+      cancellations,
     ] = await Promise.all([
-      prisma.companyBooking.count({ where: { companyId } }),
+      prisma.companyBooking.count({ where: { companyId, status: { not: 'CANCELLED' } } }),
       prisma.companyBooking.aggregate({
-        where: { companyId, status: { in: ['PAID', 'BOARDED'] } },
+        where: { companyId, status: REVENUE_STATUS_FILTER },
         _sum: { total: true },
       }),
       prisma.companyBooking.findMany({
-        where: { companyId, status: { in: ['PAID', 'BOARDED'] }, createdAt: { gte: sixAgo } },
+        where: { companyId, status: REVENUE_STATUS_FILTER, createdAt: { gte: since } },
         select: { createdAt: true, total: true },
-        orderBy: { createdAt: 'asc' },
       }),
-      prisma.charterBooking.count({ where: { companyId, status: 'requested' } }),
-      prisma.charterBooking.count({ where: { companyId, status: 'confirmed' } }),
+      prisma.charterBooking.count({
+        where: { companyId, status: 'requested', createdAt: { gte: since } },
+      }),
+      prisma.charterBooking.count({
+        where: { companyId, status: 'confirmed', createdAt: { gte: since } },
+      }),
       prisma.charterBooking.aggregate({
-        where: { companyId, status: 'confirmed' },
+        where: { companyId, status: 'confirmed', createdAt: { gte: since } },
         _sum: { price: true },
       }),
       prisma.tripRequest.count({ where: { companyId, status: 'PENDING' } }),
-      prisma.invoice.aggregate({
-        where: { companyId, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
-        _count: true,
-        _sum: { totalAmount: true, paidAmount: true },
+      prisma.trip.count({ where: activeTripWhere(companyId, new Date()) }),
+      prisma.companyBooking.count({
+        where: { companyId, status: 'CANCELLED', refundProcessedAt: null, refundAmount: { not: null } },
       }),
     ])
 
     const monthlyMap = new Map<string, number>()
-    for (const r of monthlyRows) {
-      const key = r.createdAt.toISOString().slice(0, 7)
-      monthlyMap.set(key, (monthlyMap.get(key) || 0) + (r.total || 0))
+    for (const row of monthlyRows) {
+      const key = businessMonth(row.createdAt)
+      monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + (row.total ?? 0))
     }
     const monthlySpend = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([month, total]) => ({ month, total: Math.round(total * 100) / 100 }))
+      .map(([month, total]) => ({ month, total: round2(total) }))
 
     return NextResponse.json({
       company: {
@@ -79,27 +92,27 @@ export async function GET(req: NextRequest) {
         lastBillingDate: company.lastBillingDate?.toISOString() || null,
         isActive: company.isActive,
       },
+      range,
       availableCredit,
       walletBalance: company.walletBalance,
       outstandingBalance: company.outstandingBalance,
       usagePercent,
       nearLimit: usagePercent >= 80 && company.creditLimit > 0,
+      overLimit: company.outstandingBalance > company.creditLimit,
       totalBookings,
-      totalSpent: totalSpent._sum.total || 0,
+      totalSpent: round2(totalSpent._sum.total ?? 0),
       monthlySpend,
       charter: {
         requested: charterRequested,
         confirmed: charterConfirmed,
-        revenue: charterRevenue._sum.price || 0,
+        revenue: round2(charterRevenue._sum.price ?? 0),
       },
       pendingTripRequests,
-      dueInvoices: {
-        count: dueInvoices._count,
-        total: Math.max(0, (dueInvoices._sum.totalAmount || 0) - (dueInvoices._sum.paidAmount || 0)),
-      },
+      pendingCancellations: cancellations,
+      activeTrips,
     })
   } catch (err) {
-    console.error(err)
+    console.error('[company/credit]', err instanceof Error ? err.message : err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

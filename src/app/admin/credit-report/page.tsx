@@ -15,27 +15,35 @@ export default function AdminCreditReport() {
   const isRTL = lang === 'ar';
   const locale = isRTL ? 'ar-EG' : 'en-US';
   const [companies, setCompanies] = useState<any[]>([]);
+  const [totals, setTotals] = useState({ creditLimit: 0, outstandingBalance: 0, walletBalance: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch('/api/admin/credit-report', { credentials: 'include' });
-        if (res.ok) setCompanies((await res.json()) || []);
+        if (res.ok) {
+          const data = await res.json();
+          setCompanies(data.companies || []);
+          if (data.totals) setTotals(data.totals);
+        }
       } catch { /* keep empty */ } finally { setLoading(false); }
     })();
   }, []);
-
-  const sum = (k: string) => (companies || []).reduce((s, c) => s + (Number(c[k]) || 0), 0);
 
   return (
     <div>
       <V2PageHeader title={t('company.creditReport')} />
 
-      <div className="mt-5 grid gap-3.5 sm:grid-cols-3">
-        <V2StatCard label={t('company.creditLimit')} value={`${sum('creditLimit').toLocaleString(locale)} EGP`} icon={<CreditCard className="size-5 text-[#1D5BD8]" />} />
-        <V2StatCard label={t('company.outstanding')} value={`${sum('outstandingBalance').toLocaleString(locale)} EGP`} icon={<TrendingUp className="size-5 text-amber-600" />} />
-        <V2StatCard label={t('company.walletBalance')} value={`${sum('walletBalance').toLocaleString(locale)} EGP`} icon={<Wallet className="size-5 text-emerald-600" />} />
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <V2StatCard label={t('company.creditLimit')} value={`${totals.creditLimit.toLocaleString(locale)} ${t('common.currency')}`} icon={<CreditCard className="size-5 text-[#1D5BD8]" />} />
+        <V2StatCard label={t('company.outstanding')} value={`${totals.outstandingBalance.toLocaleString(locale)} ${t('common.currency')}`} icon={<TrendingUp className="size-5 text-amber-600" />} />
+        <V2StatCard label={t('company.walletBalance')} value={`${totals.walletBalance.toLocaleString(locale)} ${t('common.currency')}`} icon={<Wallet className="size-5 text-emerald-600" />} />
+        <V2StatCard
+          label={t('company.creditUsage')}
+          value={`${totals.creditLimit > 0 ? Math.round((totals.outstandingBalance / totals.creditLimit) * 100) : 0}%`}
+          icon={<TrendingUp className="size-5 text-purple-600" />}
+        />
       </div>
 
       <div className="mt-5">

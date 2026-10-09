@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2SectionHeading } from '@/components/v2/ui';
@@ -36,8 +35,7 @@ interface RecentTrip {
   totalSeats: number; bookedSeats: number;
 }
 interface Stats {
-  totalBookings: number; totalRevenue: number; activeTrips: number;
-  totalBuses: number; recentTrips: RecentTrip[];
+  activeTrips: number; stationCount: number; recentTrips: RecentTrip[];
 }
 interface Destination {
   id: string; slug: string; nameAr: string; nameEn: string | null;
