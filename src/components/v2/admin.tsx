@@ -72,13 +72,13 @@ export function V2SearchInput({
 }) {
   return (
     <span className={cn('relative block', className)}>
-      <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+      <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
       <V2Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="ps-11"
+        className="pl-11"
       />
     </span>
   );

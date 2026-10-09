@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const tripId = searchParams.get('tripId')
     const companyId = searchParams.get('companyId')
-    const ref = searchParams.get('ref')
+    const ref = searchParams.get('ref') || searchParams.get('reference')
     const q = searchParams.get('q')
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       }
       const cbWhere: Record<string, unknown> = {}
       if (tripId) cbWhere.tripId = tripId
+      if (ref) cbWhere.reference = { contains: ref.toUpperCase() }
       if (q) {
         cbWhere.OR = [
           { reference: { contains: q.toUpperCase() } },

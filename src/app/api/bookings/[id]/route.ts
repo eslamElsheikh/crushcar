@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const PAYMENT_METHODS = ['VODAFONE_CASH', 'INSTAPAY', 'CASH', 'BANK']
+    const PAYMENT_METHODS = ['VODAFONE_CASH', 'INSTAPAY']
     const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
 
     // Customer attaches a transfer proof (single booking or whole group).

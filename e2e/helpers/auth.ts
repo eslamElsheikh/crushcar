@@ -15,7 +15,7 @@ export const USERS: Record<string, TestUser & { password: string }> = {
   superAdmin: {
     id: 'user-superadmin',
     name: 'Super Admin',
-    email: 'superadmin@crushcar.com',
+    email: 'superadmin@safrotravel.com',
     password: 'super123',
     role: 'SUPER_ADMIN',
   },

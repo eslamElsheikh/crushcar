@@ -1,3 +1,12 @@
+/* Design-system defaults must be emitted BEFORE Tailwind's utilities.
+   `.v2-input` / `.sp-input` declare their default padding at the same
+   specificity as `ps-*` / `pe-*` utilities, so the utilities only win when
+   they come later in source order. Importing these from page modules put them
+   in a separate chunk that loaded last, which silently discarded every
+   padding class on a `.v2-input` and made icons overlap their placeholder. */
+@import '../components/v2/theme.css';
+@import '../ui-redesign/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -257,7 +266,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-   CRUSHCAR CREATIVE MOTION SYSTEM
+   SAFROTRAVEL CREATIVE MOTION SYSTEM
    ═══════════════════════════════════════════════════════ */
 
 @layer base {

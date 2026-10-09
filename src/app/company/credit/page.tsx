@@ -13,8 +13,6 @@ import { V2StatusBadge, V2Skeleton } from '@/components/v2/ui';
 const METHODS = [
   { key: 'VODAFONE_CASH', labelKey: 'pay.methodVodafone' },
   { key: 'INSTAPAY', labelKey: 'pay.methodInstapay' },
-  { key: 'CASH', labelKey: 'pay.methodCash' },
-  { key: 'BANK', labelKey: 'pay.methodBank' },
 ] as const;
 
 export default function CompanyCreditPage() {

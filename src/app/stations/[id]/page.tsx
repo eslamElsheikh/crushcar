@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { MapPin, Bus, Clock, ArrowRight } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';

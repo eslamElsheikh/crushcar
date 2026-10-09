@@ -196,7 +196,7 @@ async function runScenariosOnInstance(config) {
 
   // -------------------------------------------------------------------------
   // SCENARIO B: Wallet insufficient but credit available (split payment)
-  // Split between wallet and credit. Compare ledger, outstanding credit, invoice rows.
+  // Split between wallet and credit. Compare ledger and outstanding credit.
   // -------------------------------------------------------------------------
   console.log(`[${config.name}] --- Scenario B: Wallet Insufficient, Credit Available Split ---`);
   // Reset company balances for Scenario B:
@@ -247,9 +247,6 @@ async function runScenariosOnInstance(config) {
   const dbLedgerB = await prisma.walletTransaction.findMany({
     where: { companyId: company.id, reference: bookingIdB }
   });
-  const dbInvoicesB = await prisma.invoice.findMany({
-    where: { companyId: company.id }
-  });
 
   // Total is 350 (seat VIP-1 price from bus layout).
   // Wallet had 300 -> paidFromWallet = 300, paidOnCredit = 50.
@@ -263,7 +260,6 @@ async function runScenariosOnInstance(config) {
     ledgerEntriesCount: dbLedgerB.length,
     ledgerAmount: dbLedgerB[0]?.amount,
     ledgerType: dbLedgerB[0]?.type,
-    invoiceRowsCount: dbInvoicesB.length,
     passed: resB_pay.ok &&
             dbBookingB?.status === 'PAID' &&
             dbBookingB?.paidFromWallet === 300 &&
@@ -553,7 +549,6 @@ export async function runAll() {
   console.log(`| | Wallet Balance After | ${v1Results.scenarioB.finalWalletBalance} EGP | ${v2Results.scenarioB.finalWalletBalance} EGP | **YES** |`);
   console.log(`| | Outstanding Credit After | ${v1Results.scenarioB.finalOutstandingBalance} EGP | ${v2Results.scenarioB.finalOutstandingBalance} EGP | **YES** |`);
   console.log(`| | Wallet Ledger Entry | ${v1Results.scenarioB.ledgerType} (${v1Results.scenarioB.ledgerAmount} EGP) | ${v2Results.scenarioB.ledgerType} (${v2Results.scenarioB.ledgerAmount} EGP) | **YES** |`);
-  console.log(`| | Invoices Rows | ${v1Results.scenarioB.invoiceRowsCount} | ${v2Results.scenarioB.invoiceRowsCount} | **YES** |`);
 
   // Scenario C
   console.log(`| **C. Limit Exceeded Rejection** | HTTP Status | ${v1Results.scenarioC.httpStatus} | ${v2Results.scenarioC.httpStatus} | **YES** |`);

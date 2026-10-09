@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
     }
 
-    const METHODS = ['VODAFONE_CASH', 'INSTAPAY', 'CASH', 'BANK']
+    const METHODS = ['VODAFONE_CASH', 'INSTAPAY']
     if (method !== undefined && !METHODS.includes(method)) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
     }

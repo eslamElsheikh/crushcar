@@ -326,18 +326,8 @@ test.describe.serial('Phase B: Golden Journey - Company Manager', () => {
     await page.waitForTimeout(1000);
   });
 
-  test('Step 6: View invoices and submit trip request', async ({ page }) => {
-    // 1. Invoices
-    try {
-      await page.goto('/company/invoices', { waitUntil: 'domcontentloaded' });
-    } catch {
-      await page.waitForTimeout(3000);
-      await page.goto('/company/invoices', { waitUntil: 'domcontentloaded' });
-    }
-    await page.waitForLoadState('domcontentloaded');
-    expect(await page.locator('h1').innerText()).toContain('الفواتير');
-
-    // 2. Trip request
+  test('Step 6: Submit trip request', async ({ page }) => {
+    // Trip request
     try {
       await page.goto('/company/trip-requests', { waitUntil: 'domcontentloaded' });
     } catch {

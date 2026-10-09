@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import '../../ui-redesign/theme.css';
 import type { PreviewLang } from '@/ui-redesign/data/copy';
 import { Navbar } from '@/ui-redesign/components/Navbar';
 import { Hero } from '@/ui-redesign/components/Hero';

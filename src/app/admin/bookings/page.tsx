@@ -51,8 +51,12 @@ export default function AdminBookings() {
         setBookings(data.data || []);
         setPages(data.pagination?.pages || 1);
         setPage(data.pagination?.page || pageNum);
+      } else {
+        setBookings([]);
       }
-    } catch { /* keep list */ } finally { setLoading(false); }
+    } catch {
+      setBookings([]);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {

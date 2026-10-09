@@ -1,5 +1,5 @@
 {
-  "name": "crushcar",
+  "name": "safrotravel",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,13 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:demo": "tsx scripts/seed-demo.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "check:lang": "node scripts/check-lang-keys.mjs",
+    "check:numbers": "node scripts/verify-dashboard-numbers.mjs",
+    "check:dashboard": "node scripts/audit-dashboard-live.mjs",
+    "reconcile:balances": "node scripts/reconcile-balances.mjs",
+    "deploy:generate": "prisma generate --schema=prisma/schema.mysql.prisma",
+    "deploy:seed": "node scripts/seed-production.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -55,6 +61,7 @@
     "autoprefixer": "^10.5.0",
     "eslint": "^9.15.0",
     "eslint-config-next": "15.1.0",
+    "mysql2": "^3.24.5",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
     "tailwindcss-animate": "^1.0.7",

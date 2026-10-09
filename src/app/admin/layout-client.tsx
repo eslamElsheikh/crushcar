@@ -12,7 +12,6 @@ import {
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2Logo } from '@/components/v2/Logo';
 
 const navItems = [

@@ -1,4 +1,4 @@
-# Comprehensive Testing Guide - CrushCar P2P System
+# Comprehensive Testing Guide - safrotravel P2P System
 
 ## تم إصلاح مشكلة الـ Login ✅
 
@@ -26,7 +26,7 @@ http://localhost:3000
 
 | الدور | الإيميل | الباسورد | الوصول |
 |---|---|---|---|
-| **SUPER_ADMIN** | `superadmin@crushcar.com` | `super123` | `/admin/*` فقط |
+| **SUPER_ADMIN** | `superadmin@safrotravel.com` | `super123` | `/admin/*` فقط |
 | **COMPANY_ADMIN** (بأتابيصات) | `admin@cairoexpress.com` | `admin123` | `/admin/*` (عنده buses) |
 | **CUSTOMER** | `user@example.com` | `user123` | `/trips` + `/bookings` |
 
@@ -121,7 +121,7 @@ http://localhost:3000
 - [ ] **المتوقع:** يظهر رسالة "تم التسجيل بنجاح"
 
 ### 3.2 Admin Approval
-- [ ] سجل دخول بـ `superadmin@crushcar.com` / `super123`
+- [ ] سجل دخول بـ `superadmin@safrotravel.com` / `super123`
 - [ ] روح لـ `/admin/companies/pending`
 - [ ] **المتوقع:** تشوف الشركة الجديدة "Test P2P Company"
 - [ ] اضغط Approve

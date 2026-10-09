@@ -79,8 +79,8 @@ export default function CompanyCustomersPage() {
       </div>
 
       <span className="relative mt-5 block max-w-sm">
-        <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-        <V2Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('bookings.search')} aria-label={t('bookings.search')} className="ps-11" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+        <V2Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('bookings.search')} aria-label={t('bookings.search')} className="pl-11" />
       </span>
 
       <div className="mt-4">

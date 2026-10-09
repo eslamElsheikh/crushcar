@@ -4,13 +4,12 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  LayoutDashboard, Ticket, Users, CreditCard, FileText,
+  LayoutDashboard, Ticket, Users, CreditCard,
   LogOut, Menu, X, Calendar, Plus, Bus, Settings,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2Logo } from '@/components/v2/Logo';
 
 const navItems = [
@@ -21,7 +20,6 @@ const navItems = [
   { href: '/company/trip-requests', icon: Calendar, labelKey: 'company.tripRequests' },
   { href: '/company/customers', icon: Users, labelKey: 'company.customers' },
   { href: '/company/credit', icon: CreditCard, labelKey: 'company.credit' },
-  { href: '/company/invoices', icon: FileText, labelKey: 'company.invoices' },
   { href: '/company/settings', icon: Settings, labelKey: 'company.settings' },
 ];
 

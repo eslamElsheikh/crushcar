@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Loader2, Building2 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2AuthShell } from '@/components/v2/AuthShell';
 import { V2Field, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';

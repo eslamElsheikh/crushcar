@@ -773,31 +773,7 @@ export async function runSmokeTests() {
     }
   }
 
-  // 2.5 Credit and Invoice Actions
-  // Create an invoice to pay
-  let testInvoice = await prisma.invoice.create({
-    data: {
-      companyId: company.id,
-      totalAmount: 500,
-      paidAmount: 0,
-      periodStart: new Date(),
-      periodEnd: new Date(),
-      dueDate: new Date(Date.now() + 86400000 * 7),
-      status: 'PENDING',
-    }
-  });
-
-  try {
-    const res = await fetch(`${BASE_URL}/api/company/invoices/${testInvoice.id}`, {
-      method: 'PATCH',
-      headers: reqHeaders(companyToken),
-      body: JSON.stringify({ status: 'PAID', paidAmount: 500 }),
-    });
-    const dbInv = await prisma.invoice.findUnique({ where: { id: testInvoice.id } });
-    record('invoice pay action', 'COMPANY_ADMIN', `/api/company/invoices/${testInvoice.id}`, 'PATCH', '200 OK', `${res.status}`, dbInv?.status === 'PAID');
-  } catch (err) {
-    record('invoice pay action', 'COMPANY_ADMIN', `/api/company/invoices/${testInvoice.id}`, 'PATCH', '200 OK', err.message, false);
-  }
+  // 2.5 Credit actions
 
   // Deposit request from Company
   try {

@@ -18,8 +18,8 @@ const defaultFaqs = [
   {
     questionAr: 'إيه طرق الدفع المتاحة؟',
     questionEn: 'What payment methods are available?',
-    answerAr: 'الدفع نقداً عند المحطة أو عن طريق التحويل البنكي. بعد الحجز هيتم تأكيد الحجز بعد ما الأدمن يستلم الدفع.',
-    answerEn: 'Cash payment at the station or bank transfer. After booking, your reservation will be confirmed once admin receives payment.',
+    answerAr: 'الدفع عن طريق فودافون كاش أو انستا باي. بعد الحجز هيتم تأكيد الحجز بعد ما الأدمن يستلم الدفع.',
+    answerEn: 'Payment via Vodafone Cash or InstaPay. After booking, your reservation will be confirmed once admin receives payment.',
   },
   {
     questionAr: 'أقدر أغير مقعدي بعد الحجز؟',

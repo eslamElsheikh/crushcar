@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { IMAGE_CREDITS } from '@/data/imageCredits';

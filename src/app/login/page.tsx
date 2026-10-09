@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2AuthShell } from '@/components/v2/AuthShell';
 import { V2Field, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
@@ -15,7 +14,7 @@ import { V2Button } from '@/components/v2/Button';
 /* V2 login — same credentials flow + role redirects as V1, new interface. */
 
 const DEMO = [
-  { email: 'superadmin@crushcar.com', password: 'super123', tone: 'red' },
+  { email: 'superadmin@safrotravel.com', password: 'super123', tone: 'red' },
   { email: 'admin@cairoexpress.com', password: 'admin123', tone: 'blue' },
   { email: 'user@example.com', password: 'user123', tone: 'green' },
 ] as const;

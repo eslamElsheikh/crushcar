@@ -7,7 +7,6 @@ const DEMO = {
   trip: (k: string) => `demo-trip-${k}`,
   booking: (k: string) => `DEMO-BK-${k}`,
   companyBooking: (k: string) => `DEMO-CB-${k}`,
-  invoice: (k: string) => `DEMO-INV-${k}`,
   walletTx: (k: string) => `demo-wt-${k}`,
   tripRequest: (k: string) => `demo-tr-${k}`,
   depositRequest: (k: string) => `demo-dr-${k}`,
@@ -716,53 +715,6 @@ async function main() {
   console.log('✅ Company customers seeded')
 
   // ══════════════════════════════════════════════════════════════
-  // INVOICES
-  // ══════════════════════════════════════════════════════════════
-  async function upsertInvoice(opts: {
-    key: string
-    companyId: string
-    periodStart: Date
-    periodEnd: Date
-    totalAmount: number
-    paidAmount?: number
-    status: string
-    dueDate: Date
-    paidAt?: Date | null
-    notes?: string
-  }) {
-    const existing = await prisma.invoice.findUnique({ where: { id: DEMO.invoice(opts.key) } })
-    const data = {
-      companyId: opts.companyId, periodStart: opts.periodStart, periodEnd: opts.periodEnd,
-      totalAmount: opts.totalAmount, paidAmount: opts.paidAmount ?? 0, status: opts.status,
-      dueDate: opts.dueDate, paidAt: opts.paidAt ?? null, notes: opts.notes ?? '',
-    }
-    if (existing) {
-      await prisma.invoice.update({ where: { id: existing.id }, data })
-      return existing
-    }
-    return prisma.invoice.create({ data: { id: DEMO.invoice(opts.key), ...data } })
-  }
-
-  await upsertInvoice({
-    key: 'inv-1', companyId: cairoExpress.id, periodStart: at(-30), periodEnd: at(-1),
-    totalAmount: 1200, paidAmount: 1200, status: 'PAID', dueDate: at(-5), paidAt: at(-10),
-  })
-  await upsertInvoice({
-    key: 'inv-2', companyId: cairoExpress.id, periodStart: at(-1), periodEnd: at(29),
-    totalAmount: 800, paidAmount: 300, status: 'PARTIAL', dueDate: at(15),
-  })
-  await upsertInvoice({
-    key: 'inv-3', companyId: monsters.id, periodStart: at(-45), periodEnd: at(-16),
-    totalAmount: 2000, paidAmount: 0, status: 'OVERDUE', dueDate: at(-10),
-  })
-  await upsertInvoice({
-    key: 'inv-4', companyId: monsters.id, periodStart: at(-1), periodEnd: at(29),
-    totalAmount: 1500, paidAmount: 1500, status: 'PAID', dueDate: at(20), paidAt: at(5),
-  })
-
-  console.log('✅ Invoices seeded')
-
-  // ══════════════════════════════════════════════════════════════
   // WALLET TRANSACTIONS
   // ══════════════════════════════════════════════════════════════
   async function upsertWalletTx(opts: { key: string; companyId: string; type: string; amount: number; description?: string; reference?: string; createdAt?: Date }) {
@@ -835,8 +787,7 @@ async function main() {
   console.log('✅ Deposit requests seeded')
 
   // ══════════════════════════════════════════════════════════════
-  // EXTRA COMPANY DATA — bookings, customers, invoice, wallet, requests
-  // ══════════════════════════════════════════════════════════════
+  // EXTRA COMPANY DATA — bookings, customers, wallet, requests
   await upsertCompanyBooking({
     key: 'cb-5', companyId: cairoExpress.id, tripId: futureTrips.caiSahlOut.id, seatLabel: 'A1',
     status: 'PAID', total: 520, bookingType: 'FOR_EMPLOYEE', paidFromWallet: 520,
@@ -862,14 +813,6 @@ async function main() {
   await upsertCompanyCustomer({ key: 'cc-4', companyId: cairoExpress.id, name: 'Delta Trading', email: 'ops@delta.com', phone: '01000000004', notes: 'VIP route requests' })
   await upsertCompanyCustomer({ key: 'cc-5', companyId: monsters.id, name: 'Monster Client B', email: 'b@monster.com', phone: '01000000005' })
 
-  await upsertInvoice({
-    key: 'inv-5', companyId: cairoExpress.id, periodStart: at(-60), periodEnd: at(-31),
-    totalAmount: 950, paidAmount: 0, status: 'PENDING', dueDate: at(-25), notes: 'Late invoice',
-  })
-  await upsertInvoice({
-    key: 'inv-6', companyId: monsters.id, periodStart: at(-1), periodEnd: at(29),
-    totalAmount: 600, paidAmount: 100, status: 'PARTIAL', dueDate: at(10),
-  })
 
   await upsertWalletTx({ key: 'wt-7', companyId: cairoExpress.id, type: 'DEPOSIT', amount: 2500, description: 'Cash deposit at office', createdAt: at(-7) })
   await upsertWalletTx({ key: 'wt-8', companyId: cairoExpress.id, type: 'BOOKING_CHARGE', amount: -520, description: 'Booking charge', reference: DEMO.companyBooking('cb-5'), createdAt: at(0) })
@@ -960,7 +903,6 @@ async function main() {
   console.log(`   BusRoutes: ${await prisma.busStation.count()}`)
   console.log(`   CompanyBookings: ${await prisma.companyBooking.count()}`)
   console.log(`   CompanyCustomers: ${await prisma.companyCustomer.count()}`)
-  console.log(`   Invoices: ${await prisma.invoice.count()}`)
   console.log(`   WalletTransactions: ${await prisma.walletTransaction.count()}`)
   console.log(`   TripRequests: ${await prisma.tripRequest.count()}`)
   console.log(`   DepositRequests: ${await prisma.depositRequest.count()}`)

@@ -69,7 +69,7 @@ npx playwright test e2e/phase-a-page-health.spec.ts --project="Mobile Chrome (Pi
 ### Phase B: Golden Journeys (Role Scenarios)
 Verifies multi-step critical user journeys across all authenticated roles and cross-role interaction:
 1. **Customer Journey:** Registration, login, seat booking, ticket print view, booking cancellation, profile update, sign-out.
-2. **Company Manager Journey:** Dashboard metrics, company customer CRUD, credit deposit request, invoice overview, trip request submission, booking via company wallet.
+2. **Company Manager Journey:** Dashboard metrics, company customer CRUD, credit deposit request, trip request submission, booking via company wallet.
 3. **Super Admin Journey:** KPI tabs, bus fleet creation, single trip scheduling, payment approval, passenger boarding verification, company approval, reports CSV export, destinations/stations management.
 4. **Cross-Role Synchronized Interaction:** Multi-context lifecycle across Super Admin, Customer, and Company Manager.
 

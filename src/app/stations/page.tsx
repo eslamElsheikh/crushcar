@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Search, MapPin, ArrowRight, Bus } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Input } from '@/components/v2/Field';
@@ -66,8 +65,8 @@ export default function StationsPage() {
 
         <div className="v2-card mt-6 grid gap-3 p-4 sm:grid-cols-[1fr_200px] md:p-5">
           <span className="relative block">
-            <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-            <V2Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('stations.searchPlaceholder')} aria-label={t('stations.searchPlaceholder')} className="ps-11" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+            <V2Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('stations.searchPlaceholder')} aria-label={t('stations.searchPlaceholder')} className="pl-11" />
           </span>
           <V2Input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('stations.filterByCity')} aria-label={t('stations.filterByCity')} />
         </div>

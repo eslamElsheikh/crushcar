@@ -29,7 +29,6 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       prisma.walletTransaction.deleteMany(),
       prisma.depositRequest.deleteMany(),
       prisma.tripRequest.deleteMany(),
-      prisma.invoice.deleteMany(),
       prisma.companyCustomer.deleteMany(),
       (prisma as any).creditLog?.deleteMany?.(),
       prisma.tripStop.deleteMany(),
@@ -151,7 +150,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     const superAdmin = await prisma.user.create({
       data: {
         id: 'user-superadmin',
-        email: 'superadmin@crushcar.com',
+        email: 'superadmin@safrotravel.com',
         password: superAdminPw,
         name: 'Super Admin',
         role: 'SUPER_ADMIN',
@@ -656,7 +655,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       await prisma.faq.create({ data: f })
     }
 
-    // ── 8. Create Company Customers, Invoices, Deposit Request ───────
+    // ── 8. Create Company Customers, Deposit Request ───────
     const compCustomer1 = await prisma.companyCustomer.create({
       data: {
         id: 'comp-cust-1',
@@ -666,20 +665,6 @@ export async function seedScratchDatabase(databaseUrl?: string) {
         email: 'nile@company.com',
       },
     })
-
-    await prisma.invoice.create({
-      data: {
-        id: 'inv-e2e-1',
-        companyId: cairoExpress.id,
-        periodStart: addDays(-30),
-        periodEnd: now,
-        totalAmount: 2000,
-        paidAmount: 0,
-        status: 'PENDING',
-        dueDate: addDays(15),
-      },
-    })
-
     const pendingDeposit = await prisma.depositRequest.create({
       data: {
         id: 'dep-e2e-1',
@@ -731,7 +716,7 @@ export async function seedEmptyDatabase(databaseUrl?: string) {
 
   const prisma = new PrismaClient({ datasources: { db: { url } } })
   try {
-    // Clear all trips, bookings, customers, destinations, invoices, requests
+    // Clear all trips, bookings, customers, destinations, requests
     const emptyQueries = [
       (prisma as any).reminder?.deleteMany?.(),
       (prisma as any).seatBlock?.deleteMany?.(),
@@ -742,7 +727,6 @@ export async function seedEmptyDatabase(databaseUrl?: string) {
       prisma.walletTransaction.deleteMany(),
       prisma.depositRequest.deleteMany(),
       prisma.tripRequest.deleteMany(),
-      prisma.invoice.deleteMany(),
       prisma.companyCustomer.deleteMany(),
       prisma.tripStop.deleteMany(),
       prisma.trip.deleteMany(),

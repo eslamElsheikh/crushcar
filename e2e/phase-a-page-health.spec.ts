@@ -102,7 +102,6 @@ test.describe('Phase A: Page Health - Company Manager Role', () => {
     '/company/charter',
     '/company/customers',
     '/company/credit',
-    '/company/invoices',
     '/company/trip-requests',
     '/company/settings',
   ];

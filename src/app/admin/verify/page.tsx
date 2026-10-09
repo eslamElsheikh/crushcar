@@ -95,12 +95,12 @@ export default function VerifyPage() {
 
       <form onSubmit={search} className="mt-5 flex gap-2">
         <span className="relative block flex-1">
-          <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
           <V2Input
             value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder={isRTL ? 'رقم الحجز أو الهاتف...' : 'Reference or phone...'}
             aria-label={isRTL ? 'بحث' : 'Search'}
-            dir="ltr" className="ps-11 font-mono"
+            dir="ltr" className="pl-11 text-start rtl:text-end font-mono"
           />
         </span>
         <V2Button type="submit" disabled={loading}>

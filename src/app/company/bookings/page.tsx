@@ -60,8 +60,8 @@ export default function CompanyBookingsPage() {
 
       <div className="mt-5 flex flex-wrap items-center gap-2.5">
         <span className="relative block w-full sm:w-64">
-          <Search className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
-          <V2Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={t('bookings.search')} aria-label={t('bookings.search')} className="ps-11" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#9AA8BD]" />
+          <V2Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={t('bookings.search')} aria-label={t('bookings.search')} className="pl-11" />
         </span>
         <div className="flex flex-wrap gap-1.5">
           {filters.map((f) => (

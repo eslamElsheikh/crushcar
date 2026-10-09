@@ -50,7 +50,7 @@
     },
     "payments": {
       "title": "Payment Integration",
-      "desc": "Admin confirms payments manually. Cash at station or bank transfer options."
+      "desc": "Admin confirms payments manually. Payment via Vodafone Cash or InstaPay."
     }
   },
   "liveBooking": {
@@ -65,10 +65,10 @@
   },
   "testimonials": {
     "badge": "TRUSTED BY TRANSPORT LEADERS",
-    "title": "Companies that trust CrushCar",
+    "title": "Companies that trust safrotravel",
     "items": [
       {
-        "quote": "CrushCar transformed how we manage our fleet. The seat map is beautiful and customers love it.",
+        "quote": "safrotravel transformed how we manage our fleet. The seat map is beautiful and customers love it.",
         "author": "Ahmed Hassan",
         "role": "CEO, Cairo Express",
         "company": "Cairo Express"
@@ -80,7 +80,7 @@
         "company": "Delta Transport"
       },
       {
-        "quote": "Beautiful UI, powerful backend. CrushCar is exactly what the Egyptian transport market needed.",
+        "quote": "Beautiful UI, powerful backend. safrotravel is exactly what the Egyptian transport market needed.",
         "author": "Omar Farouk",
         "role": "Founder",
         "company": "Nile Bus Co."
@@ -116,7 +116,7 @@
   },
   "cta": {
     "title": "Ready to transform your transport business?",
-    "subtitle": "Join hundreds of transport companies already using CrushCar. Start your free trial today.",
+    "subtitle": "Join hundreds of transport companies already using safrotravel. Start your free trial today.",
     "button": "Start for Free — No Credit Card"
   },
   "footer": {
@@ -274,7 +274,7 @@
     "noAccount": "Don't have an account?",
     "createOne": "Create one",
     "createAccount": "Create account",
-    "joinToday": "Join CrushCar today",
+    "joinToday": "Join safrotravel today",
     "fullName": "Full Name",
     "iAm": "I am a...",
     "customer": "Customer (book seats)",

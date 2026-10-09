@@ -7,7 +7,6 @@ import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle2, Copy, Check, Upload, AlertTriangle, Receipt } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
-import '@/components/v2/theme.css';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Field, V2Input } from '@/components/v2/Field';
@@ -34,8 +33,6 @@ interface PayBooking {
 const METHODS = [
   { key: 'VODAFONE_CASH', labelKey: 'pay.methodVodafone' },
   { key: 'INSTAPAY', labelKey: 'pay.methodInstapay' },
-  { key: 'CASH', labelKey: 'pay.methodCash' },
-  { key: 'BANK', labelKey: 'pay.methodBank' },
 ] as const;
 
 export default function BookingPayPage() {

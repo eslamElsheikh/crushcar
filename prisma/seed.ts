@@ -44,7 +44,7 @@ async function main() {
   const [superAdmin, admin, customer1, customer2, customer3] = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'superadmin@crushcar.com',
+        email: 'superadmin@safrotravel.com',
         password: superAdminPassword,
         name: 'Super Admin',
         role: 'SUPER_ADMIN',
@@ -289,7 +289,7 @@ async function main() {
   console.log(`   Bookings: ${await prisma.booking.count()}`)
   console.log('')
   console.log('Demo accounts:')
-  console.log('  Super Admin:  superadmin@crushcar.com / super123')
+  console.log('  Super Admin:  superadmin@safrotravel.com / super123')
   console.log('  Company Admin: admin@cairoexpress.com / admin123')
   console.log('  Customer:     user@example.com / user123')
   console.log('')

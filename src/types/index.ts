@@ -8,7 +8,6 @@ export type PaymentMode = 'CREDIT' | 'PREPAID' | 'BOTH'
 export type BillingCycle = 'MONTHLY' | 'WEEKLY'
 export type BookingType = 'FOR_CLIENT' | 'FOR_EMPLOYEE'
 export type WalletTransactionType = 'DEPOSIT' | 'BOOKING_CHARGE' | 'REFUND' | 'ADJUSTMENT'
-export type InvoiceStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE'
 
 export interface User {
   id: string
@@ -173,22 +172,6 @@ export interface CompanyBooking {
   paidAt?: string
   cancelledAt?: string
   boardedAt?: string
-}
-
-export interface Invoice {
-  id: string
-  companyId: string
-  company?: Company
-  periodStart: string
-  periodEnd: string
-  totalAmount: number
-  paidAmount: number
-  status: InvoiceStatus
-  dueDate: string
-  paidAt?: string
-  notes?: string
-  createdAt: string
-  updatedAt: string
 }
 
 export interface WalletTransaction {

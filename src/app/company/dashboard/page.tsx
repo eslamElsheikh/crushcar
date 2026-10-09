@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { CreditCard, Wallet, TrendingUp, Ticket, ArrowRight, FileText, Plus, Bus, Armchair, CalendarClock, AlertTriangle } from 'lucide-react';
+import { CreditCard, Wallet, TrendingUp, Ticket, ArrowRight, Plus, Bus, Armchair, CalendarClock, AlertTriangle } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
@@ -25,7 +25,6 @@ interface CreditStatus {
   monthlySpend: { month: string; total: number }[];
   charter: { requested: number; confirmed: number; revenue: number };
   pendingTripRequests: number;
-  dueInvoices: { count: number; total: number };
 }
 
 export default function CompanyDashboard() {
@@ -172,8 +171,8 @@ export default function CompanyDashboard() {
         </div>
       </div>
 
-      {/* Charter vs seats + pending requests + due invoices */}
-      <div className="mt-5 grid gap-3.5 sm:grid-cols-3">
+      {/* Charter vs seats + pending requests */}
+      <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
         <Link href="/company/charter" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
           <div className="flex items-center justify-between">
             <span className="grid size-11 place-items-center rounded-xl bg-purple-50 text-purple-600">
@@ -202,21 +201,6 @@ export default function CompanyDashboard() {
           <p className="mt-3.5 text-[15px] font-extrabold text-[#0B1B33]">{t('company.pendingRequests')}</p>
           <p className="mt-1.5 text-[21px] font-extrabold tabular-nums text-[#0B1B33]">
             {(data.pendingTripRequests ?? 0).toLocaleString(locale)}
-          </p>
-        </Link>
-        <Link href="/company/invoices" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
-          <div className="flex items-center justify-between">
-            <span className="grid size-11 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
-              <FileText className="size-5" />
-            </span>
-            <ArrowRight className="size-4 text-slate-300 v2-flip-rtl" />
-          </div>
-          <p className="mt-3.5 text-[15px] font-extrabold text-[#0B1B33]">{t('company.dueInvoices')}</p>
-          <p className="mt-1.5 text-[21px] font-extrabold tabular-nums text-[#0B1B33]">
-            {(data.dueInvoices?.count ?? 0).toLocaleString(locale)}
-          </p>
-          <p className="mt-1 text-[13px] font-bold tabular-nums text-[var(--sp-text-muted)]">
-            {(data.dueInvoices?.total ?? 0).toLocaleString(locale)} EGP
           </p>
         </Link>
       </div>
@@ -261,11 +245,6 @@ export default function CompanyDashboard() {
             <Wallet className="size-6 text-emerald-600" />
             <p className="mt-3 text-[15px] font-extrabold text-[#0B1B33]">{t('company.deposit')}</p>
             <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">{t('company.walletBalance')}: {data.walletBalance.toLocaleString(locale)} {t('common.currency')}</p>
-          </Link>
-          <Link href="/company/invoices" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 hover:border-[#1D5BD8]/40">
-            <FileText className="size-6 text-[#1D5BD8]" />
-            <p className="mt-3 text-[15px] font-extrabold text-[#0B1B33]">{t('company.viewInvoices')}</p>
-            <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">{t('company.outstanding')}: {data.outstandingBalance.toLocaleString(locale)} {t('common.currency')}</p>
           </Link>
         </div>
       </div>
