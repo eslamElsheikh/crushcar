@@ -15,7 +15,9 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get('date')
     const returnDate = searchParams.get('returnDate')
     const busId = searchParams.get('busId')
-    const status = searchParams.get('status')
+    const rawStatus = searchParams.get('status')
+    // "ALL" is the admin's unfiltered tab: no status constraint at all.
+    const status = rawStatus && rawStatus.toUpperCase() !== 'ALL' ? rawStatus : undefined
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
     const skip = (page - 1) * take
@@ -159,8 +161,9 @@ export async function GET(req: NextRequest) {
       where.bus = { OR: [{ companyId: session.user.companyId }, { companyId: null }] }
     }
 
-    // Only show scheduled trips by default
-    if (!status) where.status = 'SCHEDULED'
+    // Public callers get SCHEDULED by default. Admins that asked for ALL get no
+    // status constraint, so completed/cancelled history stays visible.
+    if (!status && rawStatus?.toUpperCase() !== 'ALL') where.status = 'SCHEDULED'
 
     if (fromStationId || toStationId) {
       // Filter by stops when station IDs are provided
@@ -192,7 +195,10 @@ export async function GET(req: NextRequest) {
       const end = new Date(date)
       end.setDate(end.getDate() + 1)
       where.departure = { gte: start, lt: end }
-    } else {
+    } else if (!status) {
+      // No explicit status and no date: the public booking list, which must only
+      // ever show upcoming trips. When the caller does pin a status (admin tabs
+      // like COMPLETED/CANCELLED) we skip this so past trips stay visible.
       where.departure = { gte: now }
     }
 

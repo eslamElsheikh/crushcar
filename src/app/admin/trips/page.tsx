@@ -49,9 +49,15 @@ export default function AdminTrips() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(pageNum), take: '20' });
-      if (f === 'upcoming') params.set('status', 'SCHEDULED');
-      else if (f === 'completed') params.set('status', 'COMPLETED');
-      else if (f === 'cancelled') params.set('status', 'CANCELLED');
+      // The API only applies its "SCHEDULED + upcoming" default when no status is
+      // sent. Pin every tab explicitly so the admin list shows past trips too.
+      const STATUS_BY_FILTER: Record<Filter, string> = {
+        all: 'ALL',
+        upcoming: 'SCHEDULED',
+        completed: 'COMPLETED',
+        cancelled: 'CANCELLED',
+      };
+      params.set('status', STATUS_BY_FILTER[f]);
       const res = await fetch(`/api/trips?${params}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
