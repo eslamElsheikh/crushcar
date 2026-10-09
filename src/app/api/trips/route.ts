@@ -40,9 +40,12 @@ export async function GET(req: NextRequest) {
       const dateEnd = new Date(dateStart)
       dateEnd.setDate(dateEnd.getDate() + 1)
 
-      const companyFilter = !allTrips && session?.user?.role === 'COMPANY_ADMIN' && session.user.companyId
-        ? `AND t."busId" IN (SELECT id FROM "Bus" WHERE "companyId" = '${session.user.companyId}' OR "companyId" IS NULL)`
+      const companyScoped = !allTrips && session?.user?.role === 'COMPANY_ADMIN' && session.user.companyId
+      const companyFilter = companyScoped
+        ? 'AND t."busId" IN (SELECT id FROM "Bus" WHERE "companyId" = ? OR "companyId" IS NULL)'
         : ''
+
+      const companyArgs = companyScoped ? [session.user!.companyId!] : []
 
       const tripRows = await prisma.$queryRawUnsafe<any[]>(`
         SELECT
@@ -63,7 +66,14 @@ export async function GET(req: NextRequest) {
           ${companyFilter}
         ORDER BY t.departure ASC
         ${returnDate ? '' : 'LIMIT ? OFFSET ?'}
-      `, ...(returnDate ? [fromStationId, toStationId, dateStart, dateEnd] : [fromStationId, toStationId, dateStart, dateEnd, take, skip]))
+      `,
+        fromStationId,
+        toStationId,
+        dateStart,
+        dateEnd,
+        ...companyArgs,
+        ...(returnDate ? [] : [take, skip])
+      )
 
       // Round trip: only outbound trips that have a matching return with free
       // seats stay visible. A return matches when it runs the reversed leg on

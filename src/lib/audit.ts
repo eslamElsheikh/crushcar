@@ -4,12 +4,13 @@ import { logger } from '@/lib/logger'
 const ACTIONS = [
   'CREATE', 'UPDATE', 'DELETE', 'CANCEL', 'APPROVE', 'REJECT',
   'PAY', 'REFUND', 'LOGIN', 'BLOCK', 'UNBLOCK', 'BOARD',
+  'WALLET_CREDIT', 'ADJUST',
 ] as const
 
 const ENTITIES = [
   'Booking', 'CompanyBooking', 'Company', 'User', 'Bus', 'Trip',
   'Station', 'Wallet', 'CreditLimit', 'Setting', 'Faq',
-  'DepositRequest', 'TripRequest', 'Invoice', 'CompanyCustomer',
+  'DepositRequest', 'TripRequest', 'CompanyCustomer',
   'BusLayout', 'SeatBlock', 'CharterBooking',
 ] as const
 

@@ -16,3 +16,19 @@ vercel.json
 .scratch/
 tsconfig.tsbuildinfo
 .opencode/
+
+# Contains live production secrets or a dump of the live database
+# (customer names, phone numbers, password hashes), or a hardcoded deploy key.
+# Keep them out of version control; they live on the operator's machine.
+DEPLOY.md
+/data_live/
+/docs/security/
+/scripts/deploy-fix.php
+/vercel.json.tmp
+/backfill-tmp.cjs
+*_tmp.ts
+*_tmp.cjs
+*tmp.cjs
+/*-tmp.ts
+/*-tmp.cjs
+/verify_parity.js
