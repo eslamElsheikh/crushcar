@@ -280,7 +280,15 @@ export function V2DatePicker({
             collisionPadding={12}
             role="dialog"
             aria-label={label}
-            className="z-50 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
+            // dir is repeated here because the portal escapes the wrapper that
+            // carries it, and the calendar relies on it for Arabic layout.
+            dir={dir}
+            // `v2` is required here: this content is portaled to <body>, outside the .v2
+            // wrapper where --sp-card / --sp-line are declared, so those vars
+            // would otherwise be invalid and the panel would render transparent.
+            // The !important is needed because .v2 sets `background` unlayered,
+            // which would otherwise beat the bg-* utility and paint --sp-bg.
+            className="v2 z-50 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-[var(--sp-line)] !bg-[var(--sp-card)] p-4 shadow-[0_24px_64px_rgba(11,27,51,0.18)]"
           >
             {calendar}
           </Popover.Content>

@@ -54,6 +54,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const PAYMENT_METHODS = ['VODAFONE_CASH', 'INSTAPAY']
     const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
 
+    // Bookings created before this date predate the proof requirement, so they stay
+// confirmable without a screenshot. It sits after the last legacy booking
+// (2026-06-26) and before the rule went live. Override with
+// PROOF_REQUIRED_FROM to move the line.
+const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
+  ? new Date(process.env.PROOF_REQUIRED_FROM)
+  : new Date('2026-07-01T00:00:00Z')
+    const proofRequiredFor = (b: { createdAt: Date }) =>
+      b.createdAt.getTime() >= PROOF_REQUIRED_FROM.getTime()
+
     // Customer attaches a transfer proof (single booking or whole group).
     if (action === 'SUBMIT_PROOF') {
       if (booking.userId !== session.user.id) {
@@ -124,9 +134,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (booking.status !== 'PENDING') {
         return NextResponse.json({ error: 'Booking is not pending' }, { status: 400 })
       }
+      // Money is only ever confirmed against a transfer screenshot. Without this
+      // check an admin can mark any unpaid booking PAID by clicking the button.
+      if (!booking.paymentProofUrl && proofRequiredFor(booking)) {
+        return NextResponse.json(
+          { error: 'PAYMENT_PROOF_REQUIRED', message: 'لا يمكن تأكيد الدفع قبل رفع العميل لصورة التحويل' },
+          { status: 400 }
+        )
+      }
       const updated = await prisma.booking.update({
         where: { id },
-        data: { status: 'PAID', paidAt: new Date() },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          // Keep the proof state consistent with the booking state; leaving it
+          // PENDING here made a confirmed booking look unreviewed everywhere.
+          ...(booking.paymentProofUrl ? { paymentStatus: 'APPROVED' } : {}),
+        },
       })
       return NextResponse.json({ ...updated, paidAt: updated.paidAt?.toISOString() || null })
     }

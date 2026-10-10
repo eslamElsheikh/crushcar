@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Loader2 } from 'lucide-react';
+import { Pencil, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Table, V2Pagination, V2Modal, V2Tabs, V2SearchInput } from '@/components/v2/admin';
@@ -15,6 +15,12 @@ type Tab = 'customer' | 'company';
 
 const toneFor = (s: string) =>
   s === 'PAID' ? 'green' : s === 'PENDING' ? 'amber' : s === 'CANCELLED' ? 'red' : 'blue';
+
+// Kept in sync with PROOF_REQUIRED_FROM in src/app/api/bookings/[id]/route.ts.
+// Sits after the last legacy booking (2026-06-26) so those stay confirmable.
+const PROOF_REQUIRED_FROM_MS = new Date(
+  process.env.NEXT_PUBLIC_PROOF_REQUIRED_FROM || '2026-07-01T00:00:00Z'
+).getTime();
 
 export default function AdminBookings() {
   const t = useLangStore((s) => s.t);
@@ -66,6 +72,11 @@ export default function AdminBookings() {
 
   async function confirmPaid() {
     if (!confirmId) return;
+    // The server enforces this too; catching it here avoids a raw error toast.
+    if (confirmBooking && !confirmBooking.paymentProofUrl && needsProof(confirmBooking)) {
+      toast.error(t('pay.proofRequired'));
+      return;
+    }
     setConfirming(true);
     try {
       const res = await fetch(`/api/bookings/${confirmId}`, {
@@ -75,11 +86,14 @@ export default function AdminBookings() {
         body: JSON.stringify({ status: 'PAID' }),
       });
       if (res.ok) {
-        setBookings((prev) => prev.map((b) => (b.id === confirmId ? { ...b, status: 'PAID' } : b)));
+        setBookings((prev) =>
+          prev.map((b) => (b.id === confirmId ? { ...b, status: 'PAID', paymentStatus: 'APPROVED' } : b))
+        );
         setConfirmId(null);
         toast.success(t('payment.confirmed'));
       } else {
-        toast.error(t('common.error'));
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.message || body.error || t('common.error'));
       }
     } catch {
       toast.error(t('common.error'));
@@ -123,6 +137,13 @@ export default function AdminBookings() {
   }
 
   const confirmBooking = confirmId ? bookings.find((b) => b.id === confirmId) : null;
+
+  // Mirrors PROOF_REQUIRED_FROM in the API: bookings created before the cutoff
+  // predate the requirement and stay confirmable without a screenshot.
+  const needsProof = (b: any) =>
+    !!b && !b.paymentProofUrl && new Date(b.createdAt).getTime() >= PROOF_REQUIRED_FROM_MS;
+
+  const confirmBlocked = confirmBooking ? needsProof(confirmBooking) : false;
 
   async function saveEdit() {
     if (!edit) return;
@@ -204,6 +225,19 @@ export default function AdminBookings() {
                 {t(b.status) || b.status}
               </V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
+                {/* A pending booking still awaiting a screenshot gets an explicit
+                    marker, so "no proof uploaded" is never mistaken for "proof
+                    uploaded but not rendered". */}
+                {b.status === 'PENDING' && needsProof(b) && (
+                  <button
+                    onClick={() => { setConfirmId(b.id); setRejectReason(''); }}
+                    aria-label={t('pay.proofMissing')}
+                    title={t('pay.proofMissing')}
+                    className="grid size-10 place-items-center rounded-xl border border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                  >
+                    <AlertTriangle className="size-5" />
+                  </button>
+                )}
                 {b.status === 'PENDING' && b.paymentProofUrl && (
                   <button
                     onClick={() => { setConfirmId(b.id); setRejectReason(''); }}
@@ -243,6 +277,20 @@ export default function AdminBookings() {
               </div>
               <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>
+              {b.status === 'PENDING' && b.paymentProofUrl && (
+                <button
+                  onClick={() => { setConfirmId(b.id); setRejectReason(''); }}
+                  className="mt-2 block w-full overflow-hidden rounded-xl border border-slate-200"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={b.paymentProofUrl} alt={t('pay.proof')} className="max-h-40 w-full object-cover" />
+                </button>
+              )}
+              {b.status === 'PENDING' && needsProof(b) && (
+                <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] font-bold text-amber-800">
+                  <AlertTriangle className="size-4 shrink-0" /> {t('pay.proofMissing')}
+                </p>
+              )}
               <div className="mt-3 flex gap-1.5">
                 {b.status === 'PENDING' && (
                   <button onClick={() => { setConfirmId(b.id); setRejectReason(''); }} className="flex-1 rounded-xl bg-emerald-50 py-2.5 text-[13.5px] font-bold text-emerald-700">
@@ -264,30 +312,41 @@ export default function AdminBookings() {
 
       <V2Modal open={!!confirmId} onClose={() => { setConfirmId(null); setRejectReason(''); }} title={t('payment.confirmTitle')}>
         <p className="text-[14.5px] text-[var(--sp-text-muted)]">{t('payment.pendingDesc')}</p>
-        {confirmBooking?.paymentProofUrl && (
+        {confirmBooking?.paymentProofUrl ? (
           <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 p-3.5">
             <p className="text-[13.5px] font-extrabold text-[#0B1B33]">
               {t('pay.method')}: <span className="font-bold text-[#1D5BD8]">{methodLabel(confirmBooking.paymentMethod)}</span>
             </p>
             <a href={confirmBooking.paymentProofUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={confirmBooking.paymentProofUrl} alt="" className="max-h-64 w-full object-contain bg-slate-50" />
+              <img src={confirmBooking.paymentProofUrl} alt={t('pay.proof')} className="max-h-64 w-full object-contain bg-slate-50" />
             </a>
             {confirmBooking.paymentNotes && (
               <p className="text-[13px] text-[var(--sp-text-muted)]">{confirmBooking.paymentNotes}</p>
             )}
           </div>
+        ) : (
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+            <p className="text-[13.5px] font-bold text-amber-900">{t('pay.proofMissing')}</p>
+          </div>
         )}
         <div className="mt-4">
           <V2Field label={t('pay.reasonLabel')}>
-            <V2Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={t('pay.reasonPh')} />
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder={t('pay.reasonPh')}
+              rows={3}
+              className="v2-input resize-none py-3 leading-relaxed"
+            />
           </V2Field>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2.5">
           <button onClick={() => { setConfirmId(null); setRejectReason(''); }} className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]">
             {t('common.cancel')}
           </button>
-          <V2Button disabled={confirming} onClick={confirmPaid}>
+          <V2Button disabled={confirming || confirmBlocked} onClick={confirmPaid} title={confirmBlocked ? t('pay.proofRequired') : undefined}>
             {confirming ? <Loader2 className="size-5 animate-spin" /> : null} {t('payment.confirmBtn')}
           </V2Button>
         </div>

@@ -420,6 +420,11 @@ const translations: Record<string, Record<Language, string>> = {
   'pay.paid': { ar: 'تم تأكيد الدفع لهذا الحجز', en: 'Payment confirmed for this booking' },
   'pay.needMethod': { ar: 'اختر طريقة الدفع أولًا', en: 'Choose a payment method first' },
   'pay.needProof': { ar: 'أرفق صورة التحويل أولًا', en: 'Attach the transfer screenshot first' },
+  'pay.proofMissing': { ar: 'لم يقم العميل برفع صورة التحويل', en: 'The customer has not uploaded a transfer screenshot' },
+  'pay.proofRequired': {
+    ar: 'لا يمكن تأكيد الدفع قبل رفع العميل لصورة التحويل',
+    en: 'Payment cannot be confirmed until the customer uploads a transfer screenshot',
+  },
   'pay.uploading': { ar: 'جارٍ رفع الصورة…', en: 'Uploading image…' },
   'pay.changeImage': { ar: 'تغيير الصورة', en: 'Change image' },
   'pay.back': { ar: 'رجوع للحجوزات', en: 'Back to bookings' },
