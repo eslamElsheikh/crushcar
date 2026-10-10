@@ -604,7 +604,7 @@ function TripDetailPageContent() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 16 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              className="relative w-full max-w-lg max-h-[90dvh]"
             >
               <ConfirmationCard
                 t={t}
@@ -1361,40 +1361,48 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
   return (
     <div
       className={cn(
-        'rounded-3xl border border-[var(--sp-line)] bg-[var(--sp-card)] shadow-2xl overflow-hidden',
+        // The card itself scrolls so the scrollbar sits inside the rounded
+        // border; it used to sit on the square wrapper, outside the card.
+        'max-h-[90dvh] overflow-y-auto rounded-3xl border border-[var(--sp-line)] bg-[var(--sp-card)] shadow-2xl',
         isRTL ? 'text-right' : 'text-left'
       )}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
-      {/* Header */}
-      <div className="relative p-6 sm:p-8 pb-5 border-b border-slate-100 bg-[var(--sp-inset)]/60">
+      {/* Header. The badge sits in a row with the title rather than on its own line:
+          in RTL a block-level badge hugs the right edge, where it collided with
+          the absolutely positioned close button. */}
+      <div className="relative border-b border-slate-100 bg-[var(--sp-inset)]/60 p-5 sm:p-6">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-[#0B1B33] hover:bg-slate-200/60 transition"
+          className="absolute end-4 top-4 grid size-9 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-200/60 hover:text-[#0B1B33]"
           aria-label="Close"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.1 }}
-          className="size-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/30"
-        >
-          <Check size={32} className="stroke-[3]" />
-        </motion.div>
-        <h2 className="text-2xl font-extrabold text-[#0B1B33]">
-          {t('confirmed.title')}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--sp-text-muted)]">
-          {t('confirmed.desc')}
-        </p>
+        <div className="flex items-center gap-3.5 pe-10">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.1 }}
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-md shadow-emerald-500/25"
+          >
+            <Check size={24} className="stroke-[3]" />
+          </motion.div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-extrabold leading-tight text-[#0B1B33] sm:text-2xl">
+              {t('confirmed.title')}
+            </h2>
+            <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">
+              {t('confirmed.desc')}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Details */}
-      <div className="p-6 sm:p-8 space-y-4 text-sm">
+      <div className="space-y-3 p-5 text-sm sm:p-6">
         {/* Bus & Route */}
-        <div className="rounded-2xl bg-[var(--sp-inset)] p-4 space-y-2.5">
+        <div className="rounded-2xl bg-[var(--sp-inset)] p-3.5 space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-[var(--sp-text-muted)]">{isRTL ? 'المسار' : 'Route'}</span>
             <div className="flex items-center gap-1.5 font-bold text-[#0B1B33]">
@@ -1421,9 +1429,9 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
 
         {/* Bookings / Seats Breakdown */}
         {isMulti ? (
-          <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+          <div className="max-h-40 space-y-2 overflow-y-auto pe-1">
             {confirmedBookings.map((b: any) => (
-              <div key={b.id || b.reference} className="flex justify-between items-center bg-[var(--sp-inset)] rounded-xl p-3 border border-slate-200/60">
+              <div key={b.id || b.reference} className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-[var(--sp-inset)] p-2.5">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[#1D5BD8] text-xs font-bold bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
                     {b.reference}
@@ -1439,8 +1447,8 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-4 space-y-3">
-            <div className="flex justify-between items-center">
+          <div className="space-y-2.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-3.5">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[var(--sp-text-muted)]">{isRTL ? 'كود الحجز' : 'Booking Code'}</span>
               <span className="font-mono text-[#1D5BD8] text-base font-bold bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl">
                 {first?.reference}
@@ -1472,16 +1480,17 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         </div>
       </div>
 
-      {/* grid-cols-2 rather than a flex row: four flex-1 buttons in one line
-          overflowed the modal's max-w-lg and pushed the actions off screen. */}
-      <div className="grid grid-cols-2 gap-3 p-6 pt-0 sm:grid-cols-4">
+      {/* Sticky so the actions stay reachable when the details list is long: the
+          card can exceed 90vh with several seats, and the buttons were ending
+          up below the fold with no way to scroll to them. */}
+      <div className="sticky bottom-0 z-10 grid grid-cols-2 gap-2.5 border-t border-[var(--sp-line)] bg-[var(--sp-card)]/95 p-4 backdrop-blur-sm sm:grid-cols-4">
         {/* Pay now leads: the seat hold is time-boxed, so payment is the
             action the customer is expected to take next. Company bookings
             settle against the wallet on the spot, so they have no pay page. */}
         {sessionRole !== 'COMPANY_ADMIN' && (
           <button
             onClick={onPayNow}
-            className="rounded-xl bg-emerald-600 px-3 py-3.5 text-center text-sm font-bold text-white shadow-md transition hover:bg-emerald-700"
+            className="rounded-xl bg-emerald-600 px-3 py-3 text-center text-[13.5px] font-bold text-white shadow-md transition hover:bg-emerald-700"
           >
             <span className="flex items-center justify-center gap-2">
               <CreditCard size={16} />
@@ -1491,7 +1500,7 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         )}
         <button
           onClick={onViewBookings}
-          className="rounded-xl bg-[#0A1E3C] px-3 py-3.5 text-center text-sm font-bold text-white shadow-md transition hover:bg-[#142d54]"
+          className="rounded-xl bg-[#0A1E3C] px-3 py-3 text-center text-[13.5px] font-bold text-white shadow-md transition hover:bg-[#142d54]"
         >
           <span className="flex items-center justify-center gap-2">
             <Ticket size={16} />
@@ -1500,7 +1509,7 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         </button>
         <button
           onClick={onBookAnother}
-          className="rounded-xl border border-slate-200 px-3 py-3.5 text-center text-sm font-bold text-[#0B1B33] transition hover:bg-slate-100"
+          className="rounded-xl border border-slate-200 px-3 py-3 text-center text-[13.5px] font-bold text-[#0B1B33] transition hover:bg-slate-100"
         >
           <span className="flex items-center justify-center gap-2">
             <Sparkles size={16} className="text-amber-500" />
@@ -1515,7 +1524,7 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
           return (
             <a
               href={printUrl}
-              className="rounded-xl border border-slate-200 px-3 py-3.5 text-center text-sm font-bold text-[#0B1B33] transition hover:bg-slate-100"
+              className="rounded-xl border border-slate-200 px-3 py-3 text-center text-[13.5px] font-bold text-[#0B1B33] transition hover:bg-slate-100"
             >
               <span className="flex items-center justify-center gap-2">
                 <Printer size={16} />

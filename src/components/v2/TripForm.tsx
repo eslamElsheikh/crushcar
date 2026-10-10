@@ -2,6 +2,7 @@
 
 import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
+import { cn } from '@/lib/utils';
 import { V2Field, V2Select, V2Input } from './Field';
 
 /* Shared trip create/edit form (stops editor). POST/PUT stays in the pages. */
@@ -67,7 +68,10 @@ export function TripForm({
   setStops: (s: StopDraft[]) => void;
   showStatus?: boolean;
   bookingMode?: TripBookingMode;
-  onBookingModeChange?: (v: TripBookingMode) => void;
+  /** Required, not optional: an optional callback let the trip-type control
+   *  disappear silently if a caller forgot it, which is exactly how the
+   *  charter option became impossible to find. */
+  onBookingModeChange: (v: TripBookingMode) => void;
   busPrice?: string;
   onBusPriceChange?: (v: string) => void;
 }) {
@@ -146,26 +150,49 @@ export function TripForm({
         </V2Field>
       </div>
 
-      {onBookingModeChange && (
-        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <V2Field label={t('trips.bookingMode')}>
-              <V2Select
-                value={bookingMode}
-                onChange={(e) => {
-                  const next = e.target.value as TripBookingMode;
-                  onBookingModeChange(next);
-                  if (next === 'BUS') {
-                    const total = Number(busPrice) || stops[stops.length - 1]?.priceFromOrigin || 0;
-                    onBusPriceChange?.(String(total));
-                    setStops(resyncCharterPrices(stops, total));
-                  }
-                }}
-              >
-                <option value="SEAT">{t('trips.seatMode')}</option>
-                <option value="BUS">{t('trips.charterMode')}</option>
-              </V2Select>
-            </V2Field>
+      <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              {/* Segmented toggle rather than a native <select>: a collapsed
+                  select shows only its selected value, so the charter option was
+                  invisible until the field was clicked. Both types now stay on
+                  screen at all times. */}
+              <span className="text-[12.5px] font-bold text-[var(--sp-text-muted)]">
+                {t('trips.bookingMode')}
+              </span>
+              <div role="group" aria-label={t('trips.bookingMode')} className="grid grid-cols-2 gap-1.5 rounded-2xl bg-[var(--sp-inset)] p-1.5">
+                {([
+                  { value: 'SEAT' as const, label: t('trips.seatMode') },
+                  { value: 'BUS' as const, label: t('trips.charterMode') },
+                ]).map((opt) => {
+                  const active = bookingMode === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        if (bookingMode === opt.value) return;
+                        onBookingModeChange(opt.value);
+                        if (opt.value === 'BUS') {
+                          const total = Number(busPrice) || stops[stops.length - 1]?.priceFromOrigin || 0;
+                          onBusPriceChange?.(String(total));
+                          setStops(resyncCharterPrices(stops, total));
+                        }
+                      }}
+                      aria-pressed={active}
+                      className={cn(
+                        'rounded-xl px-3 py-2.5 text-[13px] font-bold transition',
+                        active
+                          ? 'bg-[var(--sp-card)] text-[#0B1B33] shadow-[0_1px_3px_rgba(11,27,51,0.14)]'
+                          : 'text-[var(--sp-text-muted)] hover:text-[#0B1B33]'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {bookingMode === 'BUS' && (
               <V2Field label={t('trips.busPrice')}>
@@ -185,10 +212,9 @@ export function TripForm({
           </div>
 
           <p className="mt-3 text-[12.5px] leading-relaxed text-[var(--sp-text-muted)]">
-            {bookingMode === 'BUS' ? t('trips.charterHint') : t('trips.charterPriceDistributed')}
-          </p>
-        </div>
-      )}
+          {bookingMode === 'BUS' ? t('trips.charterHint') : t('trips.seatPriceHint')}
+        </p>
+      </div>
 
       <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">

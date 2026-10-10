@@ -114,7 +114,6 @@ const translations: Record<string, Record<Language, string>> = {
     ar: 'الرحلات الشارتر تظهر لمديري الشركات فقط، ولا يمكن حجز مقاعد عليها.',
     en: 'Charter trips are shown to company managers only, and seats cannot be booked on them.',
   },
-  'trips.charterWholeBus': { ar: 'الباص كامل — لا حجز مقاعد', en: 'Whole bus — no seat booking' },
   'trips.newTrip': { ar: 'رحلة جديدة', en: 'New trip' },
   'trips.allTrips': { ar: 'الكل', en: 'All' },
   'trips.charterTrips': { ar: 'شارتر', en: 'Charter' },
@@ -123,9 +122,9 @@ const translations: Record<string, Record<Language, string>> = {
     ar: 'حدد السعر الإجمالي للشارتر',
     en: 'Set the charter total price',
   },
-  'trips.charterPriceDistributed': {
-    ar: 'يتم توزيع الإجمالي تلقائياً على المحطات',
-    en: 'The total is distributed across the stops automatically',
+  'trips.seatPriceHint': {
+    ar: 'حدّد سعر كل محطة حسب المسافة. الرحلة تُعرض للعملاء ويمكن حجز مقاعد فيها.',
+    en: 'Set a price per stop based on distance. The trip is listed for customers and seats can be booked.',
   },
 
   // Trip Status
