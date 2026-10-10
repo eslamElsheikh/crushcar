@@ -9,7 +9,7 @@ import { useLangStore } from '@/lib/lang';
 import { V2PageHeader } from '@/components/v2/admin';
 import { V2Button } from '@/components/v2/Button';
 import { V2Skeleton } from '@/components/v2/ui';
-import { TripForm, StopDraft } from '@/components/v2/TripForm';
+import { TripForm, StopDraft, TripBookingMode } from '@/components/v2/TripForm';
 
 /* V2 edit trip — same prefill + PUT as V1. */
 
@@ -37,6 +37,8 @@ export default function EditTripPage() {
   const [arrival, setArrival] = useState('');
   const [status, setStatus] = useState('SCHEDULED');
   const [stops, setStops] = useState<StopDraft[]>([]);
+  const [bookingMode, setBookingMode] = useState<TripBookingMode>('SEAT');
+  const [busPrice, setBusPrice] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -55,6 +57,8 @@ export default function EditTripPage() {
         setDeparture(tripData.departure ? toLocal(tripData.departure) : '');
         setArrival(tripData.arrival ? toLocal(tripData.arrival) : '');
         setStatus(tripData.status || 'SCHEDULED');
+        setBookingMode(tripData.bookingMode === 'BUS' ? 'BUS' : 'SEAT');
+        setBusPrice(tripData.busPrice != null ? String(tripData.busPrice) : '');
         const existing: StopDraft[] = [];
         if (tripData.tripStops && Array.isArray(tripData.tripStops) && tripData.tripStops.length > 0) {
           tripData.tripStops.forEach((ts: any) => {
@@ -102,6 +106,8 @@ export default function EditTripPage() {
         departure: new Date(departure).toISOString(),
         arrival: new Date(arrival).toISOString(),
         status,
+        bookingMode,
+        busPrice: bookingMode === 'BUS' ? Number(busPrice) : null,
         stops: stops.map((s) => ({
           stationId: s.stationId,
           stopOrder: s.stopOrder,
@@ -110,12 +116,19 @@ export default function EditTripPage() {
           departureTime: s.departureTime ? new Date(`${departure.split('T')[0]}T${s.departureTime}`).toISOString() : null,
         })),
       };
-      await fetch(`/api/trips/${tripId}`, {
+      const res = await fetch(`/api/trips/${tripId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body),
       });
+      if (!res.ok) {
+        // e.g. the trip already has a confirmed charter, so it cannot become
+        // a seat trip. Surface the server's reason instead of navigating away.
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || t('common.error'));
+        return;
+      }
       router.push('/admin/trips');
     } catch {
       toast.error(t('common.error'));
@@ -153,6 +166,10 @@ export default function EditTripPage() {
             stops={stops}
             setStops={setStops}
             showStatus
+            bookingMode={bookingMode}
+            onBookingModeChange={setBookingMode}
+            busPrice={busPrice}
+            onBusPriceChange={setBusPrice}
           />
           <V2Button type="submit" size="lg" disabled={saving} className="mt-5 w-full sm:w-auto">
             {saving && <Loader2 className="size-5 animate-spin" />} {t('common.save')}

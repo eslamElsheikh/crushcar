@@ -19,6 +19,21 @@ export function normalizeName(s: string): string {
   return (s || '').trim().toLowerCase();
 }
 
+export type TripBookingMode = 'SEAT' | 'BUS';
+
+/**
+ * A charter trip is priced as one total for the whole bus, not split per stop.
+ * Every stop therefore carries that same total.
+ *
+ * The last stop is what Trip.price is read from, and CharterBooking charges
+ * busPrice with trip.price as the fallback, so this keeps both readings equal
+ * to what the admin entered. Seats cannot be booked on a charter trip, so the
+ * per-stop difference that seat pricing relies on is never computed from these.
+ */
+export function distributeCharterTotal(total: number, stopCount: number): number[] {
+  return Array.from({ length: Math.max(0, stopCount) }, () => total);
+}
+
 export function TripForm({
   buses,
   stations,
@@ -33,6 +48,10 @@ export function TripForm({
   stops,
   setStops,
   showStatus,
+  bookingMode = 'SEAT',
+  onBookingModeChange,
+  busPrice = '',
+  onBusPriceChange,
 }: {
   buses: any[];
   stations: { id: string; name: string; city: string }[];
@@ -47,6 +66,10 @@ export function TripForm({
   stops: StopDraft[];
   setStops: (s: StopDraft[]) => void;
   showStatus?: boolean;
+  bookingMode?: TripBookingMode;
+  onBookingModeChange?: (v: TripBookingMode) => void;
+  busPrice?: string;
+  onBusPriceChange?: (v: string) => void;
 }) {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
@@ -57,17 +80,27 @@ export function TripForm({
   function addStop(stationId: string) {
     const st = stations.find((s) => s.id === stationId);
     if (!st) return;
-    setStops([
-      ...stops,
-      {
-        stationId: st.id,
-        name: st.name,
-        stopOrder: stops.length + 1,
-        priceFromOrigin: stops.length > 0 ? stops[stops.length - 1].priceFromOrigin + 50 : 0,
-        arrivalTime: '',
-        departureTime: '',
-      },
-    ]);
+    const next: StopDraft = {
+      stationId: st.id,
+      name: st.name,
+      stopOrder: stops.length + 1,
+      priceFromOrigin: stops.length > 0 ? stops[stops.length - 1].priceFromOrigin + 50 : 0,
+      arrivalTime: '',
+      departureTime: '',
+    };
+    if (bookingMode === 'BUS') {
+      // Charter: every stop gets an equal slice of the single total.
+      const total = Number(busPrice) || 0;
+      const spread = distributeCharterTotal(total, stops.length + 1);
+      next.priceFromOrigin = spread[stops.length];
+    }
+    setStops([...stops, next]);
+  }
+
+  // Re-apply the charter total whenever it changes or a stop is added/removed.
+  function resyncCharterPrices(nextStops: StopDraft[], total: number) {
+    const spread = distributeCharterTotal(total, nextStops.length);
+    return nextStops.map((s, i) => ({ ...s, priceFromOrigin: spread[i] ?? 0 }));
   }
 
   function move(index: number, dir: -1 | 1) {
@@ -113,6 +146,50 @@ export function TripForm({
         </V2Field>
       </div>
 
+      {onBookingModeChange && (
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <V2Field label={t('trips.bookingMode')}>
+              <V2Select
+                value={bookingMode}
+                onChange={(e) => {
+                  const next = e.target.value as TripBookingMode;
+                  onBookingModeChange(next);
+                  if (next === 'BUS') {
+                    const total = Number(busPrice) || stops[stops.length - 1]?.priceFromOrigin || 0;
+                    onBusPriceChange?.(String(total));
+                    setStops(resyncCharterPrices(stops, total));
+                  }
+                }}
+              >
+                <option value="SEAT">{t('trips.seatMode')}</option>
+                <option value="BUS">{t('trips.charterMode')}</option>
+              </V2Select>
+            </V2Field>
+
+            {bookingMode === 'BUS' && (
+              <V2Field label={t('trips.busPrice')}>
+                <V2Input
+                  type="number"
+                  min="0"
+                  value={busPrice}
+                  onChange={(e) => {
+                    onBusPriceChange?.(e.target.value);
+                    setStops(resyncCharterPrices(stops, Number(e.target.value) || 0));
+                  }}
+                  dir="ltr"
+                  className="tabular-nums"
+                />
+              </V2Field>
+            )}
+          </div>
+
+          <p className="mt-3 text-[12.5px] leading-relaxed text-[var(--sp-text-muted)]">
+            {bookingMode === 'BUS' ? t('trips.charterHint') : t('trips.charterPriceDistributed')}
+          </p>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[15px] font-extrabold text-[#0B1B33]">
@@ -146,7 +223,10 @@ export function TripForm({
                   <ArrowDown className="size-4" />
                 </button>
                 <button
-                  onClick={() => setStops(stops.filter((_, x) => x !== i).map((x, xi) => ({ ...x, stopOrder: xi + 1 })))}
+                  onClick={() => {
+                    const remaining = stops.filter((_, x) => x !== i).map((x, xi) => ({ ...x, stopOrder: xi + 1 }));
+                    setStops(bookingMode === 'BUS' ? resyncCharterPrices(remaining, Number(busPrice) || 0) : remaining);
+                  }}
                   aria-label="Remove stop"
                   className="grid size-9 place-items-center rounded-lg text-red-500 hover:bg-[var(--sp-inset)]"
                 >
@@ -159,6 +239,7 @@ export function TripForm({
                   <input
                     type="number" min="0" value={s.priceFromOrigin}
                     onChange={(e) => update(i, 'priceFromOrigin', Number(e.target.value))}
+                    readOnly={bookingMode === 'BUS'}
                     dir="ltr"
                     className="v2-input tabular-nums !min-h-[44px] text-[13.5px]"
                   />

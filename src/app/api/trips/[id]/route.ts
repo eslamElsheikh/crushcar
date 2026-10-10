@@ -49,6 +49,38 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = await prisma.trip.findUnique({ where: { id }, include: { bus: true } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    const mode = tripData.bookingMode ?? existing.bookingMode ?? 'SEAT'
+    if (mode !== 'SEAT' && mode !== 'BUS') {
+      return NextResponse.json({ error: 'bookingMode must be SEAT or BUS' }, { status: 400 })
+    }
+
+    // A company paying for this whole bus has a confirmed charter. Turning the
+    // trip into a seat bookable one would silently invalidate that deal.
+    if (existing.bookingMode === 'BUS' && mode === 'SEAT') {
+      const confirmed = await prisma.charterBooking.findFirst({
+        where: { tripId: id, status: 'confirmed' },
+        select: { id: true },
+      })
+      if (confirmed) {
+        return NextResponse.json(
+          { error: 'Trip has a confirmed charter booking and cannot become a seat trip' },
+          { status: 409 }
+        )
+      }
+    }
+
+    if (mode === 'BUS') {
+      const charterPrice = Number(tripData.busPrice ?? existing.busPrice)
+      if (!Number.isFinite(charterPrice) || charterPrice <= 0) {
+        return NextResponse.json(
+          { error: 'busPrice must be greater than 0 for a charter trip' },
+          { status: 400 }
+        )
+      }
+      tripData.busPrice = charterPrice
+    }
+    tripData.bookingMode = mode
+
     // Update trip in transaction: replace TripStops
     const trip = await prisma.$transaction(async (tx) => {
       // Delete existing TripStops

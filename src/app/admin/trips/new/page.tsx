@@ -8,7 +8,8 @@ import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader } from '@/components/v2/admin';
 import { V2Button } from '@/components/v2/Button';
-import { TripForm, StopDraft, normalizeName } from '@/components/v2/TripForm';
+import { TripForm, StopDraft, TripBookingMode } from '@/components/v2/TripForm';
+import { useTripStopsFromBus } from '@/hooks/useTripStopsFromBus';
 
 /* V2 new trip — same auto-populate + POST as V1. */
 
@@ -25,6 +26,8 @@ export default function NewTripPage() {
   const [arrival, setArrival] = useState('');
   const [stops, setStops] = useState<StopDraft[]>([]);
   const [saving, setSaving] = useState(false);
+  const [bookingMode, setBookingMode] = useState<TripBookingMode>('SEAT');
+  const [busPrice, setBusPrice] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -36,49 +39,18 @@ export default function NewTripPage() {
     }).catch(() => {});
   }, []);
 
-  // Auto-populate stops from the bus's station list (same as V1)
-  useEffect(() => {
-    if (!busId) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/buses/${busId}/stations`, { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json();
-        const list: { name: string; order: number }[] = Array.isArray(data) ? data : data.stations || [];
-        const matched: StopDraft[] = [];
-        const unmatched: string[] = [];
-        list.forEach((bs, idx) => {
-          const found = stations.find((s) => normalizeName(s.name) === normalizeName(bs.name));
-          if (found) {
-            matched.push({
-              stationId: found.id,
-              name: found.name,
-              stopOrder: idx + 1,
-              priceFromOrigin: idx > 0 ? matched[idx - 1].priceFromOrigin + 50 : 0,
-              arrivalTime: '',
-              departureTime: '',
-            });
-          } else {
-            unmatched.push(bs.name);
-          }
-        });
-        if (matched.length > 0) setStops(matched);
-        else setStops([]);
-        if (unmatched.length > 0) {
-          toast.error(
-            isRTL
-              ? `محطات غير موجودة في جدول المحطات: ${unmatched.join(', ')}. أضفها أولًا من صفحة الباصات.`
-              : `Stations not found in Station table: ${unmatched.join(', ')}. Add them first from the bus page.`
-          );
-        }
-      } catch { /* keep manual */ }
-    })();
-  }, [busId, stations, isRTL]);
+  // Auto-populate stops from the bus's station list (shared with the
+  // new-trip modal on /admin/trips).
+  useTripStopsFromBus(busId, stations, bookingMode, Number(busPrice) || 0, setStops);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (stops.length < 2 || !busId || !departure || !arrival) {
       toast.error(isRTL ? 'أكمل الباص والمواعيد ومحطتين على الأقل' : 'Pick a bus, times, and at least 2 stops');
+      return;
+    }
+    if (bookingMode === 'BUS' && !(Number(busPrice) > 0)) {
+      toast.error(t('trips.charterPriceRequired'));
       return;
     }
     setSaving(true);
@@ -92,6 +64,8 @@ export default function NewTripPage() {
         departure,
         arrival,
         price: last.priceFromOrigin,
+        bookingMode,
+        busPrice: bookingMode === 'BUS' ? Number(busPrice) : null,
         stops: stops.map((s) => ({
           stationId: s.stationId,
           stopOrder: s.stopOrder,
@@ -137,6 +111,10 @@ export default function NewTripPage() {
           setStatus={() => {}}
           stops={stops}
           setStops={setStops}
+          bookingMode={bookingMode}
+          onBookingModeChange={setBookingMode}
+          busPrice={busPrice}
+          onBusPriceChange={setBusPrice}
         />
         <V2Button type="submit" size="lg" disabled={saving} className="mt-5 w-full sm:w-auto">
           {saving && <Loader2 className="size-5 animate-spin" />} {t('trips.addTrip')}

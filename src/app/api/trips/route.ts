@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const rawStatus = searchParams.get('status')
     // "ALL" is the admin's unfiltered tab: no status constraint at all.
     const status = rawStatus && rawStatus.toUpperCase() !== 'ALL' ? rawStatus : undefined
+    const rawBookingMode = searchParams.get('bookingMode')
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
     const skip = (page - 1) * take
@@ -47,6 +48,12 @@ export async function GET(req: NextRequest) {
         ? 'AND t."busId" IN (SELECT id FROM "Bus" WHERE "companyId" = ? OR "companyId" IS NULL)'
         : ''
 
+      // Admins may browse charter trips; everyone else must not see them.
+      const availabilityFilter =
+        session?.user?.role === 'SUPER_ADMIN'
+          ? ''
+          : `AND t."bookingMode" <> 'BUS' AND t."reservedByCompanyId" IS NULL`
+
       const companyArgs = companyScoped ? [session.user!.companyId!] : []
 
       const tripRows = await prisma.$queryRawUnsafe<any[]>(`
@@ -65,6 +72,7 @@ export async function GET(req: NextRequest) {
           AND t.departure >= ?
           AND t.departure < ?
           AND t.status = 'SCHEDULED'
+          ${availabilityFilter}
           ${companyFilter}
         ORDER BY t.departure ASC
         ${returnDate ? '' : 'LIMIT ? OFFSET ?'}
@@ -97,6 +105,7 @@ export async function GET(req: NextRequest) {
             AND t.departure >= ?
             AND t.departure < ?
             AND t.status = 'SCHEDULED'
+            ${availabilityFilter}
           ORDER BY t.departure ASC
           LIMIT 20
         `, toStationId, fromStationId, returnStart, returnEnd)
@@ -159,6 +168,23 @@ export async function GET(req: NextRequest) {
 
     if (!allTrips && session?.user?.role === 'COMPANY_ADMIN' && session.user.companyId) {
       where.bus = { OR: [{ companyId: session.user.companyId }, { companyId: null }] }
+    }
+
+    // Charter trips (bookingMode = BUS) are whole-bus reservations sold to
+    // companies, so they must never reach a customer booking list, and a trip a
+    // company has already taken is no longer available to anyone else. Admins
+    // see everything and filter by type instead.
+    const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+    if (isSuperAdmin) {
+      if (rawBookingMode && rawBookingMode.toUpperCase() !== 'ALL') {
+        where.bookingMode = rawBookingMode
+      }
+    } else {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        { bookingMode: { not: 'BUS' } },
+        { reservedByCompanyId: null },
+      ]
     }
 
     // Public callers get SCHEDULED by default. Admins that asked for ALL get no
@@ -228,6 +254,9 @@ export async function GET(req: NextRequest) {
           destination: { contains: origin },
           departure: { gte: returnStart, lt: returnEnd },
           status: 'SCHEDULED',
+          ...(session?.user?.role === 'SUPER_ADMIN'
+            ? {}
+            : { bookingMode: { not: 'BUS' }, reservedByCompanyId: null }),
         },
         include,
         orderBy: { departure: 'asc' },
@@ -253,10 +282,28 @@ export async function POST(req: NextRequest) {
     // Business rule: only SUPER_ADMIN creates trips. Companies and customers only book.
     if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const { busId, origin, destination, departure, arrival, price, stops } = await req.json()
+    const { busId, origin, destination, departure, arrival, price, stops, bookingMode, busPrice } = await req.json()
 
     if (!busId || !departure || !arrival) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    }
+
+    // Only two trip types exist. BOTH is deliberately not offered: a trip is
+    // either sold per seat to customers or chartered whole to one company.
+    const mode = bookingMode ?? 'SEAT'
+    if (mode !== 'SEAT' && mode !== 'BUS') {
+      return NextResponse.json({ error: 'bookingMode must be SEAT or BUS' }, { status: 400 })
+    }
+
+    // A charter trip is priced as one total for the whole bus, so a total is the
+    // only meaningful number. Without it the trip would be listed to companies
+    // at seat price.
+    let charterPrice: number | null = null
+    if (mode === 'BUS') {
+      charterPrice = Number(busPrice)
+      if (!Number.isFinite(charterPrice) || charterPrice <= 0) {
+        return NextResponse.json({ error: 'busPrice must be greater than 0 for a charter trip' }, { status: 400 })
+      }
     }
 
     if (new Date(departure) >= new Date(arrival)) {
@@ -272,6 +319,8 @@ export async function POST(req: NextRequest) {
         departure: new Date(departure),
         arrival: new Date(arrival),
         price: price || (stops?.[stops?.length - 1]?.priceFromOrigin || 0),
+        bookingMode: mode,
+        busPrice: charterPrice,
         tripStops: stops?.length ? {
           create: stops.map((s: any) => ({
             stationId: s.stationId,

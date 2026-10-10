@@ -9,12 +9,15 @@ import { V2PageHeader, V2Table, V2Pagination, V2Modal, V2Tabs } from '@/componen
 import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge } from '@/components/v2/ui';
+import { TripForm, StopDraft, TripBookingMode } from '@/components/v2/TripForm';
+import { useTripStopsFromBus } from '@/hooks/useTripStopsFromBus';
 
 /* V2 admin trips — same list/filter/bulk-create/delete APIs as V1. */
 
 interface Trip {
   id: string; origin: string; destination: string;
   departure: string; arrival: string; price: number; status: string;
+  bookingMode?: string; busPrice?: number | null;
   bus?: { name: string };
 }
 
@@ -45,7 +48,20 @@ export default function AdminTrips() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const loadTrips = useCallback(async (pageNum: number, f: Filter) => {
+  // Trip type is an axis of its own, independent of status, so it is a select
+  // next to the status tabs rather than another tab (otherwise "charter +
+  // completed" would need its own tab).
+  const [modeFilter, setModeFilter] = useState<TripBookingMode | 'ALL'>('ALL');
+
+  const [newOpen, setNewOpen] = useState(false);
+  const [trip, setTrip] = useState({
+    busId: '', departure: '', arrival: '',
+    bookingMode: 'SEAT' as TripBookingMode, busPrice: '',
+  });
+  const [tripStops, setTripStops] = useState<StopDraft[]>([]);
+  const [savingTrip, setSavingTrip] = useState(false);
+
+  const loadTrips = useCallback(async (pageNum: number, f: Filter, mode: TripBookingMode | 'ALL') => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(pageNum), take: '20' });
@@ -58,6 +74,7 @@ export default function AdminTrips() {
         cancelled: 'CANCELLED',
       };
       params.set('status', STATUS_BY_FILTER[f]);
+      params.set('bookingMode', mode);
       const res = await fetch(`/api/trips?${params}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
@@ -69,19 +86,92 @@ export default function AdminTrips() {
   }, []);
 
   useEffect(() => {
-    loadTrips(1, 'all');
+    loadTrips(1, 'all', 'ALL');
     fetch('/api/buses', { credentials: 'include' }).then((r) => r.json()).then((d) => setBuses(Array.isArray(d) ? d : [])).catch(() => {});
     fetch('/api/stations', { credentials: 'include' }).then((r) => r.json()).then((d) => setStations(Array.isArray(d.stations) ? d.stations : Array.isArray(d) ? d : [])).catch(() => {});
   }, [loadTrips]);
 
+  useTripStopsFromBus(
+    trip.busId,
+    stations,
+    trip.bookingMode,
+    Number(trip.busPrice) || 0,
+    setTripStops
+  );
+
+  function changeModeFilter(mode: TripBookingMode | 'ALL') {
+    setModeFilter(mode);
+    setPage(1);
+    loadTrips(1, filter, mode);
+  }
+
+  function closeNewTrip() {
+    setNewOpen(false);
+    setTrip({ busId: '', departure: '', arrival: '', bookingMode: 'SEAT', busPrice: '' });
+    setTripStops([]);
+  }
+
+  async function submitTrip(e: React.FormEvent) {
+    e.preventDefault();
+    const isCharter = trip.bookingMode === 'BUS';
+    if (tripStops.length < 2 || !trip.busId || !trip.departure || !trip.arrival) {
+      toast.error(isRTL ? 'أكمل الباص والمواعيد ومحطتين على الأقل' : 'Pick a bus, times, and at least 2 stops');
+      return;
+    }
+    if (isCharter && !(Number(trip.busPrice) > 0)) {
+      toast.error(t('trips.charterPriceRequired'));
+      return;
+    }
+    setSavingTrip(true);
+    try {
+      const first = tripStops[0];
+      const last = tripStops[tripStops.length - 1];
+      const day = trip.departure.split('T')[0];
+      const res = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          busId: trip.busId,
+          origin: first.name,
+          destination: last.name,
+          departure: trip.departure,
+          arrival: trip.arrival,
+          price: last.priceFromOrigin,
+          bookingMode: trip.bookingMode,
+          busPrice: isCharter ? Number(trip.busPrice) : null,
+          stops: tripStops.map((s) => ({
+            stationId: s.stationId,
+            stopOrder: s.stopOrder,
+            priceFromOrigin: s.priceFromOrigin,
+            arrivalTime: s.arrivalTime ? new Date(`${day}T${s.arrivalTime}`).toISOString() : null,
+            departureTime: s.departureTime ? new Date(`${day}T${s.departureTime}`).toISOString() : null,
+          })),
+        }),
+      });
+      if (res.ok) {
+        toast.success(t('common.success'));
+        closeNewTrip();
+        loadTrips(1, filter, modeFilter);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSavingTrip(false);
+    }
+  }
+
   function changeFilter(f: Filter) {
     setFilter(f);
     setPage(1);
-    loadTrips(1, f);
+    loadTrips(1, f, modeFilter);
   }
   function changePage(p: number) {
     setPage(p);
-    loadTrips(p, filter);
+    loadTrips(p, filter, modeFilter);
   }
 
   async function bulkCreate() {
@@ -134,7 +224,7 @@ export default function AdminTrips() {
       }
       setBulkOpen(false);
       setBulk({ busId: '', fromStationId: '', toStationId: '', departureTime: '08:00', arrivalTime: '11:30', price: '', count: '7', interval: 'daily' });
-      loadTrips(page, filter);
+      loadTrips(page, filter, modeFilter);
       toast.success(t('common.success'));
     } catch {
       toast.error(t('common.error'));
@@ -161,14 +251,14 @@ export default function AdminTrips() {
             <V2Button variant="ghost" onClick={() => setBulkOpen(true)}>
               <Zap className="size-5" /> {isRTL ? 'إنشاء متعدد' : 'Bulk create'}
             </V2Button>
-            <Link href="/admin/trips/new" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
-              <Plus className="size-5" /> {isRTL ? 'رحلة جديدة' : 'New trip'}
-            </Link>
+            <V2Button variant="primary" onClick={() => setNewOpen(true)}>
+              <Plus className="size-5" /> {t('trips.newTrip')}
+            </V2Button>
           </>
         }
       />
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <V2Tabs
           active={filter}
           onChange={changeFilter}
@@ -179,6 +269,16 @@ export default function AdminTrips() {
             { key: 'cancelled', label: isRTL ? 'الملغاة' : 'Cancelled' },
           ]}
         />
+        <V2Select
+          value={modeFilter}
+          onChange={(e) => changeModeFilter(e.target.value as TripBookingMode | 'ALL')}
+          aria-label={t('trips.bookingMode')}
+          className="!min-h-[44px] !w-auto text-[13.5px]"
+        >
+          <option value="ALL">{t('trips.allTrips')}</option>
+          <option value="SEAT">{t('trips.seatTrips')}</option>
+          <option value="BUS">{t('trips.charterTrips')}</option>
+        </V2Select>
       </div>
 
       <div className="mt-4">
@@ -189,6 +289,7 @@ export default function AdminTrips() {
             isRTL ? 'الباص' : 'Bus',
             isRTL ? 'السعر' : 'Price',
             isRTL ? 'الحالة' : 'Status',
+            isRTL ? 'النوع' : 'Type',
             '',
           ]}
           rows={trips}
@@ -206,8 +307,16 @@ export default function AdminTrips() {
                 {new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
               </span>,
               <span key="b" className="text-[var(--sp-text-muted)]">{tr.bus?.name}</span>,
-              <span key="p" className="font-extrabold tabular-nums">{tr.price.toLocaleString(locale)} {t('common.currency')}</span>,
+              <span key="p" className="font-extrabold tabular-nums">
+                {tr.bookingMode === 'BUS'
+                  ? Number(tr.busPrice ?? 0).toLocaleString(locale)
+                  : tr.price.toLocaleString(locale)}{' '}
+                {t('common.currency')}
+              </span>,
               <V2StatusBadge key="s" tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{t(tr.status) || tr.status}</V2StatusBadge>,
+              tr.bookingMode === 'BUS' ? (
+                <V2StatusBadge key="m" tone="amber">{t('trips.charterTrips')}</V2StatusBadge>
+              ) : null,
               <span key="a" className="flex justify-end gap-1">
                 <Link href={`/admin/trips/${tr.id}/edit`} aria-label="Edit" className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                   <Pencil className="size-5" />
@@ -238,7 +347,14 @@ export default function AdminTrips() {
                 <V2StatusBadge tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{t(tr.status) || tr.status}</V2StatusBadge>
               </div>
               <p className="mt-1.5 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
-                {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })} · {tr.price.toLocaleString(locale)} {t('common.currency')}
+                {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })} ·{' '}
+                {tr.bookingMode === 'BUS'
+                  ? Number(tr.busPrice ?? 0).toLocaleString(locale)
+                  : tr.price.toLocaleString(locale)}{' '}
+                {t('common.currency')}
+                {tr.bookingMode === 'BUS' && (
+                  <span className="ms-1.5 font-bold text-amber-600">{t('trips.charterTrips')}</span>
+                )}
               </p>
               <div className="mt-3 flex gap-1.5">
                 <Link href={`/admin/trips/${tr.id}/edit`} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-center text-[13.5px] font-bold">{t('common.edit')}</Link>
@@ -250,8 +366,34 @@ export default function AdminTrips() {
             </div>
           )}
         />
-        <V2Pagination page={page} pages={pages} onPage={(p) => { setPage(p); loadTrips(p, filter); }} />
+        <V2Pagination page={page} pages={pages} onPage={(p) => { setPage(p); loadTrips(p, filter, modeFilter); }} />
       </div>
+
+      <V2Modal open={newOpen} onClose={closeNewTrip} title={t('trips.newTrip')} wide>
+        <form onSubmit={submitTrip}>
+          <TripForm
+            buses={buses}
+            stations={stations}
+            busId={trip.busId}
+            setBusId={(v) => setTrip({ ...trip, busId: v })}
+            departure={trip.departure}
+            setDeparture={(v) => setTrip({ ...trip, departure: v })}
+            arrival={trip.arrival}
+            setArrival={(v) => setTrip({ ...trip, arrival: v })}
+            status="SCHEDULED"
+            setStatus={() => {}}
+            stops={tripStops}
+            setStops={setTripStops}
+            bookingMode={trip.bookingMode}
+            onBookingModeChange={(v) => setTrip({ ...trip, bookingMode: v })}
+            busPrice={trip.busPrice}
+            onBusPriceChange={(v) => setTrip({ ...trip, busPrice: v })}
+          />
+          <V2Button type="submit" size="lg" disabled={savingTrip} className="mt-5 w-full">
+            {savingTrip && <Loader2 className="size-5 animate-spin" />} {t('trips.addTrip')}
+          </V2Button>
+        </form>
+      </V2Modal>
 
       <V2Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title={isRTL ? 'إنشاء رحلات متعددة' : 'Bulk create trips'} wide>
         <div className="grid gap-3.5 sm:grid-cols-2">

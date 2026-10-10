@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
         },
       })
       if (!trip) throw new Error('Trip not found')
+      if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) throw new Error('CHARTER_TRIP')
 
       let globalFromStopOrder = 1
       let globalToStopOrder = 1
@@ -214,6 +215,9 @@ export async function POST(req: NextRequest) {
     if (err.message?.startsWith('SEAT_CONFLICT')) {
       const seat = err.message.split(':')[1] || ''
       return NextResponse.json({ error: 'SEAT_TAKEN', message: `الكرسي ${seat} محجوز من شخص آخر` }, { status: 409 })
+    }
+    if (err.message === 'CHARTER_TRIP') {
+      return NextResponse.json({ error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح عبر طلب الشارتر فقط' }, { status: 409 })
     }
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 })
   }

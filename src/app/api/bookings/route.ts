@@ -151,6 +151,10 @@ export async function POST(req: NextRequest) {
       })
       if (!trip) throw new Error('Trip not found')
 
+      // A charter trip is sold whole to one company. Seats on it are not
+      // bookable, otherwise the customer pays for a seat on a bus they own.
+      if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) throw new Error('CHARTER_TRIP')
+
       if (fromStationId && toStationId && trip.tripStops.length > 0) {
         const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)
         const toStop = trip.tripStops.find(s => s.stationId === toStationId)
@@ -252,6 +256,9 @@ export async function POST(req: NextRequest) {
     }
     if (err.message === 'SEAT_CONFLICT') {
       return NextResponse.json({ error: 'SEAT_TAKEN', message: 'الكـرس محجوز من شخص آخر' }, { status: 409 })
+    }
+    if (err.message === 'CHARTER_TRIP') {
+      return NextResponse.json({ error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح للشركات فقط' }, { status: 409 })
     }
     if (err.message?.includes('Invalid stations') || err.message?.includes('fromStation must be before')) {
       return NextResponse.json({ error: err.message }, { status: 400 })

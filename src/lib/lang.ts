@@ -105,6 +105,29 @@ const translations: Record<string, Record<Language, string>> = {
   'trips.status': { ar: 'الحالة', en: 'Status' },
   'trips.bookings': { ar: 'حجز', en: 'bookings' },
 
+  // Trip type: sold per seat, or chartered whole to one company.
+  'trips.bookingMode': { ar: 'نوع الرحلة', en: 'Trip type' },
+  'trips.seatMode': { ar: 'عادية — حجز مقاعد', en: 'Regular — seat booking' },
+  'trips.charterMode': { ar: 'شارتر — الباص كامل للشركات', en: 'Charter — whole bus for companies' },
+  'trips.busPrice': { ar: 'السعر الإجمالي', en: 'Total price' },
+  'trips.charterHint': {
+    ar: 'الرحلات الشارتر تظهر لمديري الشركات فقط، ولا يمكن حجز مقاعد عليها.',
+    en: 'Charter trips are shown to company managers only, and seats cannot be booked on them.',
+  },
+  'trips.charterWholeBus': { ar: 'الباص كامل — لا حجز مقاعد', en: 'Whole bus — no seat booking' },
+  'trips.newTrip': { ar: 'رحلة جديدة', en: 'New trip' },
+  'trips.allTrips': { ar: 'الكل', en: 'All' },
+  'trips.charterTrips': { ar: 'شارتر', en: 'Charter' },
+  'trips.seatTrips': { ar: 'مقاعد', en: 'Seat' },
+  'trips.charterPriceRequired': {
+    ar: 'حدد السعر الإجمالي للشارتر',
+    en: 'Set the charter total price',
+  },
+  'trips.charterPriceDistributed': {
+    ar: 'يتم توزيع الإجمالي تلقائياً على المحطات',
+    en: 'The total is distributed across the stops automatically',
+  },
+
   // Trip Status
   'status.scheduled': { ar: 'مجدولة', en: 'Scheduled' },
   'status.inProgress': { ar: 'جارية', en: 'In Progress' },
