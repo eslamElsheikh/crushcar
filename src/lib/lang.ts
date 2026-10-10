@@ -118,6 +118,23 @@ const translations: Record<string, Record<Language, string>> = {
   'trips.allTrips': { ar: 'الكل', en: 'All' },
   'trips.charterTrips': { ar: 'شارتر', en: 'Charter' },
   'trips.seatTrips': { ar: 'مقاعد', en: 'Seat' },
+  // Tab labels: deliberately shorter than the mode descriptions above, because
+  // these sit inside a two-tab bar and long labels get truncated there.
+  'trips.seatTab': { ar: 'عادية', en: 'Regular' },
+  'trips.charterTab': { ar: 'شارتر', en: 'Charter' },
+  'trips.noCharterBus': {
+    ar: 'لا يوجد باص مخصص للشارتر. أضف باصاً بنوع CHARTER أو غيّر نوع أحد الباصات.',
+    en: 'No charter bus yet. Add a bus of type CHARTER, or change an existing bus type.',
+  },
+  'trips.busesForSeatOnly': {
+    ar: 'هذه الباصات من نوع CHARTER فقط. بدّل إلى تاب عادية أو غيّر نوع الباص.',
+    en: 'These buses are CHARTER type only. Switch to the Regular tab or change the bus type.',
+  },
+  'trips.bulkCreated': { ar: 'تم إنشاء {n} رحلة', en: 'Created {n} trips' },
+  'trips.bulkPartial': {
+    ar: 'تم إنشاء {ok} رحلة، وفشل {failed}. راجع الحقول.',
+    en: 'Created {ok} trips, {failed} failed. Check the fields.',
+  },
   'trips.charterPriceRequired': {
     ar: 'حدد السعر الإجمالي للشارتر',
     en: 'Set the charter total price',

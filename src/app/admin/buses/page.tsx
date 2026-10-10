@@ -10,14 +10,9 @@ import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2Modal } from '@/components/v2/admin';
 import { V2StatusBadge } from '@/components/v2/ui';
+import { BUS_TYPES, busTypeLabel } from '@/lib/bus-types';
 
 /* V2 buses — same list/create/delete APIs as V1. */
-
-const busTypes = [
-  { value: 'MINI_BUS', label: 'Mini Bus' },
-  { value: 'COACH_BUS', label: 'Coach Bus' },
-  { value: 'DOUBLE_DECKER', label: 'Double Decker' },
-];
 
 export default function AdminBuses() {
   const router = useRouter();
@@ -115,7 +110,7 @@ export default function AdminBuses() {
                 </span>
                 {b.name}
               </span>,
-              <span key="t" className="text-[var(--sp-text-muted)]">{busTypes.find((x) => x.value === b.type)?.label || b.type}</span>,
+              <span key="t" className="text-[var(--sp-text-muted)]">{busTypeLabel(b.type, isRTL)}</span>,
               <span key="s" className="tabular-nums text-[var(--sp-text-muted)]">
                 {b.layout?.seats?.length ?? b.seatCount ?? 0}
               </span>,
@@ -149,7 +144,7 @@ export default function AdminBuses() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15.5px] font-extrabold text-[#0B1B33]">{b.name}</p>
                   <p className="text-[13px] tabular-nums text-[var(--sp-text-muted)]">
-                    {busTypes.find((x) => x.value === b.type)?.label || b.type} · {b.layout?.seats?.length ?? b.seatCount ?? 0}
+                    {busTypeLabel(b.type, isRTL)} · {b.layout?.seats?.length ?? b.seatCount ?? 0}
                   </p>
                 </div>
                 <V2StatusBadge tone="slate">{b.company?.name || '—'}</V2StatusBadge>
@@ -174,8 +169,8 @@ export default function AdminBuses() {
           </V2Field>
           <V2Field label={isRTL ? 'النوع' : 'Type'}>
             <V2Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              {busTypes.map((bt) => (
-                <option key={bt.value} value={bt.value}>{bt.label}</option>
+              {BUS_TYPES.map((bt) => (
+                <option key={bt.value} value={bt.value}>{isRTL ? bt.ar : bt.en}</option>
               ))}
             </V2Select>
           </V2Field>

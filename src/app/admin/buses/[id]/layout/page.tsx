@@ -8,9 +8,10 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader } from '@/components/v2/admin';
-import { V2Field, V2Input } from '@/components/v2/Field';
+import { V2Field, V2Input, V2Select } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2Skeleton } from '@/components/v2/ui';
+import { BUS_TYPES } from '@/lib/bus-types';
 
 /* V2 bus layout + stations editor — same load/save APIs as V1. */
 
@@ -31,6 +32,8 @@ export default function BusLayoutPage() {
   const isRTL = lang === 'ar';
 
   const [busName, setBusName] = useState('');
+  const [busType, setBusType] = useState('COACH_BUS');
+  const [savingDetails, setSavingDetails] = useState(false);
   const [seats, setSeats] = useState<SeatDraft[]>([]);
   const [totalRows, setTotalRows] = useState(10);
   const [colsPerRow, setColsPerRow] = useState<Record<string, number>>({});
@@ -52,6 +55,7 @@ export default function BusLayoutPage() {
         if (busRes.ok) {
           const data = await busRes.json();
           setBusName(data.name || '');
+          if (data.type) setBusType(data.type);
           if (data.layout?.seats?.length) {
             setTotalRows(data.layout.rows);
             setAisleAfter(data.layout.aisleAfter || 2);
@@ -107,6 +111,27 @@ export default function BusLayoutPage() {
   // Drop seats that fall outside the current grid
   function cleanOrphans(next: SeatDraft[], rows: number, cols: Record<string, number>): SeatDraft[] {
     return next.filter((s) => s.row < rows && s.col <= (cols[ROWS[s.row]] || 4));
+  }
+
+  async function saveDetails() {
+    setSavingDetails(true);
+    try {
+      const res = await fetch(`/api/buses/${busId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: busName.trim(), type: busType }),
+      });
+      if (res.ok) toast.success(t('common.success'));
+      else {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setSavingDetails(false);
+    }
   }
 
   async function save() {
@@ -259,6 +284,35 @@ export default function BusLayoutPage() {
           </div>
 
           <div className="grid content-start gap-4">
+            {/* Name and type were never editable from the UI, so a bus could
+                not be turned into a CHARTER bus without creating a new one and
+                rebuilding its seat layout. */}
+            <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
+              <p className="text-[15px] font-extrabold text-[#0B1B33]">{isRTL ? 'بيانات الباص' : 'Bus details'}</p>
+              <div className="mt-3 grid gap-3">
+                <V2Field label={t('buses.busName')}>
+                  <V2Input value={busName} onChange={(e) => setBusName(e.target.value)} />
+                </V2Field>
+                <V2Field label={t('buses.busType')}>
+                  <V2Select value={busType} onChange={(e) => setBusType(e.target.value)}>
+                    {BUS_TYPES.map((bt) => (
+                      <option key={bt.value} value={bt.value}>{isRTL ? bt.ar : bt.en}</option>
+                    ))}
+                  </V2Select>
+                </V2Field>
+                {busType === 'CHARTER' && (
+                  <p className="rounded-xl bg-[#EFF4FF] px-3.5 py-2.5 text-[12.5px] font-bold leading-relaxed text-[#1D5BD8]">
+                    {isRTL
+                      ? 'هذا الباص سيظهر فقط في تبويب «شارتر» عند إنشاء رحلة.'
+                      : 'This bus will be offered only in the Charter tab when creating a trip.'}
+                  </p>
+                )}
+                <V2Button disabled={savingDetails} onClick={saveDetails} className="w-full">
+                  {savingDetails && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
+                </V2Button>
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
               <p className="text-[15px] font-extrabold text-[#0B1B33]">{isRTL ? 'المقعد المحدد' : 'Selected seat'}</p>
               {!sel ? (

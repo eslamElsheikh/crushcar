@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BUS_TYPE_VALUES } from './bus-types';
 
 export const registerSchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صحيح'),
@@ -83,7 +84,7 @@ export const stationSchema = z.object({
 
 export const busSchema = z.object({
   name: z.string().min(1, 'اسم الباص مطلوب'),
-  type: z.enum(['MINI_BUS', 'COACH_BUS', 'VIP_BUS', 'DOUBLE_DECKER', 'CHARTER'], { message: 'نوع الباص غير صحيح' }),
+  type: z.enum(BUS_TYPE_VALUES as [string, ...string[]], { message: 'نوع الباص غير صحيح' }),
   seatCount: z.number().int().nonnegative().optional().default(0),
   companyId: z.string().nullable().optional(),
 });

@@ -56,7 +56,7 @@ model Company {
 model Bus {
   id        String      @id @default(cuid())
   name      String
-  type      String      // MINI_BUS | COACH_BUS | VIP_BUS | DOUBLE_DECKER
+  type      String      // MINI_BUS | COACH_BUS | VIP_BUS | DOUBLE_DECKER | CHARTER
   seatCount Int
   companyId String?
   company   Company?    @relation(fields: [companyId], references: [id])

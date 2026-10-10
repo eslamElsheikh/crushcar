@@ -1,6 +1,6 @@
 export type Role = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'CUSTOMER'
 export type Plan = 'STARTER' | 'PRO' | 'ENTERPRISE'
-export type BusType = 'MINI_BUS' | 'COACH_BUS' | 'VIP_BUS' | 'DOUBLE_DECKER'
+export type BusType = 'MINI_BUS' | 'COACH_BUS' | 'VIP_BUS' | 'DOUBLE_DECKER' | 'CHARTER'
 export type SeatType = 'NORMAL' | 'VIP' | 'DISABLED' | 'HIDDEN'
 export type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type BookingStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'BOARDED'

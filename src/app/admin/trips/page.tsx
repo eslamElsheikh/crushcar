@@ -11,6 +11,7 @@ import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge } from '@/components/v2/ui';
 import { TripForm, StopDraft, TripBookingMode } from '@/components/v2/TripForm';
 import { useTripStopsFromBus } from '@/hooks/useTripStopsFromBus';
+import { busesForMode } from '@/lib/bus-types';
 
 /* V2 admin trips — same list/filter/bulk-create/delete APIs as V1. */
 
@@ -43,8 +44,16 @@ export default function AdminTrips() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulk, setBulk] = useState({
     busId: '', fromStationId: '', toStationId: '',
-    departureTime: '08:00', arrivalTime: '11:30', price: '', count: '7', interval: 'daily',
+    departureTime: '08:00', arrivalTime: '11:30', price: '',
+    count: '7', interval: 'daily',
+    bookingMode: 'SEAT' as TripBookingMode,
   });
+  const EMPTY_BULK = {
+    busId: '', fromStationId: '', toStationId: '',
+    departureTime: '08:00', arrivalTime: '11:30', price: '',
+    count: '7', interval: 'daily',
+    bookingMode: 'SEAT' as TripBookingMode,
+  };
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -98,6 +107,9 @@ export default function AdminTrips() {
     Number(trip.busPrice) || 0,
     setTripStops
   );
+
+  // Charter trips can only be assigned from CHARTER buses, and vice versa.
+  const bulkBuses = busesForMode(buses, bulk.bookingMode, bulk.busId);
 
   function changeModeFilter(mode: TripBookingMode | 'ALL') {
     setModeFilter(mode);
@@ -179,11 +191,18 @@ export default function AdminTrips() {
     const priceNum = Number(bulk.price);
     const fromStation = stations.find((s) => s.id === bulk.fromStationId);
     const toStation = stations.find((s) => s.id === bulk.toStationId);
+    const isCharter = bulk.bookingMode === 'BUS';
     if (!bulk.busId || !fromStation || !toStation || !priceNum || !count) {
       toast.error(isRTL ? 'أكمل كل الحقول' : 'Fill all fields');
       return;
     }
+    if (isCharter && !(priceNum > 0)) {
+      toast.error(t('trips.charterPriceRequired'));
+      return;
+    }
     setCreating(true);
+    let failed = 0;
+    let firstError = '';
     try {
       const [dh, dm] = bulk.departureTime.split(':').map(Number);
       const [ah, am] = bulk.arrivalTime.split(':').map(Number);
@@ -204,7 +223,9 @@ export default function AdminTrips() {
         }
         const dep = new Date(day); dep.setHours(dh, dm, 0, 0);
         const arr = new Date(day); arr.setHours(ah, am, 0, 0);
-        await fetch('/api/trips', {
+        // Each request is checked: a rejected POST used to fall through to a
+        // success toast, so a run that created nothing still looked complete.
+        const res = await fetch('/api/trips', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -215,17 +236,32 @@ export default function AdminTrips() {
             departure: dep.toISOString(),
             arrival: arr.toISOString(),
             price: priceNum,
+            bookingMode: bulk.bookingMode,
+            busPrice: isCharter ? priceNum : null,
             stops: [
-              { stationId: fromStation.id, stopOrder: 1, priceFromOrigin: 0 },
+              // A charter trip carries the same total on every stop, matching
+              // distributeCharterTotal in the single-trip form.
+              { stationId: fromStation.id, stopOrder: 1, priceFromOrigin: isCharter ? priceNum : 0 },
               { stationId: toStation.id, stopOrder: 2, priceFromOrigin: priceNum },
             ],
           }),
         });
+        if (!res.ok) {
+          failed++;
+          if (!firstError) firstError = (await res.json().catch(() => ({}))).error || res.statusText;
+        }
       }
-      setBulkOpen(false);
-      setBulk({ busId: '', fromStationId: '', toStationId: '', departureTime: '08:00', arrivalTime: '11:30', price: '', count: '7', interval: 'daily' });
+      const ok = count - failed;
+      if (failed) {
+        toast.error(t('trips.bulkPartial').replace('{ok}', String(ok)).replace('{failed}', String(failed)), {
+          description: firstError,
+        });
+      } else {
+        toast.success(t('trips.bulkCreated').replace('{n}', String(ok)));
+        setBulkOpen(false);
+        setBulk(EMPTY_BULK);
+      }
       loadTrips(page, filter, modeFilter);
-      toast.success(t('common.success'));
     } catch {
       toast.error(t('common.error'));
     } finally {
@@ -396,14 +432,32 @@ export default function AdminTrips() {
       </V2Modal>
 
       <V2Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title={isRTL ? 'إنشاء رحلات متعددة' : 'Bulk create trips'} wide>
-        <div className="grid gap-3.5 sm:grid-cols-2">
+        {/* Same two tabs as the single-trip form, so bulk and single trips
+            behave identically. */}
+        <V2Tabs
+          active={bulk.bookingMode}
+          onChange={(m) => setBulk({ ...bulk, bookingMode: m })}
+          tabs={[
+            { key: 'SEAT' as const, label: t('trips.seatTab') },
+            { key: 'BUS' as const, label: t('trips.charterTab') },
+          ]}
+        />
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
           <V2Field label={t('nav.buses')}>
-            <V2Select value={bulk.busId} onChange={(e) => setBulk({ ...bulk, busId: e.target.value })}>
-              <option value="">—</option>
-              {buses.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </V2Select>
+            {bulkBuses.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-slate-300 px-3.5 py-3 text-[13px] font-bold leading-relaxed text-[var(--sp-text-muted)]">
+                {bulk.bookingMode === 'BUS' ? t('trips.noCharterBus') : t('trips.busesForSeatOnly')}
+              </p>
+            ) : (
+              <V2Select value={bulk.busId} onChange={(e) => setBulk({ ...bulk, busId: e.target.value })}>
+                <option value="">—</option>
+                {bulkBuses.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </V2Select>
+            )}
           </V2Field>
-          <V2Field label={t('trips.price')}>
+          {/* One price field serves both tabs; it is the per-seat price in a
+              regular trip and the whole-bus total in a charter one. */}
+          <V2Field label={bulk.bookingMode === 'BUS' ? t('trips.busPrice') : t('trips.price')}>
             <V2Input type="number" min="0" value={bulk.price} onChange={(e) => setBulk({ ...bulk, price: e.target.value })} dir="ltr" className="tabular-nums" />
           </V2Field>
           <V2Field label={t('v2.from')}>

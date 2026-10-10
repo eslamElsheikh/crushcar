@@ -1,9 +1,13 @@
 'use client';
 
-import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Trash2, ArrowUp, ArrowDown, Bus as BusIcon } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';
+import { busesForMode } from '@/lib/bus-types';
+import { distributeCharterTotal } from '@/lib/charter';
 import { V2Field, V2Select, V2Input } from './Field';
+import { V2Tabs } from './admin';
 
 /* Shared trip create/edit form (stops editor). POST/PUT stays in the pages. */
 
@@ -22,18 +26,7 @@ export function normalizeName(s: string): string {
 
 export type TripBookingMode = 'SEAT' | 'BUS';
 
-/**
- * A charter trip is priced as one total for the whole bus, not split per stop.
- * Every stop therefore carries that same total.
- *
- * The last stop is what Trip.price is read from, and CharterBooking charges
- * busPrice with trip.price as the fallback, so this keeps both readings equal
- * to what the admin entered. Seats cannot be booked on a charter trip, so the
- * per-stop difference that seat pricing relies on is never computed from these.
- */
-export function distributeCharterTotal(total: number, stopCount: number): number[] {
-  return Array.from({ length: Math.max(0, stopCount) }, () => total);
-}
+export { distributeCharterTotal };
 
 export function TripForm({
   buses,
@@ -81,6 +74,30 @@ export function TripForm({
 
   const available = stations.filter((s) => !stops.find((st) => st.stationId === s.id));
 
+  // A seat trip and a charter trip are assigned from different buses, so each
+  // tab only offers the ones that fit it.
+  const modeBuses = busesForMode(buses, bookingMode, busId);
+
+  function switchMode(next: TripBookingMode) {
+    if (bookingMode === next) return;
+    onBookingModeChange(next);
+    // The picked bus may not be valid for the new tab; drop it so the form
+    // cannot submit a charter trip on a seat bus.
+    if (busId && !busesForMode(buses, next, null).some((b: any) => b.id === busId)) {
+      setBusId('');
+    }
+    if (next === 'BUS') {
+      // Seed the total from the last stop so switching tabs does not lose the
+      // price the admin already typed. With no stops there is nothing to copy
+      // and the field stays empty rather than turning into a silent 0.
+      const seed = stops[stops.length - 1]?.priceFromOrigin || 0;
+      if (!Number(busPrice) && seed > 0) {
+        onBusPriceChange?.(String(seed));
+        setStops(resyncCharterPrices(stops, seed));
+      }
+    }
+  }
+
   function addStop(stationId: string) {
     const st = stations.find((s) => s.id === stationId);
     if (!st) return;
@@ -123,14 +140,40 @@ export function TripForm({
 
   return (
     <div className="grid gap-4">
+      {/* Trip type leads the form: it decides which buses are offered and
+          whether prices are per stop or one total, so everything below it
+          depends on the choice made here. */}
+      <V2Tabs
+        active={bookingMode}
+        onChange={switchMode}
+        tabs={[
+          { key: 'SEAT' as const, label: t('trips.seatTab') },
+          { key: 'BUS' as const, label: t('trips.charterTab') },
+        ]}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <V2Field label={t('trips.bus')}>
-          <V2Select value={busId} onChange={(e) => setBusId(e.target.value)}>
-            <option value="">—</option>
-            {buses.map((b: any) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </V2Select>
+          {modeBuses.length === 0 ? (
+            <div className="grid gap-2.5 rounded-2xl border border-dashed border-slate-300 p-3.5">
+              <p className="text-[13px] font-bold leading-relaxed text-[var(--sp-text-muted)]">
+                {bookingMode === 'BUS' ? t('trips.noCharterBus') : t('trips.busesForSeatOnly')}
+              </p>
+              <Link
+                href="/admin/buses"
+                className="inline-flex items-center gap-1.5 self-start rounded-xl bg-[#0A1E3C] px-3 py-2 text-[13px] font-bold text-white transition hover:bg-[#12305e]"
+              >
+                <BusIcon className="size-4" /> {t('buses.addBus')}
+              </Link>
+            </div>
+          ) : (
+            <V2Select value={busId} onChange={(e) => setBusId(e.target.value)}>
+              <option value="">—</option>
+              {modeBuses.map((b: any) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </V2Select>
+          )}
         </V2Field>
         {showStatus && (
           <V2Field label={t('trips.status')}>
@@ -150,71 +193,28 @@ export function TripForm({
         </V2Field>
       </div>
 
-      <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              {/* Segmented toggle rather than a native <select>: a collapsed
-                  select shows only its selected value, so the charter option was
-                  invisible until the field was clicked. Both types now stay on
-                  screen at all times. */}
-              <span className="text-[12.5px] font-bold text-[var(--sp-text-muted)]">
-                {t('trips.bookingMode')}
-              </span>
-              <div role="group" aria-label={t('trips.bookingMode')} className="grid grid-cols-2 gap-1.5 rounded-2xl bg-[var(--sp-inset)] p-1.5">
-                {([
-                  { value: 'SEAT' as const, label: t('trips.seatMode') },
-                  { value: 'BUS' as const, label: t('trips.charterMode') },
-                ]).map((opt) => {
-                  const active = bookingMode === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        if (bookingMode === opt.value) return;
-                        onBookingModeChange(opt.value);
-                        if (opt.value === 'BUS') {
-                          const total = Number(busPrice) || stops[stops.length - 1]?.priceFromOrigin || 0;
-                          onBusPriceChange?.(String(total));
-                          setStops(resyncCharterPrices(stops, total));
-                        }
-                      }}
-                      aria-pressed={active}
-                      className={cn(
-                        'rounded-xl px-3 py-2.5 text-[13px] font-bold transition',
-                        active
-                          ? 'bg-[var(--sp-card)] text-[#0B1B33] shadow-[0_1px_3px_rgba(11,27,51,0.14)]'
-                          : 'text-[var(--sp-text-muted)] hover:text-[#0B1B33]'
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {bookingMode === 'BUS' && (
-              <V2Field label={t('trips.busPrice')}>
-                <V2Input
-                  type="number"
-                  min="0"
-                  value={busPrice}
-                  onChange={(e) => {
-                    onBusPriceChange?.(e.target.value);
-                    setStops(resyncCharterPrices(stops, Number(e.target.value) || 0));
-                  }}
-                  dir="ltr"
-                  className="tabular-nums"
-                />
-              </V2Field>
-            )}
-          </div>
-
+      {/* Charter is one price for the whole bus, so it gets a single total field.
+          Seat trips price each stop instead, which happens in the stops card. */}
+      {bookingMode === 'BUS' && (
+        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
+          <V2Field label={t('trips.busPrice')}>
+            <V2Input
+              type="number"
+              min="0"
+              value={busPrice}
+              onChange={(e) => {
+                onBusPriceChange?.(e.target.value);
+                setStops(resyncCharterPrices(stops, Number(e.target.value) || 0));
+              }}
+              dir="ltr"
+              className="tabular-nums"
+            />
+          </V2Field>
           <p className="mt-3 text-[12.5px] leading-relaxed text-[var(--sp-text-muted)]">
-          {bookingMode === 'BUS' ? t('trips.charterHint') : t('trips.seatPriceHint')}
-        </p>
-      </div>
+            {t('trips.charterHint')}
+          </p>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -259,17 +259,21 @@ export function TripForm({
                   <Trash2 className="size-4" />
                 </button>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2.5">
-                <label className="grid gap-1">
-                  <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">EGP</span>
-                  <input
-                    type="number" min="0" value={s.priceFromOrigin}
-                    onChange={(e) => update(i, 'priceFromOrigin', Number(e.target.value))}
-                    readOnly={bookingMode === 'BUS'}
-                    dir="ltr"
-                    className="v2-input tabular-nums !min-h-[44px] text-[13.5px]"
-                  />
-                </label>
+              {/* A charter trip is priced as one total, not per stop, so the
+                  price column is removed rather than shown disabled — a
+                  greyed-out EGP box that never changes reads as a bug. */}
+              <div className={cn('mt-3 grid gap-2.5', bookingMode === 'BUS' ? 'grid-cols-2' : 'grid-cols-3')}>
+                {bookingMode !== 'BUS' && (
+                  <label className="grid gap-1">
+                    <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">EGP</span>
+                    <input
+                      type="number" min="0" value={s.priceFromOrigin}
+                      onChange={(e) => update(i, 'priceFromOrigin', Number(e.target.value))}
+                      dir="ltr"
+                      className="v2-input tabular-nums !min-h-[44px] text-[13.5px]"
+                    />
+                  </label>
+                )}
                 <label className="grid gap-1">
                   <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'وصول' : 'Arr'}</span>
                   <input

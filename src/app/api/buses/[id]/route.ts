@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { isBusType } from '@/lib/bus-types'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -39,7 +40,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = await prisma.bus.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const bus = await prisma.bus.update({ where: { id }, data })
+    // Allowlist instead of passing the body straight into prisma.bus.update:
+    // the fleet is SUPER_ADMIN-owned, so only its editable columns should be
+    // writable. companyId in particular must not be reassignable from here.
+    const patch: Record<string, unknown> = {}
+    if (typeof data.name === 'string' && data.name.trim()) patch.name = data.name.trim()
+    if (data.type !== undefined) {
+      if (!isBusType(data.type)) {
+        return NextResponse.json({ error: 'Invalid bus type' }, { status: 400 })
+      }
+      patch.type = data.type
+    }
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    }
+
+    const bus = await prisma.bus.update({ where: { id }, data: patch })
     return NextResponse.json(bus)
   } catch (err) {
     console.error(err)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { isBusType } from '@/lib/bus-types'
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,15 +49,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // SUPER_ADMIN may create buses without a company (global) or for one
-    const targetCompanyId: string | null = companyId || null
+    // type drives which trips a bus can be assigned to (CHARTER buses only
+    // appear in the charter tab), so an unknown value must not be stored.
+    if (!isBusType(type)) {
+      return NextResponse.json({ error: 'Invalid bus type' }, { status: 400 })
+    }
 
-    console.error('[buses POST] session:', JSON.stringify({
-      role: session.user.role,
-      companyId: session.user.companyId,
-      target: targetCompanyId,
-      input: { name, type, seatCount, companyId },
-    }))
+    // SUPER_ADMIN may create buses without a company (global) or for one
+    const targetCompanyId: string | null = companyId || null;
 
     const bus = await prisma.bus.create({
       data: { name, type, seatCount, companyId: targetCompanyId },
