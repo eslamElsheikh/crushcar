@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { autoTransitionAllTrips } from '@/lib/trips';
+import { autoExpireUnpaidBookings } from '@/lib/booking-expiry';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 
@@ -19,7 +20,8 @@ export async function POST() {
     }
 
     await autoTransitionAllTrips();
-    return NextResponse.json({ ok: true });
+    const expiredBookings = await autoExpireUnpaidBookings();
+    return NextResponse.json({ ok: true, expiredBookings });
   } catch (err) {
     console.error('[Jobs Transition]', err);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });

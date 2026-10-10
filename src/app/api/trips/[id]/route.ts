@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { autoExpireUnpaidBookings } from '@/lib/booking-expiry'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // No cron is guaranteed to be running on the host, so releasing timed-out
+    // seats also happens here. This is the path the booking screen polls, so a
+    // seat never stays blocked because a job never fired. Failures are
+    // swallowed: a sweep problem must not break trip browsing.
+    await autoExpireUnpaidBookings().catch(() => {})
 
     const { id } = await params
     const trip = await prisma.trip.findUnique({

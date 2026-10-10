@@ -155,6 +155,37 @@ if (!checkOnly) {
       fail('static.zip does not carry the current build id', 'run: npm run build');
     }
   }
+
+  // sharp ships prebuilt binaries as optional platform dependencies, so a build
+  // made on Windows packages @img/sharp-win32-x64 and nothing for Linux. The
+  // upload endpoint then 500s on every request because the native module will
+  // not load. Check it here so a Windows build cannot silently ship.
+  const imgDir = path.join(cfg.standalone, 'node_modules', '@img');
+  const sharpVersion = (() => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(cfg.standalone, 'node_modules', 'sharp', 'package.json'), 'utf8')).version;
+    } catch {
+      return null;
+    }
+  })();
+  const libs = sharpVersion === '0.35.5' ? '1.3.4' : sharpVersion === '0.33.5' ? '1.0.4' : sharpVersion === '0.32.6' ? '1.0.2' : null;
+
+  if (!sharpVersion) {
+    note('sharp not packaged; skip the platform-binary check');
+  } else if (libs) {
+    const needed = ['sharp-linux-x64', 'sharp-libvips-linux-x64'];
+    const missing = needed.filter((p) => !fs.existsSync(path.join(imgDir, p)));
+    if (missing.length === 0) {
+      ok('sharp linux-x64 binaries packaged');
+    } else {
+      fail(
+        `server.zip is missing ${missing.join(', ')} (sharp ${sharpVersion})`,
+        'run: npm run deploy:sharp'
+      );
+    }
+  } else {
+    note(`sharp ${sharpVersion}: libs version not pinned here; check manually`);
+  }
 } else {
   note('check-only: no zips written');
 }

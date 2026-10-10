@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { Loader2, CheckCircle2, Copy, Check, Upload, AlertTriangle, Receipt } from 'lucide-react';
+import { Loader2, CheckCircle2, Copy, Check, Upload, AlertTriangle, Receipt, Clock } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
@@ -27,6 +27,9 @@ interface PayBooking {
   paymentNotes?: string | null;
   paymentStatus?: string | null;
   paymentRejectReason?: string | null;
+  createdAt?: string;
+  paymentExpiresAt?: string | null;
+  expiredAt?: string | null;
   trip?: { origin: string; destination: string; departure: string };
 }
 
@@ -57,6 +60,7 @@ export default function BookingPayPage() {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -97,6 +101,31 @@ export default function BookingPayPage() {
   const payable = group.length > 0 ? group.filter((g) => g.status === 'PENDING') : booking && booking.status === 'PENDING' ? [booking] : [];
   const total = payable.reduce((s, b) => s + (b.total || 0), 0);
   const isGroup = payable.length > 1;
+
+  // The seat is only held until the server's deadline, and only while no
+  // screenshot is attached: submitting proof hands the booking to an admin and
+  // stops the clock. The deadline itself always comes from the server so a
+  // tampered clock cannot extend a hold.
+  const target = payable[0] || booking;
+  useEffect(() => {
+    if (!target?.paymentExpiresAt) {
+      setSecondsLeft(null);
+      return;
+    }
+    if (target.paymentProofUrl) {
+      setSecondsLeft(null);
+      return;
+    }
+    const deadline = new Date(target.paymentExpiresAt).getTime();
+    if (Number.isNaN(deadline)) {
+      setSecondsLeft(null);
+      return;
+    }
+    const tick = () => setSecondsLeft(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [target?.paymentExpiresAt, target?.paymentProofUrl]);
 
   async function uploadProof(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -166,9 +195,12 @@ export default function BookingPayPage() {
   }
 
   const paid = booking?.status === 'PAID';
-  const cancelled = booking?.status === 'CANCELLED';
+  const expired = booking?.status === 'CANCELLED' && !!booking?.expiredAt;
+  const cancelled = booking?.status === 'CANCELLED' && !booking?.expiredAt;
   const awaiting = booking?.paymentStatus === 'PENDING' && !done;
   const rejected = booking?.paymentStatus === 'REJECTED' && !done;
+  const mm = secondsLeft !== null ? Math.floor(secondsLeft / 60) : 0;
+  const ss = secondsLeft !== null ? secondsLeft % 60 : 0;
 
   return (
     <div className="v2 min-h-dvh bg-[#F6F8FC]" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -187,6 +219,18 @@ export default function BookingPayPage() {
           <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-600">
             {error || t('v2.noTrips')}
           </p>
+        ) : expired ? (
+          // The seat was released when the payment window closed, so this is not
+          // a confirmation. Say what happened and who to contact, instead of the
+          // generic CANCELLED label which reads like a success.
+          <div className="mt-6 grid gap-5">
+            <p role="alert" className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] font-semibold text-amber-800">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+              <span>{t('pay.expired')}</span>
+            </p>
+            <p className="text-[14px] leading-relaxed text-[#5B6B84]">{t('pay.expiredHint')}</p>
+            <Link href="/trips" className="v2-btn-primary px-6 py-3.5 text-center text-[14.5px]">{t('pay.backToTrips')}</Link>
+          </div>
         ) : paid || cancelled ? (
           <p role="status" className="mt-6 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[14px] font-semibold text-emerald-700">
             <CheckCircle2 className="size-5" /> {paid ? t('pay.paid') : booking.status}
@@ -200,6 +244,22 @@ export default function BookingPayPage() {
           </div>
         ) : (
           <div className="mt-6 grid gap-5">
+            {secondsLeft !== null && (
+              <div role="status"
+                className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-[14px] font-semibold ${
+                  secondsLeft > 300
+                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    : 'border-red-300 bg-red-50 text-red-700'
+                }`}
+              >
+                <Clock className="size-5 shrink-0" />
+                <span>
+                  {secondsLeft > 0
+                    ? `${t('pay.holdRemaining')} ${mm}:${String(ss).padStart(2, '0')}`
+                    : t('pay.holdExpired')}
+                </span>
+              </div>
+            )}
             {rejected && (
               <p role="alert" className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] font-semibold text-amber-800">
                 <AlertTriangle className="mt-0.5 size-5 shrink-0" />

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { calculateRefund } from '@/lib/cancellation-policy'
+import { paymentDeadline } from '@/lib/payments'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -111,6 +112,53 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
       const updated = await prisma.booking.update({
         where: { id },
         data: { paymentStatus: 'REJECTED', paymentRejectReason: reason },
+      })
+      return NextResponse.json({ ...updated })
+    }
+
+    if (action === 'REACTIVATE') {
+      if (session.user.role === 'CUSTOMER') {
+        return NextResponse.json({ error: 'Only admins can reactivate a booking' }, { status: 403 })
+      }
+      if (booking.status !== 'CANCELLED' || !booking.expiredAt) {
+        return NextResponse.json({ error: 'Only an expired booking can be reactivated' }, { status: 400 })
+      }
+
+      // The seat was released when this expired, so someone else may have taken
+      // it. Check the whole segment, not just this seat, matching the create path.
+      const taken = await prisma.booking.findFirst({
+        where: {
+          tripId: booking.tripId,
+          seatLabel: booking.seatLabel,
+          status: { in: ['PENDING', 'PAID', 'BOARDED'] },
+          fromStopOrder: { lt: booking.toStopOrder },
+          toStopOrder: { gt: booking.fromStopOrder },
+        },
+        select: { reference: true },
+      })
+      if (taken) {
+        return NextResponse.json(
+          {
+            error: 'SEAT_TAKEN',
+            message: `الكرسي ${booking.seatLabel} محجوز الآن بحجز ${taken.reference}. التحويل وصل بعد انتهاء المهلة، يجب معالجة الاسترداد يدوياً.`,
+            manualRefundRequired: true,
+            conflictingReference: taken.reference,
+          },
+          { status: 409 }
+        )
+      }
+
+      const updated = await prisma.booking.update({
+        where: { id },
+        data: {
+          status: 'PENDING',
+          expiredAt: null,
+          cancelledAt: null,
+          cancelledBy: null,
+          cancellationReason: '',
+          // Give the customer a fresh window now that an admin is on the case.
+          paymentExpiresAt: paymentDeadline(new Date(booking.trip?.departure ?? new Date())),
+        },
       })
       return NextResponse.json({ ...updated })
     }

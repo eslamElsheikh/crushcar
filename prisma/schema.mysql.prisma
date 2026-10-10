@@ -186,6 +186,11 @@ model Booking {
   paymentNotes        String?   @default("")
   paymentStatus       String    @default("NONE") // NONE | PENDING | REJECTED (awaiting review / needs new proof)
   paymentRejectReason String?   @default("")
+  // Seat-holding window: a PENDING booking is cancelled once this passes with
+  // no proof attached, releasing the seat. See src/lib/payments.ts.
+  paymentExpiresAt DateTime?
+  expiredAt        DateTime?   // set when a sweep cancelled it, so admins can tell
+                                 // a timed-out booking from a customer cancellation
   groupId             String?   // links seats booked in one checkout (group pay)
   boarded         Boolean   @default(false)
   boardedAt       DateTime?
@@ -207,6 +212,7 @@ model Booking {
   @@index([status, createdAt])
   @@index([tripId, status])
   @@index([userId, status])
+  @@index([status, paymentExpiresAt])
 }
 
 model Reminder {

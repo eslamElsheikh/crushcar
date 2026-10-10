@@ -425,6 +425,20 @@ const translations: Record<string, Record<Language, string>> = {
     ar: 'لا يمكن تأكيد الدفع قبل رفع العميل لصورة التحويل',
     en: 'Payment cannot be confirmed until the customer uploads a transfer screenshot',
   },
+  'pay.holdRemaining': { ar: 'المقعد محجوز لك لمدة', en: 'Your seat is held for' },
+  'pay.holdExpired': {
+    ar: 'انتهت مهلة حجز المقعد. ابحث عن رحلة أخرى.',
+    en: 'Your seat hold has expired. Please find another trip.',
+  },
+  'pay.expired': {
+    ar: 'انتهت مهلة الدفع وتم تحرير المقعد',
+    en: 'The payment window closed and the seat was released',
+  },
+  'pay.expiredHint': {
+    ar: 'لو حوّلت المبلغ بالفعل، تواصل معنا وهنراجع التحويل ونرجّع لك حقك.',
+    en: 'If you already sent the transfer, contact us and we will review it and refund you.',
+  },
+  'pay.backToTrips': { ar: 'العودة للرحلات', en: 'Back to trips' },
   'pay.uploading': { ar: 'جارٍ رفع الصورة…', en: 'Uploading image…' },
   'pay.changeImage': { ar: 'تغيير الصورة', en: 'Change image' },
   'pay.back': { ar: 'رجوع للحجوزات', en: 'Back to bookings' },

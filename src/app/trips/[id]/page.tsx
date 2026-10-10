@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Clock, MapPin, Loader2, Check, Bus, Sparkles, X,
-  User, Repeat, Map, Navigation, Ticket, Phone, Printer, Building2, FileText, Banknote, ShieldCheck
+  User, Repeat, Map, Navigation, Ticket, Phone, Printer, Building2, FileText, Banknote, ShieldCheck, CreditCard
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatDate, formatTime } from '@/lib/utils';
@@ -616,6 +616,14 @@ function TripDetailPageContent() {
                 onClose={() => setConfirmedBookings([])}
                 onBookAnother={() => setConfirmedBookings([])}
                 onViewBookings={() => router.push(session?.user?.role === 'COMPANY_ADMIN' ? '/company/bookings' : '/bookings')}
+                // Customers are sent straight to payment: the seat is only held
+                // for the payment window, so waiting here risks losing it.
+                onPayNow={() => {
+                  const isCompany = session?.user?.role === 'COMPANY_ADMIN';
+                  const id = confirmedBookings[0]?.id;
+                  if (isCompany || !id) return;
+                  router.push(`/bookings/${id}/pay`);
+                }}
                 sessionRole={session?.user?.role || ''}
               />
             </motion.div>
@@ -1344,7 +1352,7 @@ function SeatButton({ seat, isSelected, isReserved, onToggle, tripPrice, t }: an
 }
 
 // Confirmation modal card in modern V2 design
-function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, formatTime, onClose, onBookAnother, onViewBookings, sessionRole }: any) {
+function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, formatTime, onClose, onBookAnother, onViewBookings, onPayNow, sessionRole }: any) {
   const isMulti = confirmedBookings.length > 1;
   const first = confirmedBookings[0];
   const busName = first?.trip?.bus?.name || trip?.bus?.name || '-';
@@ -1458,51 +1466,61 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         {/* Payment notice */}
         <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-3 text-xs font-medium text-amber-800 flex items-center gap-2">
           <Clock size={14} className="text-amber-600 shrink-0" />
-          <span>{isRTL ? 'سيتم تأكيد الحجز بعد استلام الأدمن للدفع' : 'Booking will be confirmed after admin receives payment'}</span>
+          <span>{sessionRole === 'COMPANY_ADMIN'
+            ? (isRTL ? 'سيتم تأكيد الحجز بعد استلام الأدمن للدفع' : 'Booking will be confirmed after admin receives payment')
+            : (isRTL ? 'المقعد محجوز لك مؤقتاً — أكمل الدفع الآن وإلا بيتحرر تلقائياً' : 'Your seat is held temporarily — complete payment now or it is released automatically')}</span>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="p-6 sm:p-8 pt-0 flex flex-col sm:flex-row gap-3">
+      {/* grid-cols-2 rather than a flex row: four flex-1 buttons in one line
+          overflowed the modal's max-w-lg and pushed the actions off screen. */}
+      <div className="grid grid-cols-2 gap-3 p-6 pt-0 sm:grid-cols-4">
+        {/* Pay now leads: the seat hold is time-boxed, so payment is the
+            action the customer is expected to take next. Company bookings
+            settle against the wallet on the spot, so they have no pay page. */}
+        {sessionRole !== 'COMPANY_ADMIN' && (
+          <button
+            onClick={onPayNow}
+            className="rounded-xl bg-emerald-600 px-3 py-3.5 text-center text-sm font-bold text-white shadow-md transition hover:bg-emerald-700"
+          >
+            <span className="flex items-center justify-center gap-2">
+              <CreditCard size={16} />
+              {isRTL ? 'ادفع الآن' : 'Pay now'}
+            </span>
+          </button>
+        )}
         <button
           onClick={onViewBookings}
-          className="flex-1 py-3.5 rounded-xl bg-[#0A1E3C] hover:bg-[#142d54] text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-md"
+          className="rounded-xl bg-[#0A1E3C] px-3 py-3.5 text-center text-sm font-bold text-white shadow-md transition hover:bg-[#142d54]"
         >
-          <Ticket size={16} />
-          {isRTL ? 'عرض حجوزاتي' : 'View My Bookings'}
+          <span className="flex items-center justify-center gap-2">
+            <Ticket size={16} />
+            {isRTL ? 'حجوزاتي' : 'My bookings'}
+          </span>
+        </button>
+        <button
+          onClick={onBookAnother}
+          className="rounded-xl border border-slate-200 px-3 py-3.5 text-center text-sm font-bold text-[#0B1B33] transition hover:bg-slate-100"
+        >
+          <span className="flex items-center justify-center gap-2">
+            <Sparkles size={16} className="text-amber-500" />
+            {t('confirmed.bookAnother')}
+          </span>
         </button>
         {confirmedBookings.length > 0 && (() => {
           const isCompany = sessionRole === 'COMPANY_ADMIN';
           const firstId = first?.id;
-          if (isCompany || !firstId) return null;
-          return (
-            <a
-              href={`/bookings/${firstId}/pay`}
-              className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-md"
-            >
-              {isRTL ? 'ادفع الآن' : 'Pay now'}
-            </a>
-          );
-        })()}
-        <button
-          onClick={onBookAnother}
-          className="flex-1 py-3.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-[#0B1B33] font-bold text-sm transition flex items-center justify-center gap-2"
-        >
-          <Sparkles size={16} className="text-amber-500" />
-          {t('confirmed.bookAnother')}
-        </button>
-        {confirmedBookings.length > 0 && (() => {
-          const isCompany = sessionRole === 'COMPANY_ADMIN';
-          const firstId = isCompany ? first?.id : first?.id;
           if (!firstId) return null;
           const printUrl = isCompany ? `/company/bookings/${firstId}/print` : `/bookings/${firstId}/print`;
           return (
             <a
               href={printUrl}
-              className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-md"
+              className="rounded-xl border border-slate-200 px-3 py-3.5 text-center text-sm font-bold text-[#0B1B33] transition hover:bg-slate-100"
             >
-              <Printer size={16} />
-              {isRTL ? 'طباعة التذكرة' : 'Print Ticket'}
+              <span className="flex items-center justify-center gap-2">
+                <Printer size={16} />
+                {isRTL ? 'طباعة' : 'Print'}
+              </span>
             </a>
           );
         })()}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { generateRef } from '@/lib/utils'
+import { paymentDeadline } from '@/lib/payments'
 
 export async function GET(req: NextRequest) {
   try {
@@ -155,6 +156,13 @@ export async function POST(req: NextRequest) {
       // bookable, otherwise the customer pays for a seat on a bus they own.
       if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) throw new Error('CHARTER_TRIP')
 
+      // The search results already filter these, but the API must not depend on
+      // the caller having gone through search: a stale tab or a direct request
+      // must not book a bus that has left.
+      if (trip.status === 'CANCELLED') throw new Error('TRIP_NOT_BOOKABLE')
+      if (trip.status === 'COMPLETED' || trip.status === 'IN_PROGRESS') throw new Error('TRIP_NOT_BOOKABLE')
+      if (new Date(trip.departure).getTime() <= Date.now()) throw new Error('TRIP_DEPARTED')
+
       if (fromStationId && toStationId && trip.tripStops.length > 0) {
         const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)
         const toStop = trip.tripStops.find(s => s.stationId === toStationId)
@@ -227,6 +235,9 @@ export async function POST(req: NextRequest) {
           fromStopOrder,
           toStopOrder,
           groupId: groupId || null,
+          // The seat is held from here until this deadline; attaching proof
+          // stops the clock (see src/lib/booking-expiry.ts).
+          paymentExpiresAt: paymentDeadline(new Date(trip.departure)),
         },
         include: {
           trip: {
@@ -259,6 +270,12 @@ export async function POST(req: NextRequest) {
     }
     if (err.message === 'CHARTER_TRIP') {
       return NextResponse.json({ error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح للشركات فقط' }, { status: 409 })
+    }
+    if (err.message === 'TRIP_DEPARTED') {
+      return NextResponse.json({ error: 'TRIP_DEPARTED', message: 'الرحلة غادرت بالفعل، لا يمكن الحجز عليها' }, { status: 409 })
+    }
+    if (err.message === 'TRIP_NOT_BOOKABLE') {
+      return NextResponse.json({ error: 'TRIP_NOT_BOOKABLE', message: 'هذه الرحلة غير متاحة للحجز' }, { status: 409 })
     }
     if (err.message?.includes('Invalid stations') || err.message?.includes('fromStation must be before')) {
       return NextResponse.json({ error: err.message }, { status: 400 })

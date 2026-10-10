@@ -17,6 +17,7 @@
     "check:dashboard": "node scripts/audit-dashboard-live.mjs",
     "reconcile:balances": "node scripts/reconcile-balances.mjs",
     "deploy:generate": "prisma generate --schema=prisma/schema.mysql.prisma",
+    "deploy:sharp": "node scripts/vendor-sharp-linux.mjs",
     "deploy:package": "node scripts/deploy.mjs",
     "deploy:check": "node scripts/deploy.mjs --check",
     "deploy:seed": "node scripts/seed-production.mjs"
