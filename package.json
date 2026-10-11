@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "check:lang": "node scripts/check-lang-keys.mjs",
     "check:charter": "tsx scripts/verify-charter-split.ts",
+    "check:users": "tsx scripts/verify-user-edit.ts",
     "check:numbers": "node scripts/verify-dashboard-numbers.mjs",
     "check:dashboard": "node scripts/audit-dashboard-live.mjs",
     "reconcile:balances": "node scripts/reconcile-balances.mjs",

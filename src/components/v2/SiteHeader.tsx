@@ -110,10 +110,10 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
       <div className="v2-container flex items-center justify-between gap-6 py-4 pt-[max(1rem,env(safe-area-inset-top))] lg:gap-10">
         {/* Right group: logo + wordmark + nav */}
         <div className="flex shrink-0 items-center gap-8 xl:gap-10">
-          <Link href="/" className="flex items-center gap-2.5" aria-label={lang === 'ar' ? 'سافرو' : 'Safro'}>
+          <Link href="/" className="flex items-center gap-2.5" aria-label={lang === 'ar' ? 'سافروا' : 'Safro'}>
             <V2Logo height={34} />
             <span className={cn('text-[21px] font-extrabold leading-none tracking-tight', light ? 'text-white' : 'text-[#0B1B33]')}>
-              {lang === 'ar' ? 'سافرو' : 'safro'}
+              {lang === 'ar' ? 'سافروا' : 'safro'}
             </span>
           </Link>
           <nav className="hidden items-center gap-7 text-[14.5px] font-semibold lg:flex" aria-label="Primary">

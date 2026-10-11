@@ -19,7 +19,7 @@ test.describe('Phase D: Production Smoke (Read-Only)', () => {
     await expect(page.locator('footer').first()).toBeVisible();
 
     // Wordmark / Brand visible
-    const brand = page.locator('img[alt*="Safro"], a[href="/"] img, a[href="/"]:has-text("سافرو")').first();
+    const brand = page.locator('img[alt*="Safro"], a[href="/"] img, a[href="/"]:has-text("سافروا")').first();
     await expect(brand).toBeVisible();
 
     // Clean console

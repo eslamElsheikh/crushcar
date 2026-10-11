@@ -3,6 +3,9 @@ import Credentials from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
+/** How stale a session may get before isActive is re-read from the database. */
+const ACTIVE_RECHECK_MS = 5 * 60 * 1000
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -27,6 +30,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!valid) return null
 
+        // A deactivated user keeps their hash, so the password check alone
+        // would still let them in. Without this the admin "suspend" control
+        // is only a label in the table.
+        if (!user.isActive) return null
+
         // Block login for inactive company admins
         if (user.role === 'COMPANY_ADMIN' && user.company && !user.company.isActive) return null
 
@@ -50,20 +58,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (new URL(url).origin === baseUrl) return url
       return baseUrl
     },
-    jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
         token.role = (user as { role: string }).role
         token.companyId = (user as { companyId?: string }).companyId
         token.image = (user as { image?: string | null }).image ?? null
+        token.activeCheckedAt = Date.now()
       }
       // Live profile updates (e.g. avatar upload) refresh the token without re-login.
       if (trigger === 'update' && session && typeof (session as { image?: unknown }).image !== 'undefined') {
         token.image = (session as { image?: string | null }).image ?? null
       }
+
+      // The session is a stateless JWT that lives 30 days, so suspending a user
+      // only stops future logins. This re-reads isActive so an existing session
+      // dies too, but not on every request: the check is throttled by a
+      // timestamp carried in the token, which costs at most one query every
+      // five minutes per active user.
+      //
+      // Revocation is sticky on purpose. Once revoked the token must never
+      // become usable again, so an un-flagged session is never re-validated.
+      if (token.id && !token.revoked) {
+        const checkedAt = typeof token.activeCheckedAt === 'number' ? token.activeCheckedAt : 0
+        if (Date.now() - checkedAt > ACTIVE_RECHECK_MS) {
+          const fresh = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { isActive: true },
+          })
+          token.activeCheckedAt = Date.now()
+          if (!fresh?.isActive) token.revoked = true
+        }
+      }
       return token
     },
     session({ session, token }) {
+      // Every guard in the app is `if (!session?.user)`, so an absent user is
+      // what "signed out" looks like to the rest of the codebase.
+      if (token.revoked) {
+        return { ...session, user: undefined } as unknown as typeof session
+      }
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string

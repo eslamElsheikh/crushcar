@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       phone: u.phone,
       role: u.role,
       companyId: u.companyId,
+      isActive: u.isActive,
       createdAt: u.createdAt.toISOString(),
       totalBookings: countByUser.get(u.id) ?? 0,
     })))

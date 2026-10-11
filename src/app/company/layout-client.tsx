@@ -61,7 +61,7 @@ export default function CompanyLayoutClient({ session, children }: { session: an
           <Link href="/" className="flex items-center gap-2.5 p-6 pb-5" aria-label="Safro">
             <V2Logo height={36} />
             <span className="text-[21px] font-extrabold leading-none tracking-tight text-white">
-              {isRTL ? 'سافرو' : 'safro'}
+              {isRTL ? 'سافروا' : 'safro'}
             </span>
           </Link>
           <div className="flex-1 overflow-y-auto">{nav}</div>

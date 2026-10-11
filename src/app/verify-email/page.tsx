@@ -124,8 +124,8 @@ export default function VerifyEmailPage() {
   return (
     <V2AuthShell
       title={isRTL ? 'تأكيد البريد الإلكتروني' : 'Email Verification'}
-      sub={isRTL ? 'سافرو ترافيل — رحلاتك بكل سهولة' : 'Safro Travel — Journey made simple'}
-      sideTitle={isRTL ? 'أهلاً بك في سافرو' : 'Welcome to Safro'}
+      sub={isRTL ? 'سافروا ترافيل — رحلاتك بكل سهولة' : 'Safro Travel — Journey made simple'}
+      sideTitle={isRTL ? 'أهلاً بك في سافروا' : 'Welcome to Safro'}
       sideSub={isRTL ? 'المنصة الأسرع لحجز تذاكر الحافلات بين جميع المحافظات' : 'The premier intercity coach booking platform'}
     >
       <Suspense
