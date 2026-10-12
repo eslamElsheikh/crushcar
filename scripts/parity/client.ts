@@ -7,11 +7,26 @@
  * checkout builds production with, so the harness generates its own SQLite
  * client into a gitignored folder next to itself.
  *
- * Regenerate with: npm run check:parity:gen
+ * The generated folder does not exist in a fresh clone, and this file is part of
+ * the project-wide typecheck that `next build` runs, so it is loaded with
+ * require() and a loose cast rather than a static import. Otherwise the app build
+ * would fail on a machine that never ran the harness.
+ *
+ * Generate it first with: npm run check:parity:gen
  */
-import { PrismaClient } from './.generated/index.js';
 
-export const prisma = new PrismaClient({
+/* eslint-disable @typescript-eslint/no-var-requires */
+let PrismaClientCtor: any;
+try {
+  ({ PrismaClient: PrismaClientCtor } = require('./.generated/index.js'));
+} catch {
+  console.error(
+    'The parity harness client is missing. Run: npm run check:parity:gen',
+  );
+  process.exit(2);
+}
+
+export const prisma = new PrismaClientCtor({
   log: [{ emit: 'event', level: 'query' }],
 });
 

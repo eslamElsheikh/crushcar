@@ -4,7 +4,6 @@
  * a third station, stop-less trips, charter trips, a sold-out trip, and a
  * spread of dates out to a full year.
  */
-import type { PrismaClient } from './.generated/index.js';
 import { addDaysISO, cairoDayStartUTC } from '../../src/lib/booking-rules';
 
 export interface Seeded {
@@ -22,7 +21,7 @@ function at(dateISO: string, hour: number, minute = 0): Date {
   return new Date(cairoDayStartUTC(dateISO).getTime() + hour * 3_600_000 + minute * 60_000);
 }
 
-export async function seedDataset(prisma: PrismaClient, today: string): Promise<Seeded> {
+export async function seedDataset(prisma: any, today: string): Promise<Seeded> {
   // wipe in dependency order
   await prisma.booking.deleteMany({});
   await prisma.charterBooking.deleteMany({});
