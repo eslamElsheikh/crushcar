@@ -163,6 +163,8 @@ function TripsContent() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
+  // Server-side validation messages (past date, return before outbound)
+  const [searchError, setSearchError] = useState('');
 
   const [fromStationId, setFromStationId] = useState(params.get('fromStationId') || '');
   const [toStationId, setToStationId] = useState(params.get('toStationId') || '');
@@ -229,6 +231,7 @@ function TripsContent() {
   const loadTrips = useCallback(async () => {
     setLoading(true);
     setFailed(false);
+    setSearchError('');
     try {
       const q = new URLSearchParams();
       if (fromStationId) q.set('fromStationId', fromStationId);
@@ -245,6 +248,17 @@ function TripsContent() {
         return;
       }
       setUnauthorized(false);
+      // A failed request is not an empty result. Reading json.data out of a 500
+      // body is what made a server error look like "لا توجد رحلات مطابقة" to
+      // every customer, so the status is checked before the body is trusted.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSearchError(body.error || t('common.error'));
+        setTrips([]);
+        setReturnTrips([]);
+        return;
+      }
+      setSearchError('');
       const json = await res.json();
       setTrips(Array.isArray(json.data) ? json.data : []);
       setReturnTrips(Array.isArray(json.returnTrips) ? json.returnTrips : []);
@@ -503,6 +517,11 @@ function TripsContent() {
               actionLabel={t('v2.login')}
               onAction={() => { window.location.href = '/login'; }}
             />
+          ) : searchError ? (
+            // A validation message from the server (past date, return before
+            // outbound) reads as its own state, so it is never mixed up with
+            // "no trips match" or with a generic failure.
+            <V2EmptyState title={searchError} desc={t('v2.pickFutureDateDesc')} actionLabel={t('v2.clearFilters')} onAction={() => { setDate(''); setReturnDate(''); }} />
           ) : failed ? (
             <V2ErrorState title={t('v2.loadFailed')} desc={t('v2.loadFailedDesc')} retryLabel={t('v2.retry')} onRetry={loadTrips} />
           ) : visible.length === 0 ? (

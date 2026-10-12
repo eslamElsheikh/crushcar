@@ -1,3 +1,4 @@
+import { MIN_PAYMENT_WINDOW_MINUTES } from '@/lib/booking-rules'
 /**
  * Payment-window rules for customer bookings.
  *
@@ -41,7 +42,13 @@ export function paymentWindowMinutes(departure: Date, now = new Date()): number 
 
 /** Deadline to store on a newly created booking. */
 export function paymentDeadline(departure: Date, now = new Date()): Date {
-  return new Date(now.getTime() + paymentWindowMinutes(departure, now) * 60000);
+  const window = new Date(now.getTime() + paymentWindowMinutes(departure, now) * 60000);
+  // A hold that outlives its bus is meaningless: the seat is released by the
+  // departure anyway, and the booking would sit there looking payable. The
+  // deadline is capped so it always lands before departure, with a little room
+  // left for the booking to actually be completed.
+  const latestUseful = new Date(departure.getTime() - MIN_PAYMENT_WINDOW_MINUTES * 60000);
+  return window.getTime() >= latestUseful.getTime() ? latestUseful : window;
 }
 
 /**

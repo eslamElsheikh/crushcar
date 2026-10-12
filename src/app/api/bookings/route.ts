@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { generateRef } from '@/lib/utils'
 import { paymentDeadline } from '@/lib/payments'
+import { isBookableByCustomer } from '@/lib/booking-rules'
+import { segmentPrice } from '@/lib/segment-price'
 
 export async function GET(req: NextRequest) {
   try {
@@ -162,6 +164,13 @@ export async function POST(req: NextRequest) {
       if (trip.status === 'CANCELLED') throw new Error('TRIP_NOT_BOOKABLE')
       if (trip.status === 'COMPLETED' || trip.status === 'IN_PROGRESS') throw new Error('TRIP_NOT_BOOKABLE')
       if (new Date(trip.departure).getTime() <= Date.now()) throw new Error('TRIP_DEPARTED')
+      // Customers lose the seat CUSTOMER_BOOKING_CUTOFF_MINUTES before the bus
+      // leaves. The public search hides trips past this point, so booking has to
+      // agree or a trip the search already refused would still be bookable by a
+      // direct request. Company and admin bookings keep the looser rule.
+      if (session.user.role === 'CUSTOMER' && !isBookableByCustomer(new Date(trip.departure), new Date())) {
+        throw new Error('BOOKING_CLOSED')
+      }
 
       if (fromStationId && toStationId && trip.tripStops.length > 0) {
         const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)
@@ -171,7 +180,9 @@ export async function POST(req: NextRequest) {
 
         fromStopOrder = fromStop.stopOrder
         toStopOrder = toStop.stopOrder
-        total = toStop.priceFromOrigin - fromStop.priceFromOrigin
+        // Shared with the public search, so the price shown in the list and the
+        // price charged here cannot come from two different calculations.
+        total = segmentPrice(trip, fromStationId, toStationId)
       } else {
         // Fallback: use seat price or trip price
         const seat = trip.bus.layout?.seats.find((s) => s.label === seatLabel)

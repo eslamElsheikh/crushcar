@@ -672,6 +672,7 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.noTrips': { ar: 'لا توجد رحلات مطابقة', en: 'No matching trips' },
   'v2.noRoundTrips': { ar: 'لا توجد رحلات ذهاب وعودة مطابقة', en: 'No matching round-trip journeys' },
   'v2.noRoundTripsDesc': { ar: 'لا توجد رحلة ذهاب لها عودة متاحة بمقاعد فاضية. جرّب تاريخ عودة مختلفًا أو غيّر المحطات.', en: 'No outbound trip has an available return with free seats. Try a different return date or change stations.' },
+  'v2.pickFutureDateDesc': { ar: 'اختر تاريخًا قادماً لعرض الرحلات المتاحة.', en: 'Pick an upcoming date to see available trips.' },
   'v2.noTripsDesc': { ar: 'جرّب تغيير المحطات أو التاريخ ثم ابحث مرة أخرى.', en: 'Try different stations or another date.' },
   'v2.clearFilters': { ar: 'مسح الفلاتر', en: 'Clear filters' },
   'v2.loadingTrips': { ar: 'جاري تحميل الرحلات...', en: 'Loading trips...' },

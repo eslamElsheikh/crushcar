@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { searchTripsByDate, SearchInputError } from '@/lib/trip-search'
 import { auth } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
@@ -37,130 +38,29 @@ export async function GET(req: NextRequest) {
     const allTrips = searchParams.get('all') === 'true'
 
     if (fromStationId && toStationId && date) {
-      // Station-to-station with date
-      const now = new Date()
-      const dateStart = new Date(Math.max(new Date(date).getTime(), now.getTime()))
-      const dateEnd = new Date(dateStart)
-      dateEnd.setDate(dateEnd.getDate() + 1)
-
-      const companyScoped = !allTrips && session?.user?.role === 'COMPANY_ADMIN' && session.user.companyId
-      const companyFilter = companyScoped
-        ? 'AND t."busId" IN (SELECT id FROM "Bus" WHERE "companyId" = ? OR "companyId" IS NULL)'
-        : ''
-
-      // Admins may browse charter trips; everyone else must not see them.
-      const availabilityFilter =
-        session?.user?.role === 'SUPER_ADMIN'
-          ? ''
-          : `AND t."bookingMode" <> 'BUS' AND t."reservedByCompanyId" IS NULL`
-
-      const companyArgs = companyScoped ? [session.user!.companyId!] : []
-
-      const tripRows = await prisma.$queryRawUnsafe<any[]>(`
-        SELECT
-          t.id, t."busId", t.origin, t.destination,
-          t.departure, t.arrival, t.price, t.status, t."createdAt",
-          (toStop."priceFromOrigin" - fromStop."priceFromOrigin") AS "calculatedPrice",
-          fromStop."departureTime" AS "boardingTime",
-          toStop."arrivalTime" AS "alightingTime"
-        FROM "Trip" t
-        JOIN "TripStop" fromStop ON t.id = fromStop."tripId"
-        JOIN "TripStop" toStop   ON t.id = toStop."tripId"
-        WHERE fromStop."stationId" = ?
-          AND toStop."stationId"   = ?
-          AND fromStop."stopOrder" < toStop."stopOrder"
-          AND t.departure >= ?
-          AND t.departure < ?
-          AND t.status = 'SCHEDULED'
-          ${availabilityFilter}
-          ${companyFilter}
-        ORDER BY t.departure ASC
-        ${returnDate ? '' : 'LIMIT ? OFFSET ?'}
-      `,
-        fromStationId,
-        toStationId,
-        dateStart,
-        dateEnd,
-        ...companyArgs,
-        ...(returnDate ? [] : [take, skip])
-      )
-
-      // Round trip: only outbound trips that have a matching return with free
-      // seats stay visible. A return matches when it runs the reversed leg on
-      // returnDate and departs after the outbound arrival.
-      let returnTrips: any[] = []
-      let filteredRows = tripRows
-      if (returnDate) {
-        const returnStart = new Date(Math.max(new Date(returnDate).getTime(), now.getTime()))
-        const returnEnd = new Date(returnStart)
-        returnEnd.setDate(returnEnd.getDate() + 1)
-        const returnRaw = await prisma.$queryRawUnsafe<any[]>(`
-          SELECT t.id, t.departure
-          FROM "Trip" t
-          JOIN "TripStop" fromStop ON t.id = fromStop."tripId"
-          JOIN "TripStop" toStop   ON t.id = toStop."tripId"
-          WHERE fromStop."stationId" = ?
-            AND toStop."stationId"   = ?
-            AND fromStop."stopOrder" < toStop."stopOrder"
-            AND t.departure >= ?
-            AND t.departure < ?
-            AND t.status = 'SCHEDULED'
-            ${availabilityFilter}
-          ORDER BY t.departure ASC
-          LIMIT 20
-        `, toStationId, fromStationId, returnStart, returnEnd)
-
-        const returnIds = returnRaw.map((r: any) => r.id)
-        let candidates: any[] = []
-        if (returnIds.length > 0) {
-          candidates = await prisma.trip.findMany({
-            where: { id: { in: returnIds } },
-            include,
-          })
-        }
-        // Sold-out returns don't count as available.
-        returnTrips = candidates.filter((rt: any) => {
-          const total = rt.bus?.layout?.seats?.length || 0
-          const booked = (rt.bookings?.length || 0) + (rt.companyBookings?.length || 0)
-          return total - booked > 0
+      // Dated search goes through lib/trip-search: Prisma only, no raw SQL.
+      // It also handles what this branch never could: trips with no stops at
+      // all, and round trips whose return list was previously dropped.
+      try {
+        const result = await searchTripsByDate(prisma, {
+          fromStationId,
+          toStationId,
+          date,
+          returnDate: returnDate || null,
+          page,
+          take,
+          role: session.user.role,
+          companyId: session.user.companyId ?? null,
         })
-        if (returnTrips.length === 0) {
-          return NextResponse.json({
-            data: [],
-            returnTrips: undefined,
-            pagination: { page, take, total: 0, pages: 0 },
-          })
+        return NextResponse.json(result)
+      } catch (err) {
+        // A past date or a return before the outbound is the caller's mistake,
+        // not a server fault, so it answers 400 with a message it can show.
+        if (err instanceof SearchInputError) {
+          return NextResponse.json({ error: err.message }, { status: err.status })
         }
-        const latestReturnDep = Math.max(...returnTrips.map((rt: any) => new Date(rt.departure).getTime()))
-        filteredRows = tripRows.filter(
-          (r: any) => new Date(r.arrival).getTime() < latestReturnDep
-        )
-        queryTotal = filteredRows.length
-      } else {
-        queryTotal = tripRows.length
+        throw err
       }
-
-      const pageRows = returnDate ? filteredRows.slice(skip, skip + take) : filteredRows
-      const tripIds = pageRows.map((t: any) => t.id)
-      queryTrips = tripIds.length > 0 ? await prisma.trip.findMany({
-        where: { id: { in: tripIds } },
-        include,
-      }) : []
-
-      const priceMap = new Map(tripRows.map((t: any) => [t.id, t]))
-      queryTrips = queryTrips.map(trip => ({
-        ...trip,
-        calculatedPrice: priceMap.get(trip.id)?.calculatedPrice || trip.price,
-        boardingTime: priceMap.get(trip.id)?.boardingTime || null,
-        alightingTime: priceMap.get(trip.id)?.alightingTime || null,
-        stops: trip.tripStops,
-      }))
-
-      return NextResponse.json({
-        data: queryTrips,
-        returnTrips: returnTrips.length > 0 ? returnTrips : undefined,
-        pagination: { page, take, total: queryTotal, pages: Math.ceil((queryTotal || 0) / take) },
-      })
     }
 
     // General search: fromStationId only, toStationId only, both without date, or none
@@ -205,7 +105,10 @@ export async function GET(req: NextRequest) {
         })
       }
       if (fromStationId && toStationId) {
-        where.AND = stopFilter
+        // Merged, not replaced: assigning where.AND = stopFilter threw away the
+        // charter/reserved guards added above, so a browse that pinned two
+        // stations could leak charter and already-reserved trips to customers.
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : []), ...stopFilter]
       } else {
         Object.assign(where, ...stopFilter.map(s => ({ ...s })))
       }

@@ -64,16 +64,10 @@ export function splitHighlight(text: string, query: string): [string, string, st
   return [text.slice(0, m.index), m[0], text.slice(m.index + m[0].length)];
 }
 
-/** Today's date (yyyy-mm-dd) in Africa/Cairo timezone. */
-export function cairoTodayISO(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Cairo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-  return parts; // en-CA yields yyyy-mm-dd
-}
+// The Cairo calendar helpers now live in booking-rules, where the search, the
+// booking route and the payment hold all read them from one place. Re-exported
+// so existing imports keep working.
+export { cairoTodayISO } from './booking-rules';
 
 /** Full Arabic date label, e.g. "الجمعة 2 أكتوبر 2026" (Latin digits). */
 const fmtFullAr = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {

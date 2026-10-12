@@ -67,13 +67,9 @@ export function unavailableForSegment(
   return new Set([...collect(t.bookings || []), ...collect(t.companyBookings || [])]);
 }
 
-export function segmentPrice(t: V2Trip | null, fromSid: string | null, toSid: string | null): number {
-  const stops = t?.tripStops || [];
-  const from = stops.find((s) => s.stationId === fromSid) || stops[0];
-  const to = stops.find((s) => s.stationId === toSid) || stops[stops.length - 1];
-  if (from && to && to.stopOrder > from.stopOrder) return to.priceFromOrigin - from.priceFromOrigin;
-  return t?.price || 0;
-}
+// Pricing lives in a pure module so the API routes and the UI cannot end up
+// with different arithmetic. Re-exported here so existing imports keep working.
+export { segmentPrice } from '@/lib/segment-price';
 
 function rowSeatCount(layout: V2Trip['bus']['layout'], rowLetter: string): number {
   if (layout?.colsPerRow) {
