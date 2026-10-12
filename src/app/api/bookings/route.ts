@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { generateRef } from '@/lib/utils'
 import { paymentDeadline } from '@/lib/payments'
-import { isBookableByCustomer } from '@/lib/booking-rules'
+import { isBookableByCustomer, BOOKING_CLOSED_MESSAGE_AR } from '@/lib/booking-rules'
 import { segmentPrice } from '@/lib/segment-price'
 
 export async function GET(req: NextRequest) {
@@ -287,6 +287,12 @@ export async function POST(req: NextRequest) {
     }
     if (err.message === 'TRIP_NOT_BOOKABLE') {
       return NextResponse.json({ error: 'TRIP_NOT_BOOKABLE', message: 'هذه الرحلة غير متاحة للحجز' }, { status: 409 })
+    }
+    // The cutoff rejection needs the Arabic sentence the search also uses.
+    // Without this case it fell through to the generic branch below and answered
+    // {"error":"BOOKING_CLOSED"} with no message for the customer to read.
+    if (err.message === 'BOOKING_CLOSED') {
+      return NextResponse.json({ error: 'BOOKING_CLOSED', message: BOOKING_CLOSED_MESSAGE_AR }, { status: 409 })
     }
     if (err.message?.includes('Invalid stations') || err.message?.includes('fromStation must be before')) {
       return NextResponse.json({ error: err.message }, { status: 400 })

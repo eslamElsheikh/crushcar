@@ -508,7 +508,10 @@ function TripDetailPageContent() {
             if (data.error === 'SEAT_TAKEN') {
               toast.error(isRTL ? `المقعد ${seat.seatLabel} محجوز` : `Seat ${seat.seatLabel} is taken`);
             } else {
-              toast.error(data.error || t('common.error'));
+              // Prefer the server's Arabic sentence over the machine code, so a
+              // refusal such as the booking cutoff reads as a sentence rather
+              // than "BOOKING_CLOSED" in the toast.
+              toast.error(data.message || data.error || t('common.error'));
             }
           }
         }
