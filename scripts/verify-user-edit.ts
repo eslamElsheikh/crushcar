@@ -5,6 +5,10 @@
  * re-read: run npm run check:users
  */
 
+// Makes this a module. As a plain script its top-level names join the global
+// scope and collide with the other check scripts during a project-wide typecheck.
+export {};
+
 type Role = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'CUSTOMER';
 
 interface Actor { id: string; role: Role; companyId: string | null }

@@ -19,6 +19,7 @@
     "check:parity": "tsx scripts/parity/driver.ts",
     "check:search": "tsx scripts/parity/tests.ts",
     "check:search:perf": "tsx scripts/parity/perf.ts",
+    "check:access": "tsx scripts/parity/access.ts",
     "check:numbers": "node scripts/verify-dashboard-numbers.mjs",
     "check:dashboard": "node scripts/audit-dashboard-live.mjs",
     "reconcile:balances": "node scripts/reconcile-balances.mjs",

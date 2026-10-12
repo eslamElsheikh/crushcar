@@ -8,15 +8,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { id } = await params
+    // Staff-only, like the rest of the fleet. This is reached from the admin
+    // trip form (useTripStopsFromBus) and the admin layout screen only.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const bus = await prisma.bus.findUnique({
       where: { id },
       include: { stations: { orderBy: { order: 'asc' } } },
     })
     if (!bus) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    if (session.user.role === 'COMPANY_ADMIN' && bus.companyId !== null && bus.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     return NextResponse.json(bus.stations)
   } catch (err) {

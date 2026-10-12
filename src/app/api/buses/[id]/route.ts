@@ -9,16 +9,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { id } = await params
+    // Read is staff-only for the same reason the write is: this returns the seat
+    // layout and the owning company for the whole fleet, and the only screens
+    // that call it are the admin bus screens.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const bus = await prisma.bus.findUnique({
       where: { id },
       include: { layout: { include: { seats: true } }, company: true },
     })
     if (!bus) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-    // COMPANY_ADMIN can only see their company's buses
-    if (session.user.role === 'COMPANY_ADMIN' && bus.companyId !== null && bus.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     return NextResponse.json(bus)
   } catch (err) {

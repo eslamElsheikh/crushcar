@@ -4,6 +4,13 @@ import { auth } from '@/lib/auth'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // This handler had no session check at all, so the full seat layout of any
+    // bus id was readable by anyone, signed in or not. Only the admin layout
+    // screen calls it.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
     const { id } = await params
     const layout = await prisma.busLayout.findUnique({
       where: { busId: id },

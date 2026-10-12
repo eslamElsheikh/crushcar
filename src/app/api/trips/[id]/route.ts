@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { autoExpireUnpaidBookings } from '@/lib/booking-expiry'
+import { isBookableByCustomer, isBookableByAnyRole } from '@/lib/booking-rules'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -15,18 +16,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     await autoExpireUnpaidBookings().catch(() => {})
 
     const { id } = await params
+
+    // The fleet belongs to the operator: only SUPER_ADMIN manages it. Every
+    // customer and company screen gets its seat map from the trip below, not
+    // from /api/buses, so nothing here needs the raw fleet endpoints.
+    const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
+
+    // Seat occupancy is all a customer or a company booking screen reads. The
+    // wider payload includes the passenger name, phone and hotel of everyone
+    // already on the bus, the payment proof URL, internal payment notes, the
+    // buyer's userId, and whole CharterBooking rows carrying the company id,
+    // price and wallet amounts.
+    const OCCUPYING = { status: { in: ['PENDING', 'PAID', 'BOARDED'] } }
+    const seatOnly = {
+      where: OCCUPYING,
+      select: { seatLabel: true, fromStopOrder: true, toStopOrder: true },
+    }
+
     const trip = await prisma.trip.findUnique({
       where: { id },
       include: {
         bus: { include: { layout: { include: { seats: true } }, stations: { orderBy: { order: 'asc' } } } },
-        bookings: {
-          where: { status: { in: ['PENDING', 'PAID', 'BOARDED'] } },
-          include: { user: { select: { id: true, name: true, email: true } } },
-        },
-        companyBookings: {
-          where: { status: { in: ['PENDING', 'PAID', 'BOARDED'] } },
-        },
-        tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } },
+        bookings: isSuperAdmin
+          ? { where: OCCUPYING, include: { user: { select: { id: true, name: true, email: true } } } }
+          : seatOnly,
+        companyBookings: isSuperAdmin ? { where: OCCUPYING } : seatOnly,
+        tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' as const } },
         seatHolds: {
           where: { expiresAt: { gt: new Date() } },
           select: { seatLabel: true, fromStopOrder: true, toStopOrder: true, expiresAt: true },
@@ -34,6 +49,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     })
     if (!trip) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    if (!isSuperAdmin) {
+      // A charter trip is whole-bus business between the operator and one
+      // company. Fetching it by id exposed the full-bus price and the id of the
+      // company holding it, which the search deliberately hides.
+      if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+      // Keep this in step with the search and the booking route, so a customer
+      // cannot reach a seat map for a trip they are no longer allowed to book.
+      // Companies keep the looser rule and may still book up to departure.
+      const open = session.user.role === 'CUSTOMER'
+        ? isBookableByCustomer(trip.departure, new Date())
+        : isBookableByAnyRole(trip.departure, new Date());
+      if (!open) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+    }
 
     return NextResponse.json({ ...trip, stops: trip.tripStops })
   } catch (err) {

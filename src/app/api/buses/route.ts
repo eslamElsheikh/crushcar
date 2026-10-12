@@ -7,19 +7,21 @@ export async function GET(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // The fleet is the operator's own asset list and every write is already
+    // SUPER_ADMIN-only. Reading it used to be open to any signed-in user, and
+    // the non-admin branch was ineffective anyway: companyId is undefined for a
+    // customer, and an undefined filter is ignored by Prisma, so it collapsed to
+    // "every global bus". That handed any logged-in account the whole fleet with
+    // its seat layout and its owning company.
+    //
+    // No customer or company screen reads this: their seat map comes from
+    // /api/trips/[id], which returns only the bus fields needed to draw seats.
+    if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { searchParams } = new URL(req.url)
     const companyId = searchParams.get('companyId')
 
-    // Non-admins see only their company's buses; COMPANY_ADMIN also sees global buses (null companyId)
-    const where = session.user.role === 'SUPER_ADMIN'
-      ? (companyId ? { companyId } : {})
-      : {
-          OR: [
-            { companyId: session.user.companyId ?? undefined },
-            { companyId: null },
-          ],
-        }
+    const where = companyId ? { companyId } : {}
 
     const buses = await prisma.bus.findMany({
       where,
@@ -29,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(buses)
   } catch (err: any) {
-    console.error('[buses POST] error:', err?.message || err, 'code:', err?.code)
+    console.error('[buses GET] error:', err?.message || err, 'code:', err?.code)
     return NextResponse.json({ error: 'Server error', detail: err?.message }, { status: 500 })
   }
 }
