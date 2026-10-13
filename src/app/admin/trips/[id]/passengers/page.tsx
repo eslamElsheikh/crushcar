@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -78,7 +79,7 @@ export default function TripPassengersPage() {
       </Link>
       <div className="mt-3">
         <V2PageHeader
-          title={trip ? (isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`) : t('nav.customers')}
+          title={trip ? (routeLabel(trip.origin, trip.destination, isRTL)) : t('nav.customers')}
           sub={trip ? `${trip.bus?.name} · ${all.length} · ${boarded.length}/${all.length || 1}` : undefined}
         />
       </div>

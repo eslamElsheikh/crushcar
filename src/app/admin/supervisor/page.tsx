@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -213,9 +214,7 @@ export default function AdminSupervisorPage() {
                     </div>
                     <div>
                       <h3 className="text-base font-extrabold text-[#0B1B33]">
-                        {isRTL
-                          ? `${trip.destination} ← ${trip.origin}`
-                          : `${trip.origin} → ${trip.destination}`}
+                        {routeLabel(trip.origin, trip.destination, isRTL)}
                       </h3>
                       <p className="text-xs font-semibold text-slate-500 mt-0.5">
                         {trip.bus?.name || 'Bus'} •{' '}

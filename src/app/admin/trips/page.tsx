@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, Pencil, Armchair, Users, Loader2, Zap } from 'lucide-react';
@@ -335,7 +336,7 @@ export default function AdminTrips() {
           renderCell={(tr, i) => {
             const cells = [
               <span key="r" className="font-bold">
-                {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
+                {routeLabel(tr.origin, tr.destination, isRTL)}
               </span>,
               <span key="d" className="tabular-nums text-[var(--sp-text-muted)]">
                 {new Date(tr.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
@@ -378,7 +379,7 @@ export default function AdminTrips() {
             <div>
               <div className="flex items-center gap-2">
                 <p className="min-w-0 flex-1 truncate text-[15.5px] font-extrabold text-[#0B1B33]">
-                  {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
+                  {routeLabel(tr.origin, tr.destination, isRTL)}
                 </p>
                 <V2StatusBadge tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{t(tr.status) || tr.status}</V2StatusBadge>
               </div>

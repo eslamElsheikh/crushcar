@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -213,7 +214,7 @@ export default function AdminBookings() {
               </span>,
               <span key="rt" className="text-[13.5px]">
                 <span className="block font-semibold">
-                  {isRTL ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}` : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
+                  {routeLabel(b.actualOrigin || b.trip?.origin, b.actualDestination || b.trip?.destination, isRTL)}
                 </span>
                 <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]">
                   {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}

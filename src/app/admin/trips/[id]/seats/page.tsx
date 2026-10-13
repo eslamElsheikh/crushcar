@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -94,7 +95,7 @@ export default function TripSeatsPage() {
       </Link>
       <div className="mt-3">
         <V2PageHeader
-          title={trip ? (isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`) : t('nav.seats')}
+          title={trip ? (routeLabel(trip.origin, trip.destination, isRTL)) : t('nav.seats')}
           sub={trip ? `${trip.bus?.name} · ${booked.size}/${layout?.seats?.length || 0}` : undefined}
         />
       </div>

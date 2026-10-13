@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Ticket, Wallet, Bus, TrendingUp, Clock, ArrowRight, Building2, User, CreditCard } from 'lucide-react';
@@ -299,9 +300,7 @@ export default function AdminDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13.5px] font-bold text-[#0B1B33]">{name}</p>
                       <p className="truncate text-[12px] text-[var(--sp-text-muted)]">
-                        {isRTL
-                          ? `${b.trip?.destination} ← ${b.trip?.origin}`
-                          : `${b.trip?.origin} → ${b.trip?.destination}`}
+                        {routeLabel(b.trip?.origin, b.trip?.destination, isRTL)}
                         {b.seatLabel ? ` · ${b.seatLabel}` : ''}
                       </p>
                     </div>

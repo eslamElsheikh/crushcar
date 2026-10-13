@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -515,14 +516,14 @@ export default function V2HomePage() {
                   className="v2-hover-lift flex flex-col overflow-hidden rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)]"
                 >
                   <div className="relative h-40 overflow-hidden bg-[#E6EBF2]">
-                    <Image src={tripImageForDestination(trip.destination, destinations)} alt={isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`} fill sizes="(max-width:768px) 82vw, 25vw" className="object-cover" />
+                    <Image src={tripImageForDestination(trip.destination, destinations)} alt={routeLabel(trip.origin, trip.destination, isRTL)} fill sizes="(max-width:768px) 82vw, 25vw" className="object-cover" />
                     <span className="absolute end-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[12px] font-bold text-[#1D5BD8]">
                       {trip.bus.type || t('v2.direct')}
                     </span>
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <p className="text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
-                      {isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`}
+                      {routeLabel(trip.origin, trip.destination, isRTL)}
                     </p>
                     <p className="mt-2 text-[14.5px] font-bold tabular-nums text-[#0B1B33]" dir="ltr" style={{ textAlign: 'start' }}>
                       {new Date(trip.departure).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}

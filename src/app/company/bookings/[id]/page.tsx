@@ -1,5 +1,6 @@
 'use client'
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -449,7 +450,7 @@ export default function CompanyBookingDetail() {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-[#0B1B33]">
                 <MapPin size={16} className="text-[#1D5BD8]" />
-                <p className="text-sm">{booking.pairedBooking.trip.origin} → {booking.pairedBooking.trip.destination}</p>
+                <p className="text-sm">{routeLabel(booking.pairedBooking.trip.origin, booking.pairedBooking.trip.destination, isRTL)}</p>
               </div>
               <div className="flex items-center gap-2 text-[#0B1B33]">
                 <Clock size={16} className="text-amber-600" />

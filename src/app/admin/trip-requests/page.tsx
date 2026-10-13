@@ -1,5 +1,6 @@
 'use client';
 
+import { stationRouteLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import { Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -123,9 +124,7 @@ export default function AdminTripRequests() {
               <div key={r.id} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[15.5px] font-extrabold text-[#0B1B33]">
-                    {isRTL
-                      ? `${r.toStation?.name} ← ${r.fromStation?.name}`
-                      : `${r.fromStation?.name} → ${r.toStation?.name}`}
+                    {stationRouteLabel(r.fromStation?.name, r.toStation?.name, isRTL)}
                   </p>
                   <V2StatusBadge tone={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'amber'}>
                     {r.status === 'APPROVED' ? t('tripRequest.approved') : r.status === 'REJECTED' ? t('tripRequest.rejected') : t('tripRequest.pending')}

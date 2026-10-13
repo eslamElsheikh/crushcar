@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -277,7 +278,7 @@ export default function BookingPayPage() {
             <div className="v2-card p-6">
               <p className="flex items-center gap-2 text-[16px] font-extrabold text-[#0B1B33]">
                 <Receipt className="size-5 text-[#1D5BD8]" />
-                {isGroup ? `${t('pay.groupCount')}: ${payable.length}` : `${booking.trip?.destination || ''} ← ${booking.trip?.origin || ''}`}
+                {isGroup ? `${t('pay.groupCount')}: ${payable.length}` : routeLabel(booking.trip?.origin, booking.trip?.destination, isRTL)}
               </p>
               <p className="mt-2 text-[26px] font-extrabold tabular-nums text-[#0B1B33]">
                 {Math.round(total).toLocaleString(locale)} <span className="text-[14px] font-semibold text-[#5B6B84]">EGP · {t('pay.total')}</span>

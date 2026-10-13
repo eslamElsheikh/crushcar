@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -107,9 +108,7 @@ export default function CompanyBookingsPage() {
                     </span>
                   </div>
                   <p className="mt-2.5 truncate text-[15.5px] font-extrabold text-[#0B1B33]">
-                    {isRTL
-                      ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}`
-                      : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
+                    {routeLabel(b.actualOrigin || b.trip?.origin, b.actualDestination || b.trip?.destination, isRTL)}
                   </p>
                   <p className="mt-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}

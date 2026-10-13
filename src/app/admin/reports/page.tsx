@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import { Download, MapPin, Users } from 'lucide-react';
 import {
@@ -107,7 +108,7 @@ export default function AdminReports() {
             <div key={r.tripId} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-[15.5px] font-extrabold text-[#0B1B33]">
-                  {isRTL ? `${r.destination} ← ${r.origin}` : `${r.origin} → ${r.destination}`}
+                  {routeLabel(r.origin, r.destination, isRTL)}
                 </p>
                 <span className="ms-auto text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
                   {r.revenue.toLocaleString(locale)} {t('common.currency')}

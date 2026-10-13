@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel, stopListLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -88,7 +89,7 @@ export default function StationDetailPage() {
                   {trips.map((tr) => (
                     <Link key={tr.id} href={`/trips/${tr.id}`} className="v2-card v2-hover-lift block p-5 md:p-6">
                       <p className="text-balance text-[17px] font-extrabold text-[#0B1B33]">
-                        {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
+                        {routeLabel(tr.origin, tr.destination, isRTL)}
                       </p>
                       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] tabular-nums text-[var(--sp-text-muted)]">
                         <span className="inline-flex items-center gap-1.5">
@@ -105,7 +106,7 @@ export default function StationDetailPage() {
                       </p>
                       {(tr.routeStops?.length || 0) > 0 && (
                         <p className="mt-1.5 truncate text-[13px] text-[var(--sp-text-muted)]">
-                          {tr.routeStops.map((s) => s.name).join(isRTL ? ' ← ' : ' → ')}
+                          {stopListLabel(tr.routeStops.map((s) => s.name), isRTL)}
                         </p>
                       )}
                     </Link>

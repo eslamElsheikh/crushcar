@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -310,7 +311,7 @@ export default function SupervisorStationPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="truncate text-base font-extrabold text-[#0B1B33]">
-                            {isRTL ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`}
+                            {routeLabel(trip.origin, trip.destination, isRTL)}
                           </h3>
                           <p className="truncate text-xs font-semibold text-slate-500">
                             {trip.bus?.name || 'Bus'}
@@ -356,9 +357,7 @@ export default function SupervisorStationPage() {
                 </button>
                 <div>
                   <h2 className="text-lg font-black text-[#0B1B33]">
-                    {isRTL
-                      ? `${selectedTrip.destination} ← ${selectedTrip.origin}`
-                      : `${selectedTrip.origin} → ${selectedTrip.destination}`}
+                    {routeLabel(selectedTrip.origin, selectedTrip.destination, isRTL)}
                   </h2>
                   <p className="text-xs font-semibold text-slate-500">
                     {selectedTrip.bus?.name} • {formatDate(selectedTrip.departure)} {formatTime(selectedTrip.departure)}

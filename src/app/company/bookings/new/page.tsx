@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin, Search, Loader2, ArrowRight, User, Wallet, Sparkles, CheckSquare, Square } from 'lucide-react';
@@ -246,7 +247,7 @@ export default function CompanyNewBookingPage() {
                   className={cn('rounded-2xl border bg-[var(--sp-card)] p-5 text-start transition', active ? 'border-[#1D5BD8] shadow-[0_0_0_3px_rgba(29,91,216,0.15)]' : 'border-[var(--sp-line)] hover:border-[#1D5BD8]/40')}
                 >
                   <p className="text-[16px] font-extrabold text-[#0B1B33]">
-                    {isRTL ? `${tr.destination} ← ${tr.origin}` : `${tr.origin} → ${tr.destination}`}
+                    {routeLabel(tr.origin, tr.destination, isRTL)}
                   </p>
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] tabular-nums text-[var(--sp-text-muted)]">
                     <span>{new Date(tr.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} · {tr.bus?.name}</span>

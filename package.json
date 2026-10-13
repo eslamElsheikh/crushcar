@@ -13,6 +13,7 @@
     "db:seed:demo": "tsx scripts/seed-demo.ts",
     "db:studio": "prisma studio",
     "check:lang": "node scripts/check-lang-keys.mjs",
+    "check:routes": "node scripts/check-route-labels.mjs",
     "check:charter": "tsx scripts/verify-charter-split.ts",
     "check:users": "tsx scripts/verify-user-edit.ts",
     "check:parity:gen": "node scripts/parity/make-harness-schema.mjs",

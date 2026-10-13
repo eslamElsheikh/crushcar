@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -224,9 +225,7 @@ export default function CompanyDashboard() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-bold text-[#0B1B33]">
-                    {isRTL
-                      ? `${b.actualDestination || b.trip?.destination} ← ${b.actualOrigin || b.trip?.origin}`
-                      : `${b.actualOrigin || b.trip?.origin} → ${b.actualDestination || b.trip?.destination}`}
+                    {routeLabel(b.actualOrigin || b.trip?.origin, b.actualDestination || b.trip?.destination, isRTL)}
                   </span>
                   <span className="block text-[12.5px] tabular-nums text-[var(--sp-text-muted)]">
                     {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}

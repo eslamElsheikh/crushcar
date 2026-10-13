@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -243,7 +244,7 @@ export default function MyBookingsPage() {
                   </div>
 
                   <p className="mt-3 text-balance text-[17px] font-extrabold text-[#0B1B33]">
-                    {isRTL ? `${b.actualDestination || b.trip.destination} ← ${b.actualOrigin || b.trip.origin}` : `${b.actualOrigin || b.trip.origin} → ${b.actualDestination || b.trip.destination}`}
+                    {routeLabel(b.actualOrigin || b.trip.origin, b.actualDestination || b.trip.destination, isRTL)}
                   </p>
                   <p className="mt-1.5 text-[14px] tabular-nums text-[var(--sp-text-muted)]">
                     {new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}

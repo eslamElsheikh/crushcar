@@ -1,5 +1,6 @@
 'use client';
 
+import { stationRouteLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Loader2, CalendarDays, Users } from 'lucide-react';
@@ -115,9 +116,7 @@ export default function CompanyTripRequestsPage() {
                   </span>
                 </div>
                 <p className="mt-2.5 text-[15.5px] font-extrabold text-[#0B1B33]">
-                  {isRTL
-                    ? `${r.toStation?.name} ← ${r.fromStation?.name}`
-                    : `${r.fromStation?.name} → ${r.toStation?.name}`}
+                  {stationRouteLabel(r.fromStation?.name, r.toStation?.name, isRTL)}
                 </p>
                 {r.notes && <p className="mt-1 text-[13.5px] text-[var(--sp-text-muted)]">{r.notes}</p>}
                 {r.adminNotes && (

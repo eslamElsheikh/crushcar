@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel } from '@/lib/route-label';
 import { useState } from 'react';
 import { ScanEye, Search, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -126,9 +127,7 @@ export default function VerifyPage() {
           <p className="mt-3.5 text-[20px] font-extrabold text-[#0B1B33]">{booking.passengerName}</p>
           <p className="mt-1 text-[14px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{booking.passengerPhone}</p>
           <p className="mt-2 text-[15px] font-bold text-[#0B1B33]">
-            {isRTL
-              ? `${booking.actualDestination || booking.trip?.destination} ← ${booking.actualOrigin || booking.trip?.origin}`
-              : `${booking.actualOrigin || booking.trip?.origin} → ${booking.actualDestination || booking.trip?.destination}`}
+            {routeLabel(booking.actualOrigin || booking.trip?.origin, booking.actualDestination || booking.trip?.destination, isRTL)}
           </p>
           <p className="mt-1 text-[13.5px] tabular-nums text-[var(--sp-text-muted)]">
             {isRTL ? 'مقعد' : 'Seat'} {booking.seatLabel}

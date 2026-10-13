@@ -1,5 +1,6 @@
 'use client';
 
+import { routeLabel, stopListLabel } from '@/lib/route-label';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -84,7 +85,7 @@ function TripCard({
           </div>
 
           <p className="mt-3 text-balance text-[18px] font-extrabold leading-snug text-[#0B1B33]">
-            {lang === 'ar' ? `${trip.destination} ← ${trip.origin}` : `${trip.origin} → ${trip.destination}`}
+            {routeLabel(trip.origin, trip.destination, lang === 'ar')}
           </p>
 
           <p className="mt-2 text-[15px] font-bold tabular-nums text-[#0B1B33]" dir="ltr" style={{ textAlign: 'start' }}>
@@ -118,7 +119,7 @@ function TripCard({
             <p className="mt-2 flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--sp-text-muted)]">
               <MapPin className="mt-1 size-4 shrink-0" />
               <span className="truncate">
-                {stops.map((s) => s.station!.name).join(lang === 'ar' ? ' ← ' : ' → ')}
+                {stopListLabel(stops.map((s) => s.station!.name), lang === 'ar')}
               </span>
             </p>
           )}
@@ -602,7 +603,7 @@ function TripsContent() {
               <div className="grid gap-2.5 text-[13.5px] sm:grid-cols-2">
                 <p className="truncate font-bold text-[#0B1B33]">
                   <span className="text-[var(--sp-text-muted)]">{t('v2.outboundStep')}: </span>
-                  {isRTL ? `${pickedOut.destination} ← ${pickedOut.origin}` : `${pickedOut.origin} → ${pickedOut.destination}`}
+                  {routeLabel(pickedOut.origin, pickedOut.destination, isRTL)}
                   {' · '}<span className="tabular-nums">{(pickedOut.calculatedPrice || pickedOut.price).toLocaleString(locale)} {t('common.currency')}</span>
                 </p>
                 <p className="truncate font-bold text-[#0B1B33]">
@@ -610,7 +611,7 @@ function TripsContent() {
                   {(() => {
                     const rt = returnTrips.find((x) => x.id === selectedReturnTrip);
                     return rt
-                      ? `${isRTL ? `${rt.destination} ← ${rt.origin}` : `${rt.origin} → ${rt.destination}`} · ${(rt.calculatedPrice || rt.price).toLocaleString(locale)} ${t('common.currency')}`
+                      ? `${routeLabel(rt.origin, rt.destination, isRTL)} · ${(rt.calculatedPrice || rt.price).toLocaleString(locale)} ${t('common.currency')}`
                       : '…';
                   })()}
                 </p>
