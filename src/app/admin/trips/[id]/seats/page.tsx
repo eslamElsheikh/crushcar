@@ -11,6 +11,7 @@ import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Modal } from '@/components/v2/admin';
 import { V2Skeleton, V2StatusBadge } from '@/components/v2/ui';
 import { V2Button } from '@/components/v2/Button';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 per-trip seat ops — same trip fetch + BOARDED endpoints + seat detail inspection as V1. */
 
@@ -184,8 +185,8 @@ export default function TripSeatsPage() {
               <div className="grid gap-3">
                 <div className="flex items-center justify-between rounded-xl bg-[var(--sp-inset)] p-3.5">
                   <span className="text-[13px] font-bold text-[var(--sp-text-muted)]">{t('tripRequest.status')}</span>
-                  <V2StatusBadge tone={inspectSeat.booking.status === 'BOARDED' || inspectSeat.booking.status === 'PAID' ? 'green' : 'amber'}>
-                    {t(inspectSeat.booking.status) || inspectSeat.booking.status}
+                  <V2StatusBadge tone={bookingStatusTone(inspectSeat.booking.status)}>
+                    {bookingStatusLabel(t, inspectSeat.booking.status)}
                   </V2StatusBadge>
                 </div>
 

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Table, V2Tabs } from '@/components/v2/admin';
 import { V2StatusBadge } from '@/components/v2/ui';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 per-trip passengers — same trip fetch + BOARDED PATCH as V1. */
 
@@ -111,6 +112,10 @@ export default function TripPassengersPage() {
           emptyTitle={t('bookings.noBookings')}
           renderCell={(b, i) => {
             const done = b.boarded || b.status === 'BOARDED';
+            // `boarded` can be set on rows whose status was never advanced, so
+            // the badge reads BOARDED off the same collapsed value the action
+            // column branches on instead of drifting to amber.
+            const shownStatus = b.status !== 'BOARDED' && done ? 'BOARDED' : b.status;
             const cells = [
               <span key="n">
                 <span className="block font-bold">{b.passengerName}</span>
@@ -118,8 +123,8 @@ export default function TripPassengersPage() {
               </span>,
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
               <span key="p" className="tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>,
-              <V2StatusBadge key="st" tone={done ? 'green' : b.status === 'PAID' ? 'blue' : 'amber'}>
-                {done ? t('booking.boarded') : (t(b.status) || b.status)}
+              <V2StatusBadge key="st" tone={bookingStatusTone(shownStatus)}>
+                {bookingStatusLabel(t, shownStatus)}
               </V2StatusBadge>,
               done ? (
                 <span key="a" className="flex items-center justify-end gap-1 text-[13px] font-bold tabular-nums text-emerald-700">
@@ -142,13 +147,14 @@ export default function TripPassengersPage() {
           }}
           renderMobile={(b) => {
             const done = b.boarded || b.status === 'BOARDED';
+            const shownStatus = b.status !== 'BOARDED' && done ? 'BOARDED' : b.status;
             return (
               <div>
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-[#0B1B33]">
                     {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                   </p>
-                  <V2StatusBadge tone={done ? 'green' : 'amber'}>{done ? t('booking.boarded') : (t(b.status) || b.status)}</V2StatusBadge>
+                  <V2StatusBadge tone={bookingStatusTone(shownStatus)}>{bookingStatusLabel(t, shownStatus)}</V2StatusBadge>
                 </div>
                 {!done && (
                   <button

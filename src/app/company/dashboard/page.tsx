@@ -11,6 +11,7 @@ import {
 import { useSession } from 'next-auth/react';
 import { useLangStore } from '@/lib/lang';
 import { V2Skeleton, V2StatusBadge } from '@/components/v2/ui';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 company dashboard — same credit + recent bookings APIs as V1. */
 
@@ -231,8 +232,8 @@ export default function CompanyDashboard() {
                     {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                   </span>
                 </span>
-                <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
-                  {t(`booking.${String(b.status).toLowerCase()}`)}
+                <V2StatusBadge tone={bookingStatusTone(b.status)}>
+                  {bookingStatusLabel(t, b.status)}
                 </V2StatusBadge>
               </Link>
             ))}

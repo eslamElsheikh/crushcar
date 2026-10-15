@@ -9,13 +9,11 @@ import { V2PageHeader, V2Table, V2Pagination, V2Modal, V2Tabs, V2SearchInput } f
 import { V2Field, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge } from '@/components/v2/ui';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 admin bookings — same list/confirm/edit APIs as V1, customer+company tabs. */
 
 type Tab = 'customer' | 'company';
-
-const toneFor = (s: string) =>
-  s === 'PAID' ? 'green' : s === 'PENDING' ? 'amber' : s === 'CANCELLED' ? 'red' : 'blue';
 
 // Kept in sync with PROOF_REQUIRED_FROM in src/app/api/bookings/[id]/route.ts.
 // Sits after the last legacy booking (2026-06-26) so those stay confirmable.
@@ -222,8 +220,8 @@ export default function AdminBookings() {
               </span>,
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
               <span key="p" className="font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</span>,
-              <V2StatusBadge key="st" tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>
-                {t(b.status) || b.status}
+              <V2StatusBadge key="st" tone={bookingStatusTone(b.status)}>
+                {bookingStatusLabel(t, b.status)}
               </V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
                 {/* A pending booking still awaiting a screenshot gets an explicit
@@ -274,7 +272,7 @@ export default function AdminBookings() {
                 <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-[#0B1B33]">
                   {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                 </p>
-                <V2StatusBadge tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>{t(b.status) || b.status}</V2StatusBadge>
+                <V2StatusBadge tone={bookingStatusTone(b.status)}>{bookingStatusLabel(t, b.status)}</V2StatusBadge>
               </div>
               <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>

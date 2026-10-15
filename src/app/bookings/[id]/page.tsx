@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
@@ -63,20 +64,6 @@ interface BookingData {
     station?: { name: string };
   }>;
 }
-
-const toneFor = (s: string): 'green' | 'amber' | 'red' | 'blue' | 'slate' => {
-  switch (s) {
-    case 'PAID':
-    case 'CONFIRMED':
-      return 'green';
-    case 'PENDING':
-      return 'amber';
-    case 'CANCELLED':
-      return 'red';
-    default:
-      return 'blue';
-  }
-};
 
 export default function BookingDetailPage() {
   const params = useParams();
@@ -221,8 +208,8 @@ export default function BookingDetailPage() {
         >
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <V2StatusBadge tone={toneFor(booking.status)}>
-                {t(`booking.${booking.status.toLowerCase()}`) || booking.status}
+              <V2StatusBadge tone={bookingStatusTone(booking.status)}>
+                {bookingStatusLabel(t, booking.status)}
               </V2StatusBadge>
 
               <button

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, CheckCircle, Loader2 } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
+import { bookingStatusLabel, ticketStatusPill } from '@/lib/booking-status'
 
 interface PairedBooking {
   id: string
@@ -75,6 +76,7 @@ export default function CompanyPrintTicketPage() {
   const router = useRouter()
   const bookingId = params.id as string
   const lang = useLangStore((s) => s.lang)
+  const t = useLangStore((s) => s.t)
   const isRTL = lang === 'ar'
   const [ticket, setTicket] = useState<TicketData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -113,13 +115,8 @@ export default function CompanyPrintTicketPage() {
 
   if (!ticket) return null
 
-  const statusConfig: Record<string, { color: string; label: { ar: string; en: string } }> = {
-    PAID: { color: 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30', label: { ar: 'مؤكد', en: 'CONFIRMED' } },
-    PENDING: { color: 'bg-amber-400/20 text-amber-200 border-amber-400/30', label: { ar: 'قيد الانتظار', en: 'PENDING' } },
-    CANCELLED: { color: 'bg-red-400/20 text-red-200 border-red-400/30', label: { ar: 'ملغي', en: 'CANCELLED' } },
-    BOARDED: { color: 'bg-blue-400/20 text-blue-200 border-blue-400/30', label: { ar: 'صعد', en: 'BOARDED' } },
-  }
-  const status = statusConfig[ticket.status] || statusConfig.CANCELLED
+  const statusPill = ticketStatusPill(ticket.status)
+  const statusText = bookingStatusLabel(t, ticket.status)
   const isRoundTrip = !!ticket.roundTripGroupId
 
   return (
@@ -137,7 +134,7 @@ export default function CompanyPrintTicketPage() {
             {isRTL ? 'تذكرة الرحلة' : 'Trip Ticket'}
           </h1>
           <p className="text-xs text-zinc-400">
-            {ticket.reference} — {status.label[isRTL ? 'ar' : 'en']}
+            {ticket.reference} — {statusText}
           </p>
         </div>
         <button
@@ -183,10 +180,10 @@ export default function CompanyPrintTicketPage() {
                 )}
                 <div className={cn(
                   'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold',
-                  status.color
+                  statusPill
                 )}>
                   {ticket.status === 'PAID' && <CheckCircle size={12} />}
-                  {status.label[isRTL ? 'ar' : 'en']}
+                  {statusText}
                 </div>
               </div>
             </div>

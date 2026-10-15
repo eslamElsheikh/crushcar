@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
 import { V2StatusBadge } from '@/components/v2/ui'
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status'
 
 export default function CompanyBookingDetail() {
   const params = useParams()
@@ -162,13 +163,6 @@ export default function CompanyBookingDetail() {
   if (loading) return <div className="flex justify-center py-20"><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
   if (!booking) return null
 
-  const statusTone: Record<string, 'amber' | 'green' | 'red' | 'blue'> = {
-    PENDING: 'amber',
-    PAID: 'green',
-    CANCELLED: 'red',
-    BOARDED: 'blue',
-  }
-
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -196,8 +190,8 @@ export default function CompanyBookingDetail() {
               {booking.bookingType === 'FOR_CLIENT' ? t('company.forClient') : t('company.forEmployee')}
             </p>
           </div>
-          <V2StatusBadge tone={statusTone[booking.status] || 'blue'}>
-            {t(`booking.${booking.status.toLowerCase()}`) || booking.status}
+          <V2StatusBadge tone={bookingStatusTone(booking.status)}>
+            {bookingStatusLabel(t, booking.status)}
           </V2StatusBadge>
         </div>
 

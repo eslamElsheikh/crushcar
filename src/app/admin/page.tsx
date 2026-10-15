@@ -11,6 +11,7 @@ import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2StatCard } from '@/components/v2/admin';
 import { V2Skeleton, V2StatusBadge } from '@/components/v2/ui';
 import { cn } from '@/lib/utils';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 admin dashboard — same /api/analytics + pending-companies + /api/jobs/transition as V1.
    Real data only, no hardcoded fake KPI deltas. */
@@ -308,8 +309,8 @@ export default function AdminDashboard() {
                       <p className="text-[13.5px] font-extrabold tabular-nums text-[#0B1B33]">
                         {Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                       </p>
-                      <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
-                        {t(b.status) || b.status}
+                      <V2StatusBadge tone={bookingStatusTone(b.status)}>
+                        {bookingStatusLabel(t, b.status)}
                       </V2StatusBadge>
                     </div>
                   </div>

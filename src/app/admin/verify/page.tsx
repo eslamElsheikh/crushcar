@@ -9,6 +9,7 @@ import { V2PageHeader } from '@/components/v2/admin';
 import { V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge } from '@/components/v2/ui';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 ticket verification — same lookup + BOARDED flow as V1. */
 
@@ -86,6 +87,12 @@ export default function VerifyPage() {
   }
 
   const done = booking && (booking.status === 'BOARDED' || booking.boarded);
+  // The BOARDED action writes status and boarded together, but seed rows and
+  // older imports only have the boolean. Collapse that so the badge never
+  // disagrees with the "already boarded" branch below it.
+  const effectiveStatus = booking && (booking.status !== 'BOARDED' && booking.boarded)
+    ? 'BOARDED'
+    : booking?.status;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -119,8 +126,8 @@ export default function VerifyPage() {
       {booking && (
         <div className="mt-4 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <V2StatusBadge tone={booking.status === 'CANCELLED' ? 'red' : done ? 'green' : 'blue'}>
-              {booking.status}
+            <V2StatusBadge tone={bookingStatusTone(effectiveStatus)}>
+              {bookingStatusLabel(t, effectiveStatus)}
             </V2StatusBadge>
             <span className="ms-auto font-mono text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{booking.reference}</span>
           </div>

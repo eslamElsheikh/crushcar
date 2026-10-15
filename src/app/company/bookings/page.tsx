@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { V2Input } from '@/components/v2/Field';
 import { V2StatusBadge, V2Skeleton, V2EmptyState } from '@/components/v2/ui';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 company bookings list — same ?status&q&page API as V1. */
 
@@ -75,7 +76,7 @@ export default function CompanyBookingsPage() {
                 status === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'
               )}
             >
-              {f || (isRTL ? 'الكل' : 'All')}
+              {f ? bookingStatusLabel(t, f) : (isRTL ? 'الكل' : 'All')}
             </button>
           ))}
         </div>
@@ -99,8 +100,8 @@ export default function CompanyBookingsPage() {
               {bookings.map((b: any) => (
                 <Link key={b.id} href={`/company/bookings/${b.id}`} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
                   <div className="flex flex-wrap items-center gap-2">
-                    <V2StatusBadge tone={b.status === 'PAID' ? 'green' : b.status === 'CANCELLED' ? 'red' : 'amber'}>
-                      {t(`booking.${String(b.status).toLowerCase()}`)}
+                    <V2StatusBadge tone={bookingStatusTone(b.status)}>
+                      {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
                     <span className="font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">

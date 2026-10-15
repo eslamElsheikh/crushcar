@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, QrCode, CheckCircle, Loader2, Building2, FileText, Banknote } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
+import { bookingStatusLabel, ticketStatusPill } from '@/lib/booking-status'
 
 interface PairedBooking {
   id: string
@@ -119,7 +120,8 @@ export default function PrintTicketPage() {
 
   if (!ticket) return null
 
-  const isPaid = ticket.status === 'PAID'
+  const statusPill = ticketStatusPill(ticket.status)
+  const statusText = bookingStatusLabel(t, ticket.status)
   const isReturnFor = !!ticket.returnForId
   const isRoundTrip = !!ticket.roundTripGroupId
 
@@ -138,7 +140,7 @@ export default function PrintTicketPage() {
             {isRTL ? 'تذكرة الرحلة' : 'Trip Ticket'}
           </h1>
           <p className="text-xs text-zinc-400">
-            {ticket.reference} — {isPaid ? (isRTL ? 'مؤكد' : 'Confirmed') : (isRTL ? 'ملغي' : 'Cancelled')}
+            {ticket.reference} — {statusText}
           </p>
         </div>
         <button
@@ -185,12 +187,12 @@ export default function PrintTicketPage() {
                     {isRTL ? 'ذهاب وعودة' : 'ROUND TRIP'}
                   </div>
                 )}
-                <div className={cn(
+<div className={cn(
                   'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold',
-                  isPaid ? 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/30' : 'bg-red-400/20 text-red-200 border border-red-400/30'
+                  statusPill
                 )}>
-                  {isPaid && <CheckCircle size={12} />}
-                  {t(`booking.${ticket.status.toLowerCase()}`) || ticket.status}
+                  {ticket.status === 'PAID' && <CheckCircle size={12} />}
+                  {statusText}
                 </div>
               </div>
             </div>

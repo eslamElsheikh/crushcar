@@ -13,6 +13,7 @@ import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge, V2EmptyState, V2Skeleton } from '@/components/v2/ui';
+import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 my bookings — same list, tabs, cancel-with-policy flow as V1. */
 
@@ -36,9 +37,6 @@ interface Booking {
 }
 
 type Tab = 'upcoming' | 'pending' | 'past' | 'cancelled';
-
-const toneFor = (s: string) =>
-  s === 'PAID' ? 'green' : s === 'PENDING' ? 'amber' : s === 'CANCELLED' ? 'red' : 'blue';
 
 export default function MyBookingsPage() {
   const { data: session, status } = useSession();
@@ -226,8 +224,8 @@ export default function MyBookingsPage() {
                   className="v2-card p-5 md:p-6"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <V2StatusBadge tone={toneFor(b.status) as 'green' | 'amber' | 'red' | 'blue'}>
-                      {t(`booking.${b.status.toLowerCase()}`)}
+                    <V2StatusBadge tone={bookingStatusTone(b.status)}>
+                      {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
                     <button
                       onClick={() => copyRef(b.reference)}
