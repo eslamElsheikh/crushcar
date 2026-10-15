@@ -9,6 +9,7 @@ import { useLangStore } from '@/lib/lang';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { V2StatusBadge, V2Skeleton } from '@/components/v2/ui';
+import { routeLabel, stopListLabel } from '@/lib/route-label';
 
 interface TripDetail {
   id: string;
@@ -19,7 +20,7 @@ interface TripDetail {
   busPrice: number | null;
   price: number;
   bus: { name: string; type: string; seatCount: number };
-  tripStops: { station: { name: string }; stopOrder: number; priceFromOrigin: number; arrivalTime: string | null; departureTime: string | null }[];
+  tripStops: { station: { name: string } | null; stopOrder: number }[];
 }
 
 export default function CharterTripDetailPage({ params }: { params: Promise<{ tripId: string }> }) {
@@ -37,12 +38,12 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    fetch('/api/company/charter/trips?', { credentials: 'include' })
+    // Ask for this trip by id. The page used to fetch the whole list and
+    // .find() the entry locally, which only ever worked for the first page of
+    // results — every later trip rendered "trip not found".
+    fetch(`/api/company/charter/trips?tripId=${encodeURIComponent(tripId)}`, { credentials: 'include' })
       .then((r) => r.json())
-      .then((data) => {
-        const found = (data.data || []).find((t: any) => t.id === tripId);
-        setTrip(found || null);
-      })
+      .then((data) => setTrip((data.data || [])[0] || null))
       .catch(() => setTrip(null))
       .finally(() => setLoading(false));
   }, [tripId]);
@@ -162,9 +163,7 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
             </span>
             <h1 className="text-2xl font-extrabold text-[#0B1B33] mt-2 flex items-center gap-2">
               <MapPin size={22} className="text-[#1D5BD8] shrink-0" />
-              <span>{trip.origin}</span>
-              <span className="text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
-              <span>{trip.destination}</span>
+              <span>{routeLabel(trip.origin, trip.destination, isRTL)}</span>
             </h1>
           </div>
 
@@ -218,12 +217,9 @@ export default function CharterTripDetailPage({ params }: { params: Promise<{ tr
               {isRTL ? 'مسار الرحلة والمحطات المتاحة' : 'Trip Route & Stops'}
             </span>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              {trip.tripStops.map((stop, idx) => (
-                <span key={stop.stopOrder || idx} className="flex items-center gap-2">
-                  <span className="font-bold text-[#0B1B33]">{stop.station?.name}</span>
-                  {idx < trip.tripStops.length - 1 && <span className="text-slate-400">{isRTL ? '←' : '→'}</span>}
-                </span>
-              ))}
+              <span className="font-bold text-[#0B1B33]">
+                {stopListLabel(trip.tripStops.map((s) => s.station?.name).filter(Boolean), isRTL)}
+              </span>
             </div>
           </div>
         )}

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { V2StatusBadge, V2EmptyState, V2Skeleton } from '@/components/v2/ui';
+import { routeLabel } from '@/lib/route-label';
 
 interface CharterBooking {
   id: string;
@@ -198,9 +199,7 @@ export default function CharterHistoryPage() {
 
                   <h3 className="text-base font-extrabold text-[#0B1B33] flex items-center gap-2">
                     <MapPin size={15} className="text-[#1D5BD8] shrink-0" />
-                    <span>{booking.trip.origin}</span>
-                    <span className="text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
-                    <span>{booking.trip.destination}</span>
+                    <span>{routeLabel(booking.trip.origin, booking.trip.destination, isRTL)}</span>
                   </h3>
 
                   <p className="mt-1 text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-3 font-medium">

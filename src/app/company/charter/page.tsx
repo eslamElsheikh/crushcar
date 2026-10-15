@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Bus, MapPin, Clock, ArrowRight, History, Search } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
 import { V2StatusBadge, V2EmptyState, V2Skeleton } from '@/components/v2/ui';
-import { V2Button } from '@/components/v2/Button';
+import { V2Field } from '@/components/v2/Field';
+import { StationPicker } from '@/components/v2/StationPicker';
+import { routeLabel, stopListLabel } from '@/lib/route-label';
 
 interface CharterTrip {
   id: string;
@@ -23,7 +23,6 @@ interface CharterTrip {
 }
 
 export default function CharterTripsPage() {
-  const router = useRouter();
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
@@ -31,15 +30,12 @@ export default function CharterTripsPage() {
 
   const [trips, setTrips] = useState<CharterTrip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stations, setStations] = useState<{ id: string; name: string; city: string }[]>([]);
   const [fromStationId, setFromStationId] = useState('');
   const [toStationId, setToStationId] = useState('');
 
+  // StationPicker loads and searches the station list itself, so this page no
+  // longer keeps its own copy.
   useEffect(() => {
-    fetch('/api/stations', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setStations(d.stations || []))
-      .catch(() => {});
     loadTrips();
   }, []);
 
@@ -90,52 +86,37 @@ export default function CharterTripsPage() {
 
       {/* Filter / Search Bar */}
       <form onSubmit={handleSearch} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4 md:p-5 shadow-sm">
-        <div className="grid sm:grid-cols-3 gap-3 items-end">
-          <div>
-            <label className="block text-xs font-bold text-[var(--sp-text-muted)] mb-1.5">
-              {isRTL ? 'محطة الانطلاق' : 'Origin Station'}
-            </label>
-            <select
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <V2Field label={isRTL ? 'محطة الانطلاق' : 'Origin Station'}>
+            <StationPicker
+              id="charter-from"
+              nextId="charter-to"
               value={fromStationId}
-              onChange={(e) => setFromStationId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-xs font-semibold text-[#0B1B33] focus:outline-none focus:border-[#1D5BD8]"
-            >
-              <option value="">{isRTL ? 'كل المحطات' : 'All Stations'}</option>
-              {stations.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.city})
-                </option>
-              ))}
-            </select>
-          </div>
+              onChange={setFromStationId}
+              emptyLabel={isRTL ? 'كل المحطات' : 'All Stations'}
+              ariaLabel={isRTL ? 'محطة الانطلاق' : 'Origin Station'}
+              excludeId={toStationId || undefined}
+            />
+          </V2Field>
 
-          <div>
-            <label className="block text-xs font-bold text-[var(--sp-text-muted)] mb-1.5">
-              {isRTL ? 'محطة الوصول' : 'Destination Station'}
-            </label>
-            <select
+          <V2Field label={isRTL ? 'محطة الوصول' : 'Destination Station'}>
+            <StationPicker
+              id="charter-to"
               value={toStationId}
-              onChange={(e) => setToStationId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-xs font-semibold text-[#0B1B33] focus:outline-none focus:border-[#1D5BD8]"
-            >
-              <option value="">{isRTL ? 'كل المحطات' : 'All Stations'}</option>
-              {stations.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.city})
-                </option>
-              ))}
-            </select>
-          </div>
+              onChange={setToStationId}
+              emptyLabel={isRTL ? 'كل المحطات' : 'All Stations'}
+              ariaLabel={isRTL ? 'محطة الوصول' : 'Destination Station'}
+              excludeId={fromStationId || undefined}
+            />
+          </V2Field>
 
-          <div>
-            <button
-              type="submit"
-              className="w-full py-2.5 px-4 rounded-xl bg-[#0A1E3C] hover:bg-[#153465] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-            >
-              <Search size={14} />
-              <span>{isRTL ? 'بحث الرحلات' : 'Filter Trips'}</span>
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#0A1E3C] hover:bg-[#153465] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <Search size={14} />
+            <span>{isRTL ? 'بحث الرحلات' : 'Filter Trips'}</span>
+          </button>
         </div>
       </form>
 
@@ -154,6 +135,9 @@ export default function CharterTripsPage() {
         <div className="grid md:grid-cols-2 gap-4">
           {trips.map((trip, i) => {
             const displayPrice = trip.busPrice || trip.price || 0;
+            const stopNames = (trip.tripStops || [])
+              .map((s) => s.station?.name)
+              .filter(Boolean) as string[];
             return (
               <motion.div
                 key={trip.id}
@@ -170,17 +154,27 @@ export default function CharterTripsPage() {
                         {trip.bus.type} ({trip.bus.seatCount} {isRTL ? 'مقعد' : 'seats'})
                       </span>
                     </V2StatusBadge>
-                    <span className="text-xs font-bold text-[var(--sp-text-muted)]">
+                    <V2StatusBadge tone="slate">
+                      {stopNames.length === 0
+                        ? (isRTL ? 'مباشر' : 'Direct')
+                        : `${stopNames.length} ${isRTL ? 'محطة' : 'stops'}`}
+                    </V2StatusBadge>
+                    <span className="text-xs font-bold text-[var(--sp-text-muted)] ms-auto">
                       {trip.bus.name}
                     </span>
                   </div>
 
                   <h3 className="text-lg font-extrabold text-[#0B1B33] flex items-center gap-2 mb-2">
                     <MapPin size={16} className="text-[#1D5BD8] shrink-0" />
-                    <span>{trip.origin}</span>
-                    <span className="text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
-                    <span>{trip.destination}</span>
+                    <span>{routeLabel(trip.origin, trip.destination, isRTL)}</span>
                   </h3>
+
+                  {stopNames.length > 0 && (
+                    <p className="mb-2 flex items-start gap-1.5 text-[12px] text-[var(--sp-text-muted)]">
+                      <MapPin size={12} className="mt-0.5 shrink-0" />
+                      <span>{stopListLabel(stopNames, isRTL)}</span>
+                    </p>
+                  )}
 
                   <div className="text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-2 mb-4 font-medium">
                     <Clock size={13} className="text-[#1D5BD8]" />
@@ -194,6 +188,10 @@ export default function CharterTripsPage() {
                     <span>•</span>
                     <span>
                       {new Date(trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {new Date(trip.arrival).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </div>
