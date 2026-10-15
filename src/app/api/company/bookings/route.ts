@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { generateRef } from '@/lib/utils'
+import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { parseCollectAmount } from '@/lib/validations'
 
 export async function GET(req: NextRequest) {
@@ -92,7 +92,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    return await prisma.$transaction(async (tx) => {
+    // Retried as a whole transaction: a reference collision or a counter-row
+    // write conflict can abort the transaction, so the create cannot resume
+    // inside it.
+    return await withRefRetry(() => prisma.$transaction(async (tx) => {
       const company = await tx.company.findUnique({ where: { id: companyId } })
       if (!company) throw new Error('Company not found')
       if (!company.isActive) throw new Error('COMPANY_INACTIVE')
@@ -101,7 +104,9 @@ export async function POST(req: NextRequest) {
         where: { id: tripId },
         include: {
           bus: { include: { layout: { include: { seats: true } } } },
-          tripStops: { orderBy: { stopOrder: 'asc' } },
+          // station is needed to name the boarding and alighting stops in the
+          // booking reference.
+          tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } },
         },
       })
       if (!trip) throw new Error('Trip not found')
@@ -109,6 +114,9 @@ export async function POST(req: NextRequest) {
 
       let globalFromStopOrder = 1
       let globalToStopOrder = 1
+      // Station names for the reference, narrowed to the booked segment.
+      let fromStationName = trip.origin
+      let toStationName = trip.destination
 
       if (fromStationId && toStationId && trip.tripStops.length > 0) {
         const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)
@@ -117,9 +125,13 @@ export async function POST(req: NextRequest) {
         if (fromStop.stopOrder >= toStop.stopOrder) throw new Error('fromStation must be before toStation')
         globalFromStopOrder = fromStop.stopOrder
         globalToStopOrder = toStop.stopOrder
+        fromStationName = fromStop.station?.name || trip.origin
+        toStationName = toStop.station?.name || trip.destination
       } else if (trip.tripStops.length > 0) {
         globalFromStopOrder = trip.tripStops[0].stopOrder
         globalToStopOrder = trip.tripStops[trip.tripStops.length - 1].stopOrder
+        fromStationName = trip.tripStops[0].station?.name || trip.origin
+        toStationName = trip.tripStops[trip.tripStops.length - 1].station?.name || trip.destination
       }
 
       // Calculate individual and total prices
@@ -164,7 +176,13 @@ export async function POST(req: NextRequest) {
       // Create all bookings (no payment processing — deferred to confirm)
       const created = []
       for (const p of seatPrices) {
-        const reference = generateRef(trip, p.seatLabel)
+        // Each seat gets its own serial, so a group of ten takes ten numbers off the
+        // same counter — they roll back together with the transaction.
+        const reference = await nextBookingRef(tx, {
+          fromStation: fromStationName,
+          toStation: toStationName,
+          seatLabel: p.seatLabel,
+        })
         const booking = await tx.companyBooking.create({
           data: {
             reference,
@@ -214,7 +232,7 @@ export async function POST(req: NextRequest) {
         creditLimit: company.creditLimit,
         outstandingBalance: company.outstandingBalance,
       })
-    })
+    }))
   } catch (err: any) {
     console.error(err)
     if (err.message === 'COMPANY_INACTIVE') {

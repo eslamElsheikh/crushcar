@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { generateRef } from '@/lib/utils'
+import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { paymentDeadline } from '@/lib/payments'
 import { isBookableByCustomer, BOOKING_CLOSED_MESSAGE_AR } from '@/lib/booking-rules'
 import { segmentPrice } from '@/lib/segment-price'
@@ -139,17 +139,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    return await prisma.$transaction(async (tx) => {
+    // The whole transaction is retried, not just the create: a failed insert
+    // can leave the transaction aborted, so resuming inside it is not an option.
+    return await withRefRetry(() => prisma.$transaction(async (tx) => {
       // Resolve stop orders from station IDs (or use trip origin/destination as fallback)
       let fromStopOrder = 1
       let toStopOrder = 1
       let total = 0
+      // Station names for the reference. Defaults to the trip's own endpoints
+      // and is narrowed below to the stop the passenger actually uses.
+      let fromStationName = ''
+      let toStationName = ''
 
       const trip = await tx.trip.findUnique({
         where: { id: tripId },
         include: {
           bus: { include: { layout: { include: { seats: true } } } },
-          tripStops: { orderBy: { stopOrder: 'asc' } },
+          // station is needed to name the boarding and alighting stops in the
+          // booking reference.
+          tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } },
         },
       })
       if (!trip) throw new Error('Trip not found')
@@ -180,6 +188,8 @@ export async function POST(req: NextRequest) {
 
         fromStopOrder = fromStop.stopOrder
         toStopOrder = toStop.stopOrder
+        fromStationName = fromStop.station?.name || trip.origin
+        toStationName = toStop.station?.name || trip.destination
         // Shared with the public search, so the price shown in the list and the
         // price charged here cannot come from two different calculations.
         total = segmentPrice(trip, fromStationId, toStationId)
@@ -191,6 +201,11 @@ export async function POST(req: NextRequest) {
         if (trip.tripStops.length > 0) {
           fromStopOrder = trip.tripStops[0].stopOrder
           toStopOrder = trip.tripStops[trip.tripStops.length - 1].stopOrder
+          fromStationName = trip.tripStops[0].station?.name || trip.origin
+          toStationName = trip.tripStops[trip.tripStops.length - 1].station?.name || trip.destination
+        } else {
+          fromStationName = trip.origin
+          toStationName = trip.destination
         }
       }
 
@@ -235,7 +250,11 @@ export async function POST(req: NextRequest) {
 
       const booking = await tx.booking.create({
         data: {
-          reference: generateRef(trip, seatLabel),
+          reference: await nextBookingRef(tx, {
+            fromStation: fromStationName,
+            toStation: toStationName,
+            seatLabel,
+          }),
           userId: session.user.id,
           tripId,
           seatLabel,
@@ -270,7 +289,7 @@ export async function POST(req: NextRequest) {
         booking: { ...booking, stops: booking.trip?.tripStops },
         requiresPayment: true,
       })
-    })
+    }))
   } catch (err: any) {
     console.error(err)
     if (err.message === 'HOLD_EXPIRED_OR_INVALID') {

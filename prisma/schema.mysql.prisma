@@ -167,6 +167,20 @@ model SeatHold {
   expiresAt     DateTime
 }
 
+/// Hands out the sequential part of a booking reference.
+///
+/// One row per calendar year, shared by Booking and CompanyBooking so the two
+/// tables never hand out the same serial. The row is bumped with
+/// INSERT ... ON DUPLICATE KEY UPDATE inside the same transaction that creates
+/// the booking, which is why Prisma's upsert is not used: on MySQL/MariaDB it
+/// is emulated rather than a single atomic statement, and two first bookings of
+/// the year would race on the insert. See src/lib/booking-reference.ts.
+model ReferenceCounter {
+  id        String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 model Booking {
   id              String    @id @default(cuid())
   reference       String    @unique
