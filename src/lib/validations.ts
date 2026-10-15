@@ -43,6 +43,30 @@ export const profileUpdateSchema = z.object({
     .optional(),
 });
 
+/**
+ * Ceiling on a collected amount, in EGP. Generous enough for any real
+ * corporate collection, low enough that a pasted phone number or a stray
+ * extra zero cannot land in the ledger.
+ */
+export const COLLECT_AMOUNT_MAX = 1_000_000;
+
+/**
+ * Coerces whatever the booking form sent into a stored collectAmount.
+ *
+ * Both the single-seat path (trips/[id]) and the bulk path
+ * (company/bookings/new) feed this, and both used to invent their own rule:
+ * one read `.toString()` and passed NaN straight through, the other trusted
+ * the number as typed. An unusable value becomes null — "not collected" — so
+ * the ticket and the admin column render their empty state instead of NaN.
+ */
+export function parseCollectAmount(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).trim());
+  if (!Number.isFinite(n) || n <= 0 || n > COLLECT_AMOUNT_MAX) return null;
+  // Two decimals is a currency amount; anything finer is a typo.
+  return Math.round(n * 100) / 100;
+}
+
 export const bookingSchema = z.object({
   tripId: z.string().min(1, 'الرحلة مطلوبة'),
   seatLabel: z.string().min(1, 'المقعد مطلوب'),

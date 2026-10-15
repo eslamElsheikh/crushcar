@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { cn, formatDate, formatTime } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
+import { parseCollectAmount } from '@/lib/validations';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
@@ -355,8 +356,9 @@ function TripDetailPageContent() {
     const resolvedPhone = passenger.phone?.trim() || '';
     const resolvedHotel = passenger.hotel?.trim() || '';
     const resolvedNotes = passenger.notes?.trim() || '';
-    const resolvedCollectRaw = passenger.collectAmount?.toString().trim() || '';
-    const resolvedCollect = resolvedCollectRaw ? Number(resolvedCollectRaw) : null;
+    // Same rule the bulk path and the server use, so a value that shows in the
+// price summary is the value that gets stored.
+    const resolvedCollect = parseCollectAmount(passenger.collectAmount);
 
     const seats = selectedSeats.map((seatLabel) => ({
       seatLabel,

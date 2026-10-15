@@ -194,6 +194,13 @@ export default function AdminBookings() {
             t('bookings.reference'),
             t('bookings.customer'),
             t('bookings.route'),
+            // Hotel and collected amount only exist on a company booking
+            // (CompanyBooking.collectAmount). Customer rows would render two
+            // permanently empty columns, so the pair is shown on the company
+            // tab only — it slots in right after the route.
+            ...(tab === 'company'
+              ? [isRTL ? 'الفندق' : 'Hotel', isRTL ? 'مبلغ التحصيل' : 'Collected']
+              : []),
             t('bookings.seat'),
             isRTL ? 'الإجمالي' : 'Total',
             isRTL ? 'الحالة' : 'Status',
@@ -204,6 +211,13 @@ export default function AdminBookings() {
           loading={loading}
           emptyTitle={t('bookings.noBookings')}
           renderCell={(b, i) => {
+            const collectCell = (
+              <span key="col" className="tabular-nums font-bold text-amber-800">
+                {b.collectAmount != null
+                  ? `${Number(b.collectAmount).toLocaleString(locale)} ${t('common.currency')}`
+                  : '—'}
+              </span>
+            );
             const cells = [
               <span key="r" className="font-mono text-[12.5px] tabular-nums" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</span>,
               <span key="c">
@@ -218,6 +232,12 @@ export default function AdminBookings() {
                   {(b.actualDeparture || b.trip?.departure) && new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                 </span>
               </span>,
+              ...(tab === 'company'
+                ? [
+                    <span key="h" className="text-[13.5px] font-semibold">{b.passengerHotel || '—'}</span>,
+                    collectCell,
+                  ]
+                : []),
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,
               <span key="p" className="font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</span>,
               <V2StatusBadge key="st" tone={bookingStatusTone(b.status)}>
@@ -276,6 +296,22 @@ export default function AdminBookings() {
               </div>
               <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>
+              {tab === 'company' && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+                  <span className="font-bold text-[var(--sp-text-muted)]">
+                    {isRTL ? 'الفندق' : 'Hotel'}:{' '}
+                    <span className="font-semibold text-[#0B1B33]">{b.passengerHotel || '—'}</span>
+                  </span>
+                  <span className="font-bold text-[var(--sp-text-muted)]">
+                    {isRTL ? 'التحصيل' : 'Collected'}:{' '}
+                    <span className="font-bold text-amber-800">
+                      {b.collectAmount != null
+                        ? `${Number(b.collectAmount).toLocaleString(locale)} ${t('common.currency')}`
+                        : '—'}
+                    </span>
+                  </span>
+                </div>
+              )}
               {b.status === 'PENDING' && b.paymentProofUrl && (
                 <button
                   onClick={() => { setConfirmId(b.id); setRejectReason(''); }}

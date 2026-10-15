@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowRight, Bus, MapPin, Clock, Calendar, User, Phone,
   QrCode, CheckCircle2, XCircle, AlertCircle, Loader2, Printer, Copy, Check,
-  CreditCard, Armchair, Building2, FileText, Banknote, ShieldCheck
+  CreditCard, Armchair, Building2, FileText, ShieldCheck
 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,6 @@ interface BookingData {
   passengerPhone?: string;
   passengerHotel?: string;
   passengerNotes?: string;
-  collectAmount?: number | null;
   actualOrigin?: string;
   actualDestination?: string;
   actualDeparture?: string;
@@ -375,17 +374,6 @@ export default function BookingDetailPage() {
                     </span>
                     <span className="text-sm font-bold text-[#0B1B33]">
                       {booking.passengerHotel}
-                    </span>
-                  </div>
-                )}
-
-                {booking.collectAmount != null && booking.collectAmount > 0 && (
-                  <div className="rounded-xl bg-[var(--sp-inset)] p-3.5 border border-slate-200/60">
-                    <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
-                      {isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}
-                    </span>
-                    <span className="text-sm font-extrabold text-amber-700">
-                      {Number(booking.collectAmount || 0).toLocaleString(locale)} {t('common.currency')}
                     </span>
                   </div>
                 )}

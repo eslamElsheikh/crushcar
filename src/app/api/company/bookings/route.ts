@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { generateRef } from '@/lib/utils'
+import { parseCollectAmount } from '@/lib/validations'
 
 export async function GET(req: NextRequest) {
   try {
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     const { tripId, passengers, fromStationId, toStationId, customerId, bookingType, roundTripGroupId }: {
       tripId: string
-      passengers: { seatLabel: string; passengerName: string; passengerPhone?: string; passengerHotel?: string }[]
+      passengers: { seatLabel: string; passengerName: string; passengerPhone?: string; passengerHotel?: string; passengerNotes?: string; collectAmount?: unknown }[]
       fromStationId?: string | null
       toStationId?: string | null
       customerId?: string | null
@@ -174,6 +175,13 @@ export async function POST(req: NextRequest) {
             passengerName: p.passengerName || '',
             passengerPhone: p.passengerPhone || '',
             passengerHotel: (p as any).passengerHotel || '',
+            passengerNotes: (p as any).passengerNotes || '',
+            // The booking form has always sent collectAmount and
+            // passengerNotes, but the create dropped both on the floor, so the
+            // ticket and the admin column could never show them. They are
+            // written here now; parseCollectAmount is the single rule both
+            // booking paths go through.
+            collectAmount: parseCollectAmount(p.collectAmount),
             bookingType: bookingType || 'FOR_EMPLOYEE',
             status: 'PENDING',
             total: p.price,

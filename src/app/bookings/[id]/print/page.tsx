@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, QrCode, CheckCircle, Loader2, Building2, FileText, Banknote } from 'lucide-react'
+import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, QrCode, CheckCircle, Loader2, Building2, FileText } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
 import { bookingStatusLabel, ticketStatusPill } from '@/lib/booking-status'
@@ -39,7 +39,8 @@ interface TicketData {
   passengerPhone?: string
   passengerHotel?: string
   passengerNotes?: string
-  collectAmount?: number | null
+  // No collectAmount: a customer Booking has no collection amount. The field
+  // only exists on CompanyBooking, so it can never reach this ticket.
   roundTripGroupId?: string | null
   returnForId?: string | null
   pairedBooking?: PairedBooking | null
@@ -283,17 +284,6 @@ export default function PrintTicketPage() {
                       <div>
                         <p className="text-xs text-gray-400">{isRTL ? 'الفندق' : 'Hotel'}</p>
                         <p className="font-semibold text-gray-800">{ticket.passengerHotel}</p>
-                      </div>
-                    </div>
-                  )}
-                  {ticket.collectAmount != null && ticket.collectAmount > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <Banknote size={14} className="text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400">{isRTL ? 'التحصيل' : 'Collect Amount'}</p>
-                        <p className="font-semibold text-gray-800">{ticket.collectAmount.toLocaleString()} <span className="text-xs text-gray-400">EGP</span></p>
                       </div>
                     </div>
                   )}

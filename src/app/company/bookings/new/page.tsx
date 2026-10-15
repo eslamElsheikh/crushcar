@@ -7,6 +7,7 @@ import { MapPin, Search, Loader2, ArrowRight, User, Wallet, Sparkles, CheckSquar
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
+import { parseCollectAmount } from '@/lib/validations';
 import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2StatusBadge, V2Skeleton, V2NoResults } from '@/components/v2/ui';
@@ -42,6 +43,7 @@ export default function CompanyNewBookingPage() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [phones, setPhones] = useState<Record<string, string>>({});
   const [hotels, setHotels] = useState<Record<string, string>>({});
+  const [collects, setCollects] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -132,6 +134,7 @@ export default function CompanyNewBookingPage() {
             passengerName: (names[seatLabel] || '').trim(),
             passengerPhone: (phones[seatLabel] || '').trim(),
             passengerHotel: (hotels[seatLabel] || '').trim(),
+            collectAmount: parseCollectAmount(collects[seatLabel]),
           })),
           fromStationId: fromId || null,
           toStationId: toId || null,
@@ -369,10 +372,21 @@ export default function CompanyNewBookingPage() {
                   <User className="size-5 text-[#1D5BD8]" /> {isRTL ? 'مقعد' : 'Seat'} {s}
                   <span className="ms-auto text-[14px] text-[var(--sp-text-muted)]">{priceOf(s).toLocaleString(locale)} {t('common.currency')}</span>
                 </p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="mt-3 grid gap-3 sm:grid-cols-4">
                   <V2Input value={names[s] || ''} onChange={(e) => setNames({ ...names, [s]: e.target.value })} placeholder={t('company.passengerName')} aria-label={`${t('company.passengerName')} ${s}`} />
                   <V2Input value={phones[s] || ''} onChange={(e) => setPhones({ ...phones, [s]: e.target.value })} placeholder={t('company.passengerPhone')} aria-label={`${t('company.passengerPhone')} ${s}`} dir="ltr" className="tabular-nums" />
                   <V2Input value={hotels[s] || ''} onChange={(e) => setHotels({ ...hotels, [s]: e.target.value })} placeholder={t('v2.hotelPh')} aria-label={`${t('v2.hotelPh')} ${s}`} />
+                  <V2Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={collects[s] || ''}
+                    onChange={(e) => setCollects({ ...collects, [s]: e.target.value })}
+                    placeholder={isRTL ? 'مبلغ التحصيل' : 'Collected'}
+                    aria-label={`${isRTL ? 'مبلغ التحصيل' : 'Collected'} ${s}`}
+                    dir="ltr"
+                    className="tabular-nums"
+                  />
                 </div>
               </div>
             ))}
