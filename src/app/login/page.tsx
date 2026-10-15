@@ -50,8 +50,11 @@ function LoginForm() {
     if (session?.user?.role === 'SUPER_ADMIN') {
       redirectUrl = '/admin';
     } else if (session?.user?.role === 'COMPANY_ADMIN') {
-      // Business rule: every company uses /company. Only SUPER_ADMIN operates /admin.
-      redirectUrl = '/company/dashboard';
+      // A company manager lands on the public home page like everyone else.
+      // /company stays reachable from the header (it renders dashHref for
+      // signed-in admins), and the /company and /admin layout guards are
+      // unaffected because / sits outside both trees.
+      redirectUrl = '/';
     }
 
     router.push(redirectUrl);

@@ -96,10 +96,16 @@ export default function AdminLayoutClient({ session, children }: { session: any;
             <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} className="grid size-10 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]">
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-            <span className="flex items-center gap-2">
+            <Link
+              href="/"
+              // Same 40px target as the menu button beside it — see the note in
+              // the company layout.
+              className="flex min-h-10 shrink-0 items-center gap-2 py-1"
+              aria-label={isRTL ? 'سافروا' : 'Safro'}
+            >
               <V2Logo height={30} />
               <span className="text-[13px] font-bold text-[var(--sp-text-muted)]">{t('nav.admin')}</span>
-            </span>
+            </Link>
           </div>
           {mobileOpen && (
             <div className="max-h-[60dvh] overflow-y-auto border-b border-[var(--sp-line)] bg-[#0A1E3C] md:hidden">{nav}</div>

@@ -3,6 +3,7 @@
 import { routeLabel } from '@/lib/route-label';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -221,7 +222,9 @@ export default function SupervisorStationPage() {
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <V2Logo height={32} />
+            <Link href="/" aria-label={isRTL ? 'سافروا' : 'Safro'}>
+              <V2Logo height={32} />
+            </Link>
             <div className="flex items-center gap-2">
               <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-black text-emerald-700 border border-emerald-200">
                 {isRTL ? 'محطة الإشراف' : 'Supervisor Station'}

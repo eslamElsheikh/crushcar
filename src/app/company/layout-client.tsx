@@ -82,9 +82,16 @@ export default function CompanyLayoutClient({ session, children }: { session: an
             <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} className="grid size-10 place-items-center rounded-xl bg-slate-100 text-[#0B1B33]">
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
-            <span className="flex items-center">
+            <Link
+              href="/"
+              // The image alone is 30px tall, which is a small target for a
+              // thumb on the one control that is always visible. Pad the link
+              // out to the same 40px box as the menu button beside it.
+              className="grid size-10 shrink-0 place-items-center"
+              aria-label={isRTL ? 'سافروا' : 'Safro'}
+            >
               <V2Logo height={30} />
-            </span>
+            </Link>
           </div>
           {mobileOpen && (
             <div className="border-b border-[var(--sp-line)] bg-[#0A1E3C] md:hidden">{nav}</div>
