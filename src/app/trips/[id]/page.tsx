@@ -12,7 +12,7 @@ import {
 import { toast } from 'sonner';
 import { cn, formatDate, formatTime } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
-import { parseCollectAmount } from '@/lib/validations';
+import { parseCollectAmount, splitCollectAmount } from '@/lib/validations';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
@@ -356,9 +356,23 @@ function TripDetailPageContent() {
     const resolvedPhone = passenger.phone?.trim() || '';
     const resolvedHotel = passenger.hotel?.trim() || '';
     const resolvedNotes = passenger.notes?.trim() || '';
-    // Same rule the bulk path and the server use, so a value that shows in the
-// price summary is the value that gets stored.
+// Same rule the bulk path and the server use, so a value that shows in the
+    // price summary is the value that gets stored.
     const resolvedCollect = parseCollectAmount(passenger.collectAmount);
+
+    // One figure covers the whole booking, so it is shared across every seat
+    // of both legs. Outbound seats are drawn first, then the return leg —
+    // the two legs are posted as separate requests, so the split has to be
+    // computed here rather than server-side.
+    const returnSeatsForSplit = returnSelectedSeats;
+    const totalSeatCount = selectedSeats.length + returnSeatsForSplit.length;
+    const collectShares = splitCollectAmount(resolvedCollect, totalSeatCount);
+    let shareIndex = 0;
+    const nextShare = () => {
+      const share = collectShares[shareIndex] ?? null;
+      shareIndex += 1;
+      return share;
+    };
 
     const seats = selectedSeats.map((seatLabel) => ({
       seatLabel,
@@ -366,7 +380,7 @@ function TripDetailPageContent() {
       passengerPhone: resolvedPhone,
       passengerHotel: resolvedHotel,
       passengerNotes: resolvedNotes,
-      collectAmount: resolvedCollect,
+      collectAmount: nextShare(),
       fromStationId: isDirectTrip ? null : outboundFromId,
       toStationId: isDirectTrip ? null : outboundToId,
     }));
@@ -380,7 +394,7 @@ function TripDetailPageContent() {
       passengerPhone: resolvedPhone,
       passengerHotel: resolvedHotel,
       passengerNotes: resolvedNotes,
-      collectAmount: resolvedCollect,
+      collectAmount: nextShare(),
       fromStationId: returnFromId,
       toStationId: returnToId,
     })) : undefined;
@@ -556,6 +570,29 @@ function TripDetailPageContent() {
     if (!trip) return 0;
     return (trip.bus?.layout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0) - reservedSeats.size;
   }, [trip, reservedSeats]);
+
+  // Preview of what the collection figure becomes per seat. Same function the
+  // submit path uses, so the operator sees the real split before booking
+  // rather than a single figure that silently lands on every row.
+  const collectSeatTotal = selectedSeats.length + returnSelectedSeats.length;
+  const collectShares = useMemo(
+    () => splitCollectAmount(passenger.collectAmount, collectSeatTotal),
+    [passenger.collectAmount, collectSeatTotal],
+  );
+  const collectShown = collectShares.filter((s): s is number => s !== null);
+  const collectLow = collectShown.length ? Math.min(...collectShown) : null;
+  const collectHigh = collectShown.length ? Math.max(...collectShown) : null;
+  const collectSplitHint =
+    collectSeatTotal > 1 && collectLow !== null
+      ? collectLow === collectHigh
+        ? t('booking.collectSplitEven')
+            .replace('{count}', String(collectSeatTotal))
+            .replace('{amount}', collectLow.toLocaleString())
+        : t('booking.collectSplitMixed')
+            .replace('{count}', String(collectSeatTotal))
+            .replace('{low}', collectLow.toLocaleString())
+            .replace('{high}', collectHigh!.toLocaleString())
+      : null;
 
   if (loading) {
     return (
@@ -1111,6 +1148,9 @@ function TripDetailPageContent() {
                         {Number(totalPrice || 0).toLocaleString()} <span className="text-xs text-[var(--sp-text-muted)]">{t('common.currency')}</span>
                       </span>
                     </div>
+                    {collectSplitHint && (
+                      <p className="pt-1 text-[11.5px] font-semibold text-amber-800">{collectSplitHint}</p>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1288,6 +1328,9 @@ function TripDetailPageContent() {
                       <span>{t('roundtrip.totalBoth')}</span>
                       <span className="text-[#1D5BD8] text-lg font-extrabold">{Number((totalPrice || 0) + (returnTotalPrice || 0)).toLocaleString()} {t('common.currency')}</span>
                     </div>
+                    {collectSplitHint && (
+                      <p className="pt-1 text-[11.5px] font-semibold text-amber-800">{collectSplitHint}</p>
+                    )}
                   </div>
                 )}
 

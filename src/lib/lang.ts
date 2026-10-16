@@ -758,6 +758,8 @@ const translations: Record<string, Record<Language, string>> = {
   'charterBookings': { ar: 'حجوزات الشارتر', en: 'Charter Bookings' },
   'company.charter': { ar: 'الشارتر', en: 'Charter' },
   'booking.collectPlaceholder': { ar: 'مبلغ التحصيل (اختياري)', en: 'Collect amount (optional)' },
+  'booking.collectSplitEven': { ar: 'سيتم تقسيم مبلغ التحصيل على {count} مقاعد — {amount} لكل مقعد', en: 'The collected amount is split across {count} seats — {amount} each' },
+  'booking.collectSplitMixed': { ar: 'سيتم تقسيم مبلغ التحصيل على {count} مقاعد — من {low} إلى {high} لكل مقعد', en: 'The collected amount is split across {count} seats — {low} to {high} each' },
   'booking.notesPlaceholder': { ar: 'ملاحظات إضافية...', en: 'Additional notes...' },
   'registered': { ar: 'تم التسجيل بنجاح', en: 'Registered successfully' },
   'FOR_EMPLOYEE': { ar: 'لموظف', en: 'For Employee' },

@@ -67,6 +67,38 @@ export function parseCollectAmount(raw: unknown): number | null {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Divides a collected amount across the seats a booking covers.
+ *
+ * The booking wizard takes one collection figure for the whole booking, so it
+ * has to be shared out or every seat would store the full amount and four
+ * seats booked for 4000 would read as 16000 collected.
+ *
+ * The shares are whole numbers, because the operator types a round figure and
+ * the remainder is a rounding artefact, not money. The leftover goes to the
+ * last seats, so 100 over 3 seats is 33 / 33 / 34 and never 33 / 34 / 33 with
+ * a missing piastre somewhere. The shares always add back up to `total`
+ * exactly — a ledger that silently loses or invents a pound is worse than an
+ * ugly split.
+ *
+ * A seat that works out to zero is stored as null rather than 0, matching
+ * parseCollectAmount: nothing was collected for it.
+ *
+ * A null or unusable total means nothing was entered, so no seat gets a value.
+ */
+export function splitCollectAmount(total: unknown, seatCount: number): (number | null)[] {
+  const clean = parseCollectAmount(total);
+  if (clean === null || seatCount <= 0) return Array.from({ length: Math.max(0, seatCount) }, () => null);
+
+  const base = Math.floor(clean / seatCount);
+  const remainder = Math.round(clean - base * seatCount);
+
+  return Array.from({ length: seatCount }, (_, i) => {
+    const share = base + (i >= seatCount - remainder ? 1 : 0);
+    return share > 0 ? share : null;
+  });
+}
+
 export const bookingSchema = z.object({
   tripId: z.string().min(1, 'الرحلة مطلوبة'),
   seatLabel: z.string().min(1, 'المقعد مطلوب'),
