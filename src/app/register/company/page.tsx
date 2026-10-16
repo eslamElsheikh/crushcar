@@ -60,18 +60,26 @@ export default function CompanyRegisterPage() {
     return (
       <V2AuthShell
         title={isRTL ? 'تم التسجيل بنجاح!' : 'Registration Successful!'}
-        sub={isRTL ? 'تم استلام طلبك. تتم مراجعة حسابك وتفعيله من فريقنا خلال 24 ساعة.' : 'Your request has been received.'}
+        sub={isRTL ? 'تم استلام طلبك بنجاح.' : 'Application received.'}
         sideTitle={t('v2.b2bTitle')}
         sideSub={t('v2.b2bSub')}
       >
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
-          <span className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+          <span className="mx-auto grid size-20 place-items-center rounded-full bg-amber-50 text-amber-600">
             <Building2 className="size-9" />
           </span>
-          <p className="mx-auto mt-5 max-w-[380px] text-pretty text-[15px] leading-relaxed text-[var(--sp-text-muted)]">
+          <p className="mx-auto mt-5 max-w-[380px] text-base font-extrabold text-[#0B1B33]">
+            {isRTL ? 'طلبك في انتظار موافقة الإدارة' : 'Your application is awaiting admin approval'}
+          </p>
+          <p className="mx-auto mt-2 max-w-[380px] text-pretty text-[15px] leading-relaxed text-[var(--sp-text-muted)]">
             {isRTL
-              ? 'هيوصلك إيميل لما الحساب يتفعل. بعدها تقدر تسجّل الدخول وتدير حجوزات شركتك.'
-              : 'You will receive an email once activated. Then you can sign in and manage your company bookings.'}
+              ? 'حسابك اتسجل، بس مش هتقدر تسجّل الدخول قبل ما الإدارة تعتمد الشركة. لو حاولت الدخول قبل الموافقة هتستقبل رسالة إن الحساب في انتظار موافقة الإدارة.'
+              : 'Your account is created, but you cannot sign in until the company is approved. Trying before then will tell you the account is awaiting approval.'}
+          </p>
+          <p className="mx-auto mt-2 max-w-[380px] text-[13.5px] leading-relaxed text-[var(--sp-text-muted)]">
+            {isRTL
+              ? 'بنراجع الطلبات خلال 24 ساعة.'
+              : 'Applications are reviewed within 24 hours.'}
           </p>
           <Link href="/login" className="v2-btn-primary mt-7 inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 text-[15px]">
             {isRTL ? 'الذهاب لتسجيل الدخول' : 'Go to Login'} <ArrowRight className="size-4 v2-flip-rtl" />

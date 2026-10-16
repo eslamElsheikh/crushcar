@@ -257,6 +257,7 @@ const translations: Record<string, Record<Language, string>> = {
 
   // Auth
   'auth.welcome': { ar: 'مرحباً بعودتك', en: 'Welcome back' },
+  'auth.invalidOrPending': { ar: 'البريد الإلكتروني أو كلمة المرور غير صحيحة، أو الحساب في انتظار موافقة الإدارة.', en: 'Incorrect email or password, or the account is awaiting admin approval.' },
   'auth.signInAccount': { ar: 'سجل دخولك', en: 'Sign in to your account' },
   'auth.email': { ar: 'البريد الإلكتروني', en: 'Email' },
   'auth.password': { ar: 'كلمة المرور', en: 'Password' },

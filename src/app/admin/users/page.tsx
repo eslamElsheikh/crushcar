@@ -24,11 +24,38 @@ interface UserRow {
   role: string;
   companyId?: string | null;
   isActive: boolean;
+  /** Whether the linked company is approved. Absent means "no gate". */
+  companyActive?: boolean;
   createdAt: string;
   totalBookings?: number;
 }
 
 const roleTone = (r: string) => (r === 'SUPER_ADMIN' ? 'red' : r === 'COMPANY_ADMIN' ? 'blue' : 'slate');
+
+type AccountState = 'active' | 'pending' | 'suspended';
+
+/**
+ * What the account can actually do, not just what the isActive column says.
+ *
+ * A company admin is refused at sign-in while their company is inactive, so
+ * reporting them as "active" described an account that could not log in. The
+ * column also said nothing about where the real switch is, which is on the
+ * company, not the user.
+ */
+function accountState(u: { isActive: boolean; role: string; companyActive?: boolean }): AccountState {
+  if (u.isActive === false) return 'suspended';
+  if (u.role === 'COMPANY_ADMIN' && u.companyActive === false) return 'pending';
+  return 'active';
+}
+
+const statusTone = (state: AccountState): 'green' | 'amber' | 'red' =>
+  state === 'suspended' ? 'red' : state === 'pending' ? 'amber' : 'green';
+
+function statusLabel(state: AccountState, isRTL: boolean): string {
+  if (state === 'suspended') return isRTL ? 'موقوف' : 'Suspended';
+  if (state === 'pending') return isRTL ? 'بانتظار الموافقة' : 'Awaiting approval';
+  return isRTL ? 'مفعّل' : 'Active';
+}
 
 export default function AdminUsers() {
   const t = useLangStore((s) => s.t);
@@ -195,8 +222,8 @@ export default function AdminUsers() {
                 </span>
               </span>,
               <V2StatusBadge key="r" tone={roleTone(u.role) as 'red' | 'blue' | 'slate'}>{roleLabel(u.role)}</V2StatusBadge>,
-              <V2StatusBadge key="s" tone={u.isActive === false ? 'red' : 'green'}>
-                {u.isActive === false ? (isRTL ? 'موقوف' : 'Suspended') : (isRTL ? 'مفعّل' : 'Active')}
+              <V2StatusBadge key="s" tone={statusTone(accountState(u))}>
+                {statusLabel(accountState(u), isRTL)}
               </V2StatusBadge>,
               <span key="b" className="tabular-nums text-[var(--sp-text-muted)]">{u.totalBookings ?? '—'}</span>,
               <span key="c" className="tabular-nums text-[var(--sp-text-muted)]">
@@ -219,8 +246,8 @@ export default function AdminUsers() {
                 <V2StatusBadge tone={roleTone(u.role) as 'red' | 'blue' | 'slate'}>{roleLabel(u.role)}</V2StatusBadge>
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <V2StatusBadge tone={u.isActive === false ? 'red' : 'green'}>
-                  {u.isActive === false ? (isRTL ? 'موقوف' : 'Suspended') : (isRTL ? 'مفعّل' : 'Active')}
+                <V2StatusBadge tone={statusTone(accountState(u))}>
+                  {statusLabel(accountState(u), isRTL)}
                 </V2StatusBadge>
                 <span className="flex-1" />
                 <button
@@ -293,15 +320,24 @@ export default function AdminUsers() {
                   {edit.isActive ? (isRTL ? 'الحساب مفعّل' : 'Account active') : (isRTL ? 'الحساب موقوف' : 'Account suspended')}
                 </span>
                 <span className="mt-0.5 block text-[12.5px] leading-relaxed text-[var(--sp-text-muted)]">
-                  {edit.isActive
-                    ? (isRTL ? 'يستطيع تسجيل الدخول وإنشاء الحجوزات.' : 'Can sign in and book.')
-                    : (isRTL ? 'لا يستطيع تسجيل الدخول. الحجوزات السابقة تفضل موجودة.' : 'Cannot sign in. Past bookings are kept.')}
+                  {accountState(editing) === 'pending'
+                    ? (isRTL
+                        ? 'الحساب موقوف حتى تعتمد الشركة. المفتاح الحقيقي من صفحة «شركات معلّقة».'
+                        : 'Blocked until the company is approved. The real switch is on Pending Companies.')
+                    : edit.isActive
+                      ? (isRTL ? 'يستطيع تسجيل الدخول وإنشاء الحجوزات.' : 'Can sign in and book.')
+                      : (isRTL ? 'لا يستطيع تسجيل الدخول. الحجوزات السابقة تفضل موجودة.' : 'Cannot sign in. Past bookings are kept.')}
                 </span>
               </span>
               <span className={cn('grid size-6 shrink-0 place-items-center rounded-full transition', edit.isActive ? 'bg-emerald-600' : 'bg-slate-400')}>
                 <span className={cn('block h-0.5 w-3 bg-white transition-transform', edit.isActive ? 'translate-x-1' : '-translate-x-1')} />
               </span>
             </button>
+            {accountState(editing) === 'pending' && (
+              <p className="-mt-1 text-[12.5px] font-bold text-amber-700">
+                {isRTL ? 'الشركة في انتظار الموافقة، والحساب مفعّل ظاهرياً فقط.' : 'The company is awaiting approval — this toggle alone does not unblock sign-in.'}
+              </p>
+            )}
             {editing.id === session?.user?.id && (
               <p className="-mt-1 text-[12.5px] font-bold text-amber-700">
                 {isRTL ? 'ما تقدر توقف حسابك أنت.' : 'You cannot suspend your own account.'}

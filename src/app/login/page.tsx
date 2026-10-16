@@ -39,7 +39,11 @@ function LoginForm() {
     setLoading(false);
 
     if (res?.error) {
-      setError('Invalid credentials');
+      // One sentence covers a wrong password and a company that has not been
+      // approved yet, because the two are indistinguishable from out here —
+      // answering them separately would turn this form into a way to test
+      // which addresses are registered and whether a password is right.
+      setError(t('auth.invalidOrPending'));
       return;
     }
 

@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
       where: session.user.role === 'COMPANY_ADMIN'
         ? { companyId: session.user.companyId }
         : {},
+      // A company admin cannot sign in while their company is inactive
+      // (src/lib/auth.ts), so the table has to know about the company or it
+      // reports them as "active" for an account that is locked.
+      include: { company: { select: { isActive: true } } },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -37,6 +41,9 @@ export async function GET(req: NextRequest) {
       role: u.role,
       companyId: u.companyId,
       isActive: u.isActive,
+      // Users with no company have no company gate, so they report true and
+      // keep the status they had before this field existed.
+      companyActive: u.company ? u.company.isActive : true,
       createdAt: u.createdAt.toISOString(),
       totalBookings: countByUser.get(u.id) ?? 0,
     })))
