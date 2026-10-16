@@ -19,9 +19,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const company = await prisma.company.findUnique({ where: { id } })
     if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
 
-    if (action === 'reject') {
-      await prisma.company.delete({ where: { id } })
-      return NextResponse.json({ success: true, message: 'Company rejected and removed' })
+if (action === 'reject') {
+      // Rejecting has to take the company's admins with it.
+      //
+      // User.company is an optional relation, so the schema is ON DELETE SET
+      // NULL: deleting the company does not fail, it quietly detaches the
+      // user. The result is worse than an error — a COMPANY_ADMIN with
+      // companyId null still passes the sign-in guard in src/lib/auth.ts,
+      // because that guard only fires when the company exists and is inactive.
+      // They get a working session and then a 400 "No company linked" from
+      // every /api/company route, and the users table reports them as active.
+      //
+      // The application was refused, so the account should not survive it.
+      // Detaching instead of deleting would leave exactly that half-state.
+      const rejected = await prisma.$transaction(async (tx) => {
+        const { count } = await tx.user.deleteMany({ where: { companyId: id } });
+        await tx.company.delete({ where: { id } });
+        return count;
+      });
+      return NextResponse.json({
+        success: true,
+        message: 'Company rejected and removed',
+        removedUsers: rejected,
+      });
     }
 
     const updated = await prisma.company.update({
