@@ -2,7 +2,12 @@
 
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  // The production host is Node 22 on CloudLinux built against OpenSSL 1.1,
+  // so the 1.1.x engine is the one that actually runs. It was missing from
+  // this list, which generated a client with no usable engine and took every
+  // API route down with PrismaClientInitializationError until the engines
+  // were downloaded by hand.
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {
