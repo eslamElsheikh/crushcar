@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { calculateRefund } from '@/lib/cancellation-policy'
+import { chargeCompany } from '@/lib/company-charge'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -101,70 +102,68 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         return NextResponse.json({ error: 'Booking is not pending' }, { status: 400 })
       }
 
-      return await prisma.$transaction(async (tx) => {
-        const company = await tx.company.findUnique({ where: { id: companyId } })
-        if (!company) throw new Error('Company not found')
-        if (!company.isActive) throw new Error('COMPANY_INACTIVE')
-
-        const total = booking.total
-        let paidFromWallet = 0
-        let paidOnCredit = 0
-
-        if (company.paymentMode === 'PREPAID') {
-          if (company.walletBalance < total) throw new Error('INSUFFICIENT_WALLET')
-          paidFromWallet = total
-        } else {
-          // CREDIT or BOTH: deduct from wallet first, credit for what remains
-          paidFromWallet = Math.min(company.walletBalance, total)
-          const remaining = total - paidFromWallet
-          if (remaining > 0) {
-            if (company.outstandingBalance + remaining > company.creditLimit) throw new Error('CREDIT_LIMIT_EXCEEDED')
-            paidOnCredit = remaining
-          }
-        }
-
-        if (paidFromWallet > 0) {
-          await tx.company.update({
-            where: { id: companyId },
-            data: { walletBalance: { decrement: paidFromWallet } },
+      try {
+        return await prisma.$transaction(async (tx) => {
+          // The split is decided in one place, so the create path and this
+          // button can never charge different amounts for the same booking.
+          const { paidFromWallet, paidOnCredit } = await chargeCompany(tx, {
+            companyId,
+            total: booking.total,
+            reference: booking.id,
+            description: `Payment for booking ${booking.reference}`,
           })
-          await tx.walletTransaction.create({
+
+          // Conditional: another admin may have cancelled this booking while
+          // the charge was being worked out. The status in the where clause
+          // means the money is only spent on a booking that is still PENDING.
+          const updated = await tx.companyBooking.updateMany({
+            where: { id, status: 'PENDING' },
             data: {
-              companyId,
-              type: 'BOOKING_CHARGE',
-              amount: -paidFromWallet,
-              description: `Payment for booking ${booking.reference}`,
-              reference: booking.id,
+              status: 'PAID',
+              paidAt: new Date(),
+              paidFromWallet,
+              paidOnCredit,
             },
           })
-        }
+          if (updated.count === 0) {
+            throw new Error('BOOKING_NOT_PENDING')
+          }
 
-        if (paidOnCredit > 0) {
-          await tx.company.update({
-            where: { id: companyId },
-            data: { outstandingBalance: { increment: paidOnCredit } },
-          })
-        }
-
-        const updated = await tx.companyBooking.update({
-          where: { id },
-          data: {
-            status: 'PAID',
-            paidAt: new Date(),
+          const row = await tx.companyBooking.findUnique({ where: { id } })
+          const company = await tx.company.findUnique({ where: { id: companyId } })
+          return NextResponse.json({
+            ...row,
+            paidAt: row?.paidAt?.toISOString() || null,
             paidFromWallet,
             paidOnCredit,
-          },
+            walletBalance: (company?.walletBalance ?? 0) - paidFromWallet,
+            outstandingBalance: (company?.outstandingBalance ?? 0) + paidOnCredit,
+          })
         })
-
-        return NextResponse.json({
-          ...updated,
-          paidAt: updated.paidAt?.toISOString() || null,
-          paidFromWallet,
-          paidOnCredit,
-          walletBalance: company.walletBalance - paidFromWallet,
-          outstandingBalance: company.outstandingBalance + paidOnCredit,
-        })
-      })
+      } catch (err: any) {
+        if (err?.message === 'BOOKING_NOT_PENDING') {
+          return NextResponse.json(
+            { error: 'Booking is no longer pending', message: 'تم إلغاء هذا الحجز بالفعل' },
+            { status: 409 }
+          )
+        }
+        if (err?.code === 'INSUFFICIENT_WALLET') {
+          return NextResponse.json(
+            { error: 'INSUFFICIENT_WALLET', message: 'رصيد المحفظة غير كافٍ' },
+            { status: 400 }
+          )
+        }
+        if (err?.code === 'CREDIT_LIMIT_EXCEEDED') {
+          return NextResponse.json(
+            { error: 'CREDIT_LIMIT_EXCEEDED', message: 'تجاوزت حد الائتمان المتاح' },
+            { status: 400 }
+          )
+        }
+        if (err?.code === 'COMPANY_INACTIVE') {
+          return NextResponse.json({ error: 'COMPANY_INACTIVE' }, { status: 403 })
+        }
+        throw err
+      }
     }
 
     if (status === 'CANCELLED') {

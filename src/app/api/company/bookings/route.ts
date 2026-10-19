@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { parseCollectAmount } from '@/lib/validations'
+import { companyBookingExpiryHours } from '@/lib/booking-expiry'
+import { companyPaymentDeadline } from '@/lib/payments'
 
 export async function GET(req: NextRequest) {
   try {
@@ -112,6 +114,9 @@ export async function POST(req: NextRequest) {
       if (!trip) throw new Error('Trip not found')
       if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) throw new Error('CHARTER_TRIP')
 
+      // How long an unpaid booking of this company may hold its seat.
+      const expiryHours = await companyBookingExpiryHours()
+
       let globalFromStopOrder = 1
       let globalToStopOrder = 1
       // Station names for the reference, narrowed to the booked segment.
@@ -202,6 +207,11 @@ export async function POST(req: NextRequest) {
             collectAmount: parseCollectAmount(p.collectAmount),
             bookingType: bookingType || 'FOR_EMPLOYEE',
             status: 'PENDING',
+            // How long this booking may hold its seat unpaid. Until this was
+            // written the column was declared and never set, so an unpaid
+            // company booking kept its seat forever and kept eating into the
+            // company's trip allowance.
+            expiresAt: companyPaymentDeadline(new Date(trip.departure), expiryHours),
             total: p.price,
             paidFromWallet: 0,
             paidOnCredit: 0,

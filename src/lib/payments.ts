@@ -23,8 +23,41 @@ export const PAYMENT_WINDOW_NEAR_MINUTES = 20;
 export const NEAR_DEPARTURE_MINUTES = 120;
 
 /** Statuses that still occupy a seat. Mirrors the allow-lists used by the
- *  seat-conflict queries in the booking and hold routes. */
+ * seat-conflict queries in the booking and hold routes. */
 export const SEAT_OCCUPYING_STATUSES = ['PENDING', 'PAID', 'BOARDED'] as const;
+
+/**
+ * Deadline for a company booking to be paid.
+ *
+ * Same shape as the customer window: the hold ends before the bus leaves,
+ * and never later than the configured number of hours. A company on credit
+ * gets a long window because the money is a matter of account, not of a
+ * transfer in progress.
+ */
+export function companyPaymentDeadline(
+  departure: Date,
+  hours: number,
+  now = new Date(),
+): Date {
+  const window = new Date(now.getTime() + hours * 60 * 60 * 1000);
+  const latestUseful = new Date(departure.getTime() - MIN_PAYMENT_WINDOW_MINUTES * 60 * 1000);
+  return window.getTime() >= latestUseful.getTime() ? latestUseful : window;
+}
+
+/**
+ * True when a company booking may no longer be auto-cancelled: it was paid,
+ * it already expired, or somebody cancelled it.
+ */
+export function isExpirableCompany(booking: {
+  status: string;
+  expiredAt?: Date | null;
+  expiresAt?: Date | null;
+}, now = new Date()): boolean {
+  if (booking.status !== 'PENDING') return false;
+  if (booking.expiredAt) return false;
+  if (!booking.expiresAt) return false;
+  return booking.expiresAt.getTime() <= now.getTime();
+}
 
 export function minutesUntil(date: Date, now = new Date()): number {
   return (date.getTime() - now.getTime()) / 60000;

@@ -92,7 +92,16 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
           data,
         })
       } else {
-        await prisma.booking.update({ where: { id }, data })
+        // Conditional, for the same reason the sweep is: a plain update would
+        // happily attach a receipt to a booking the sweep cancelled in the
+        // meantime, leaving a paid customer with a cancelled booking.
+        const res = await prisma.booking.updateMany({
+          where: { id, userId: session.user.id, status: 'PENDING' },
+          data,
+        })
+        if (res.count === 0) {
+          return NextResponse.json({ error: 'Booking is no longer pending' }, { status: 409 })
+        }
       }
       const updated = await prisma.booking.findUnique({ where: { id } })
       return NextResponse.json({ ...updated })
@@ -190,8 +199,12 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
           { status: 400 }
         )
       }
-      const updated = await prisma.booking.update({
-        where: { id },
+      const updated = await prisma.booking.updateMany({
+        // Conditional: the sweep may have cancelled this booking between the
+        // read above and this write. With the status in the where clause only
+        // one of the two can take the row, so a paid booking can never be
+        // overwritten back to CANCELLED with no refund recorded.
+        where: { id, status: 'PENDING' },
         data: {
           status: 'PAID',
           paidAt: new Date(),
@@ -200,7 +213,14 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
           ...(booking.paymentProofUrl ? { paymentStatus: 'APPROVED' } : {}),
         },
       })
-      return NextResponse.json({ ...updated, paidAt: updated.paidAt?.toISOString() || null })
+      if (updated.count === 0) {
+        return NextResponse.json(
+          { error: 'Booking is no longer pending', message: 'تم إلغاء هذا الحجز بالفعل' },
+          { status: 409 }
+        )
+      }
+      const row = await prisma.booking.findUnique({ where: { id } })
+      return NextResponse.json({ ...row, paidAt: row?.paidAt?.toISOString() || null })
     }
 
     if (status === 'CANCELLED') {
