@@ -40,6 +40,14 @@ model Company {
   isActive         Boolean  @default(true)
   logoUrl          String?
   showLogoOnTicket Boolean  @default(false)
+  // When true, a company booking is charged to the wallet/credit the moment it
+  // is created, instead of waiting for someone to press "confirm payment".
+  // Off means the booking stays PENDING and the company settles it itself.
+  autoPayEnabled   Boolean  @default(false)
+  // Ceiling on how many seats one company booking may cover. null = use
+  // DEFAULT_MAX_SEATS_PER_BOOKING. 0 is not a valid value: use autoPayEnabled
+  // and isActive to stop a company from booking.
+  maxSeatsPerBooking Int?
   users            User[]
   buses            Bus[]
   companyCustomers CompanyCustomer[]
@@ -50,6 +58,7 @@ model Company {
   creditLogs       CreditLog[]
   charterBookings  CharterBooking[]
   reservedTrips    Trip[]   @relation("CompanyReservedTrips")
+  companyTripQuotas CompanyTripQuota[]
   createdAt        DateTime @default(now())
 }
 
@@ -131,6 +140,7 @@ model Trip {
   stopsJson   String     @default("[]") // JSON: [{stationId, name, order, arrivalTime?, departureTime?, price?}]
   bookings    Booking[]
   companyBookings CompanyBooking[]
+  companyTripQuotas CompanyTripQuota[]
   charterBookings CharterBooking[]
   tripStops   TripStop[]
   seatHolds   SeatHold[]
@@ -199,6 +209,14 @@ model Booking {
   paymentNotes        String?   @default("")
   paymentStatus       String    @default("NONE") // NONE | PENDING | REJECTED (awaiting review / needs new proof)
   paymentRejectReason String?   @default("")
+  // Who paid for this booking. CUSTOMER = a customer paid by transfer, and the
+  // receipt above is the evidence. PLATFORM = the platform's own wallet
+  // covered it, so there is no receipt and no counterparty.
+  //
+  // This is the discriminator for revenue: a PLATFORM booking is money the
+  // platform spent, not money it collected, so it is excluded from customer
+  // revenue and reported as its own line.
+  fundingSource        String    @default("CUSTOMER") // CUSTOMER | PLATFORM
   // Seat-holding window: a PENDING booking is cancelled once this passes with
   // no proof attached, releasing the seat. See src/lib/payments.ts.
   paymentExpiresAt DateTime?
@@ -283,6 +301,9 @@ model CompanyBooking {
   fromStopOrder   Int      @default(1)
   toStopOrder     Int      @default(1)
   expiresAt       DateTime? @map("expires_at")
+  // Set when the sweep cancelled this booking, so an admin can tell a
+  // timed-out booking from one a person cancelled. Mirrors Booking.expiredAt.
+  expiredAt         DateTime?
   createdAt         DateTime @default(now())
   paidAt            DateTime?
   cancelledAt       DateTime?
@@ -297,6 +318,73 @@ model CompanyBooking {
 
   @@index([companyId, status])
   @@index([createdAt, status])
+}
+
+/// How many seats one company may hold on one trip.
+///
+/// Set by a super admin per trip. A company with no row here has no limit on
+/// that trip. The count is made live from the bookings themselves, not from a
+/// stored counter, so a cancelled booking gives its seats back automatically
+/// and the number can never drift away from reality.
+model CompanyTripQuota {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  maxSeats  Int?     // null = no limit on this trip
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, tripId])
+  @@index([tripId])
+}
+
+/// The platform's own cash. One row, id = 'main'.
+///
+/// Separate from every Company wallet on purpose: the two ledgers have
+/// different owners and no endpoint moves money between them. This is the
+/// operator's float, and it funds platform-covered bookings.
+///
+/// Amounts are integer piastres, not floats. Company.walletBalance is a Float
+/// and it has drifted from its ledger before; this ledger has to reconcile
+/// exactly, because reconciliation is the only thing that proves the money is
+/// real. SUM(amountPiastres) == balancePiastres needs no tolerance band.
+model PlatformWallet {
+  id               String   @id @default("main")
+  balancePiastres  Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Append-only ledger for the platform wallet.
+///
+/// balanceAfterPiastres is the balance immediately after this row was applied.
+/// Chaining it through the ledger turns "the totals differ" into "row 412 is
+/// the first one that disagrees", which is the difference between a useless
+/// alarm and an audit.
+///
+/// idempotencyKey makes a retried request harmless: a booking charge and its
+/// refund each carry a key derived from the booking, and the unique index
+/// makes a second charge for the same booking impossible even if the request
+/// is replayed with a different path through the code. It is null for manual
+/// funding and adjustments, which are not tied to a booking.
+model PlatformTransaction {
+  id                    String   @id @default(cuid())
+  type                  String   // FUNDING | BOOKING_CHARGE | REFUND | ADJUSTMENT
+  amountPiastres        Int      // positive = cash in, negative = cash out
+  balanceAfterPiastres  Int
+  description           String   @default("")
+  reference             String   @default("") // booking reference, funding reference
+  idempotencyKey        String?  @unique
+  actorId               String?
+  actorEmail            String   @default("") // snapshot: the ledger outlives the account
+  method                String   @default("") // CASH | BANK | ADJUSTMENT
+  attachmentUrl         String?
+  createdAt             DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([reference])
 }
 
 model TripRequest {
