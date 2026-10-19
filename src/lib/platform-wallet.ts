@@ -157,6 +157,18 @@ export async function chargePlatform(
   await ensurePlatformWallet(tx)
   await lockRow(tx, 'PlatformWallet', PLATFORM_WALLET_ID)
 
+  // The key is checked before the balance, so a replay is reported as the
+  // replay it is. The unique index is still what actually prevents the second
+  // charge — this only makes the error honest when the wallet happens to be
+  // empty as well.
+  if (args.idempotencyKey) {
+    const existing = await tx.platformTransaction.findUnique({
+      where: { idempotencyKey: args.idempotencyKey },
+      select: { id: true },
+    })
+    if (existing) throw new PlatformIdempotencyError(args.idempotencyKey)
+  }
+
   const before = await currentBalance(tx)
   if (before < args.amountPiastres) {
     throw new InsufficientPlatformBalanceError(fromPiastres(before), fromPiastres(args.amountPiastres))

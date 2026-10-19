@@ -180,6 +180,14 @@ export async function POST(req: NextRequest) {
         throw new Error('BOOKING_CLOSED')
       }
 
+      // A super admin books with the platform's own money, through
+      // /api/platform/bookings, so there is only one way for an admin to
+      // create a booking. This endpoint makes a customer-shaped booking that
+      // waits for a receipt, which is exactly what the admin path removes.
+      if (session.user.role === 'SUPER_ADMIN') {
+        throw new Error('SUPER_ADMIN_USE_PLATFORM_BOOKING')
+      }
+
       if (fromStationId && toStationId && trip.tripStops.length > 0) {
         const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)
         const toStop = trip.tripStops.find(s => s.stationId === toStationId)
@@ -312,6 +320,12 @@ export async function POST(req: NextRequest) {
     // {"error":"BOOKING_CLOSED"} with no message for the customer to read.
     if (err.message === 'BOOKING_CLOSED') {
       return NextResponse.json({ error: 'BOOKING_CLOSED', message: BOOKING_CLOSED_MESSAGE_AR }, { status: 409 })
+    }
+    if (err.message === 'SUPER_ADMIN_USE_PLATFORM_BOOKING') {
+      return NextResponse.json(
+        { error: 'SUPER_ADMIN_USE_PLATFORM_BOOKING', message: 'استخدم مسار حجز المنصة' },
+        { status: 409 }
+      )
     }
     if (err.message?.includes('Invalid stations') || err.message?.includes('fromStation must be before')) {
       return NextResponse.json({ error: err.message }, { status: 400 })

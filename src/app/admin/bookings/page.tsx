@@ -2,7 +2,7 @@
 
 import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Loader2, AlertTriangle } from 'lucide-react';
+import { Pencil, Loader2, AlertTriangle, Wallet, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Table, V2Pagination, V2Modal, V2Tabs, V2SearchInput } from '@/components/v2/admin';
@@ -43,6 +43,7 @@ export default function AdminBookings() {
   const [editPhone, setEditPhone] = useState('');
   const [editHotel, setEditHotel] = useState('');
   const [editing, setEditing] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const load = useCallback(async (pageNum: number, tb: Tab, q: string, ref: string) => {
     setLoading(true);
@@ -124,6 +125,40 @@ export default function AdminBookings() {
       toast.error(t('common.error'));
     } finally {
       setRequesting(false);
+    }
+  }
+
+  /**
+   * Cancels a booking the platform paid for and returns the money to the
+   * platform wallet, in full. The server does it in one transaction, so there
+   * is no state where the booking is cancelled and the money is not back.
+   */
+  async function cancelPlatformBooking(b: any) {
+    setCancellingId(b.id);
+    try {
+      const res = await fetch(`/api/bookings/${b.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'CANCELLED', reason: 'PLATFORM_CANCEL' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setBookings((prev) =>
+          prev.map((x) =>
+            x.id === b.id
+              ? { ...x, status: 'CANCELLED', refundAmount: data.refundAmount ?? x.total, cancelledAt: data.cancelledAt }
+              : x,
+          ),
+        );
+        toast.success(isRTL ? 'تم الإلغاء وإرجاع المبلغ إلى محفظة المنصة' : 'Cancelled and returned to the platform wallet');
+      } else {
+        toast.error(data.message || data.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -223,6 +258,15 @@ export default function AdminBookings() {
               <span key="c">
                 <span className="block font-bold">{b.passengerName}</span>
                 <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>
+                {/* A platform-funded booking is money the platform spent, not a
+                    customer's payment, so it is marked rather than left to be
+                    read as ordinary revenue. */}
+                {b.fundingSource === 'PLATFORM' && (
+                  <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#1D5BD8] border border-blue-200">
+                    <Wallet size={11} />
+                    {isRTL ? 'محفظة المنصة' : 'Platform wallet'}
+                  </span>
+                )}
               </span>,
               <span key="rt" className="text-[13.5px]">
                 <span className="block font-semibold">
@@ -244,6 +288,22 @@ export default function AdminBookings() {
                 {bookingStatusLabel(t, b.status)}
               </V2StatusBadge>,
               <span key="a" className="flex justify-end gap-1">
+                {/* A platform-funded booking is paid from the platform's own
+                    money, so it has no receipt and no confirm button — it was
+                    already paid when it was created. It can be cancelled, and
+                    cancelling it returns the money to the platform wallet in
+                    full. */}
+                {b.fundingSource === 'PLATFORM' && b.status === 'PAID' && (
+                  <button
+                    onClick={() => cancelPlatformBooking(b)}
+                    aria-label={isRTL ? 'إلغاء حجز المنصة' : 'Cancel platform booking'}
+                    title={isRTL ? 'إلغاء حجز المنصة وإرجاع المبلغ للخزنة' : 'Cancel and return the money to the platform wallet'}
+                    className="grid size-10 place-items-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-60"
+                    disabled={cancellingId === b.id}
+                  >
+                    {cancellingId === b.id ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}
+                  </button>
+                )}
                 {/* A pending booking still awaiting a screenshot gets an explicit
                     marker, so "no proof uploaded" is never mistaken for "proof
                     uploaded but not rendered". */}
@@ -296,6 +356,12 @@ export default function AdminBookings() {
               </div>
               <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>
+              {b.fundingSource === 'PLATFORM' && (
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#1D5BD8] border border-blue-200">
+                  <Wallet size={11} />
+                  {isRTL ? 'محفظة المنصة' : 'Platform wallet'}
+                </span>
+              )}
               {tab === 'company' && (
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
                   <span className="font-bold text-[var(--sp-text-muted)]">

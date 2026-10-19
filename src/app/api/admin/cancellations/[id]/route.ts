@@ -68,6 +68,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const booking = await prisma.booking.findUnique({ where: { id } })
     if (!booking) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (booking.status !== 'CANCELLED') return NextResponse.json({ error: 'Not cancelled' }, { status: 400 })
+    // A platform-funded booking was refunded to the platform wallet when it was
+    // cancelled, in the same transaction. This branch moves no money at all —
+    // it only stamps the row as processed — so letting it through would mark
+    // the refund as handled a second time, with no money behind it.
+    if (booking.fundingSource === 'PLATFORM') {
+      return NextResponse.json(
+        { error: 'Platform refunds are settled automatically' },
+        { status: 400 }
+      )
+    }
     if (booking.refundProcessedAt) return NextResponse.json({ error: 'Already processed' }, { status: 400 })
 
     const updated = await prisma.booking.update({

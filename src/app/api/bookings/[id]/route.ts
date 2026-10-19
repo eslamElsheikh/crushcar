@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { calculateRefund } from '@/lib/cancellation-policy'
+import { refundPlatform, refundKey, toPiastres } from '@/lib/platform-wallet'
 import { paymentDeadline } from '@/lib/payments'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -235,6 +236,73 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
       const isAdmin = session.user.role === 'COMPANY_ADMIN' || session.user.role === 'SUPER_ADMIN'
       const departureTime = new Date(booking.trip.departure)
       const bookingTime = booking.createdAt
+
+      // A platform-funded booking is paid from the platform's own money, so
+      // cancelling it puts that money back in full. There is no cancellation
+      // policy to apply: the policy exists to protect the operator from a
+      // customer who cancels late, and here the operator is cancelling itself
+      // with no counterparty.
+      if (booking.fundingSource === 'PLATFORM') {
+        try {
+          const movement = await prisma.$transaction(async (tx) => {
+            // Conditional on the booking still being PAID, so a second cancel
+            // attempt cannot take the money twice. If the refund below throws,
+            // the whole transaction rolls back and the booking is still paid.
+            const cancelled = await tx.booking.updateMany({
+              where: { id, status: 'PAID', fundingSource: 'PLATFORM' },
+              data: {
+                status: 'CANCELLED',
+                cancelledAt: new Date(),
+                cancelledBy: session.user.id,
+                cancellationReason: reason || '',
+                refundAmount: booking.total,
+                cancellationFee: 0,
+                // The money moves in this same transaction, so this row must
+                // not sit in the admin refund queue waiting to be paid out a
+                // second time.
+                refundProcessedAt: new Date(),
+                refundProcessedBy: session.user.id,
+              },
+            })
+            if (cancelled.count === 0) throw new Error('BOOKING_NOT_PAID')
+
+            await refundPlatform(tx, {
+              amountPiastres: toPiastres(booking.total),
+              reference: booking.reference,
+              description: `Refund for cancelled platform booking ${booking.reference}`,
+              idempotencyKey: refundKey(id),
+              actorId: session.user.id,
+              actorEmail: session.user.email ?? '',
+            })
+            return true
+          })
+          void movement
+          const row = await prisma.booking.findUnique({ where: { id } })
+          return NextResponse.json({
+            ...row,
+            paidAt: row?.paidAt?.toISOString() || null,
+            cancelledAt: row?.cancelledAt?.toISOString() || null,
+            refundAmount: booking.total,
+            cancellationFee: 0,
+            refundPercent: 100,
+            refundedTo: 'PLATFORM_WALLET',
+          })
+        } catch (err: any) {
+          if (err?.message === 'BOOKING_NOT_PAID') {
+            return NextResponse.json(
+              { error: 'Booking is no longer paid', message: 'هذا الحجز ليس مدفوعاً' },
+              { status: 409 }
+            )
+          }
+          if (err?.code === 'DUPLICATE_PLATFORM_TRANSACTION') {
+            return NextResponse.json(
+              { error: 'ALREADY_REFUNDED', message: 'تم استرداد هذا الحجز بالفعل' },
+              { status: 409 }
+            )
+          }
+          throw err
+        }
+      }
 
       const { refundAmount, cancellationFee, refundPercent, canCancel } = calculateRefund(
         booking.total,

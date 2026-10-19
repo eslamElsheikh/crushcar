@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Clock, MapPin, Loader2, Check, Bus, Sparkles, X,
-  User, Repeat, Map, Navigation, Ticket, Phone, Printer, Building2, FileText, Banknote, ShieldCheck, CreditCard
+  User, Repeat, Map, Navigation, Ticket, Phone, Printer, Building2, FileText, Banknote, ShieldCheck, CreditCard, Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatDate, formatTime } from '@/lib/utils';
@@ -97,6 +97,11 @@ function TripDetailPageContent() {
   const [showReturnSeats, setShowReturnSeats] = useState(false);
   const [confirmedBookings, setConfirmedBookings] = useState<any[]>([]);
   const [lastToast, setLastToast] = useState<string>('');
+  // One key per checkout attempt. A retried request carries the same key, so
+  // the platform wallet cannot be charged twice for the same seats.
+  const [checkoutPlatformKey] = useState(() => crypto.randomUUID());
+  // What the platform wallet holds, shown to the super admin before booking.
+  const [platformBalance, setPlatformBalance] = useState<number | null>(null);
 
   // Stop selection
   const [fromStationId, setFromStationId] = useState<string | null>(urlFromStationId);
@@ -130,6 +135,18 @@ function TripDetailPageContent() {
     loadTrip();
     if (returnTripId) loadReturnTrip();
   }, [loadTrip, loadReturnTrip, returnTripId]);
+
+  // The platform wallet balance, for the super admin booking with it. The
+  // customer and the company admin have no use for it.
+  useEffect(() => {
+    if (session?.user?.role !== 'SUPER_ADMIN') return;
+    fetch('/api/admin/platform-wallet', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.balance === 'number') setPlatformBalance(d.balance);
+      })
+      .catch(() => {});
+  }, [session?.user?.role]);
 
   // Realtime polling
   useEffect(() => {
@@ -479,6 +496,88 @@ function TripDetailPageContent() {
           setPassenger({ name: session.user?.name || '', phone: '', hotel: '', notes: '', collectAmount: '' });
           toast.success(isRTL ? 'تم الحجز بنجاح، تأكد من الدفع في صفحة الحجوزات' : 'Booked successfully, confirm payment in bookings page');
         }
+      }
+      // SUPER_ADMIN: the platform pays for the seat from its own wallet, so
+      // there is no receipt to ask for and no company to charge.
+      if (session.user.role === 'SUPER_ADMIN') {
+        const platformPassengers = seats.map(s => ({
+          seatLabel: s.seatLabel,
+          passengerName: s.passengerName,
+          passengerPhone: s.passengerPhone,
+          passengerHotel: s.passengerHotel,
+          passengerNotes: s.passengerNotes,
+          fromStationId: s.fromStationId,
+          toStationId: s.toStationId,
+        }));
+        const platformReturnPassengers = returnSeats ? returnSeats.map(s => ({
+          seatLabel: s.seatLabel,
+          passengerName: s.passengerName,
+          passengerPhone: s.passengerPhone,
+          passengerHotel: s.passengerHotel,
+          passengerNotes: s.passengerNotes,
+          fromStationId: s.fromStationId,
+          toStationId: s.toStationId,
+        })) : undefined;
+
+        const platformGroups: { tripId: string; passengers: typeof platformPassengers }[] = [];
+        if (platformPassengers.length > 0 && tripId) {
+          platformGroups.push({ tripId, passengers: platformPassengers });
+        }
+        if (platformReturnPassengers && platformReturnPassengers.length > 0 && returnTripId) {
+          platformGroups.push({ tripId: returnTripId, passengers: platformReturnPassengers });
+        }
+
+        const platformRoundTripGroupId = platformGroups.length > 1 ? crypto.randomUUID() : undefined;
+
+        let allOk = true;
+        for (const group of platformGroups) {
+          const isGroupReturn = group.tripId === returnTripId;
+          const groupFromId = isGroupReturn ? returnFromId : outboundFromId;
+          const groupToId = isGroupReturn ? returnToId : outboundToId;
+          // One key per leg, so a retried request cannot charge twice.
+          const idempotencyKey = `${checkoutPlatformKey}:${group.tripId}`;
+          const res = await fetch('/api/platform/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tripId: group.tripId,
+              passengers: group.passengers.map(p => ({
+                seatLabel: p.seatLabel,
+                passengerName: p.passengerName,
+                passengerPhone: p.passengerPhone,
+                passengerHotel: p.passengerHotel,
+                passengerNotes: p.passengerNotes,
+              })),
+              fromStationId: groupFromId || null,
+              toStationId: groupToId || null,
+              roundTripGroupId: platformRoundTripGroupId,
+              idempotencyKey,
+            }),
+            credentials: 'include',
+          });
+          const data = await res.json();
+          if (res.ok && data.bookings) {
+            confirmed.push(...data.bookings);
+            setPlatformBalance(data.balance);
+          } else {
+            allOk = false;
+            if (res.status === 401) {
+              toast.error(isRTL ? 'انتهت جلستك، يرجى تسجيل الدخول' : 'Session expired, please sign in');
+              router.push('/login');
+              break;
+            }
+            toast.error(data.message || data.error || t('common.error'));
+            break;
+          }
+        }
+
+        if (allOk && confirmed.length > 0) {
+          setConfirmedBookings(confirmed);
+          setSelectedSeats([]);
+          setReturnSelectedSeats([]);
+          setPassenger({ name: session.user?.name || '', phone: '', hotel: '', notes: '', collectAmount: '' });
+          toast.success(isRTL ? 'تم الحجز من محفظة المنصة' : 'Booked from the platform wallet');
+        }
       } else {
         // CUSTOMER: use regular booking endpoint (one per seat)
         const hasRoundTrip = !!(returnTripId && returnSeats);
@@ -667,6 +766,7 @@ function TripDetailPageContent() {
                   router.push(`/bookings/${id}/pay`);
                 }}
                 sessionRole={session?.user?.role || ''}
+                platformBalance={platformBalance}
               />
             </motion.div>
           </motion.div>
@@ -1090,20 +1190,26 @@ function TripDetailPageContent() {
                           className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
                         />
                       </div>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--sp-text-muted)] pointer-events-none">
-                          {t('common.currency')}
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={passenger.collectAmount}
-                          onChange={(e) => setPassenger((p) => ({ ...p, collectAmount: e.target.value }))}
-                          placeholder={t('booking.collectPlaceholder') || (isRTL ? 'مبلغ التحصيل (اختياري)' : 'Collect amount (optional)')}
-                          className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
-                        />
-                      </div>
+                      {/* The collected amount is what the company takes from its
+                          client. A platform booking has no client, so the
+                          field is not shown at all rather than shown and
+                          thrown away. */}
+                      {session?.user?.role !== 'SUPER_ADMIN' && (
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--sp-text-muted)] pointer-events-none">
+                            {t('common.currency')}
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={passenger.collectAmount}
+                            onChange={(e) => setPassenger((p) => ({ ...p, collectAmount: e.target.value }))}
+                            placeholder={t('booking.collectPlaceholder') || (isRTL ? 'مبلغ التحصيل (اختياري)' : 'Collect amount (optional)')}
+                            className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm placeholder:text-[#9AA8BD] focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
+                          />
+                        </div>
+                      )}
                       <textarea
                         value={passenger.notes}
                         onChange={(e) => setPassenger((p) => ({ ...p, notes: e.target.value }))}
@@ -1400,7 +1506,7 @@ function SeatButton({ seat, isSelected, isReserved, onToggle, tripPrice, t }: an
 }
 
 // Confirmation modal card in modern V2 design
-function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, formatTime, onClose, onBookAnother, onViewBookings, onPayNow, sessionRole }: any) {
+function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, formatTime, onClose, onBookAnother, onViewBookings, onPayNow, sessionRole, platformBalance }: any) {
   const isMulti = confirmedBookings.length > 1;
   const first = confirmedBookings[0];
   const busName = first?.trip?.bus?.name || trip?.bus?.name || '-';
@@ -1520,12 +1626,33 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
         </div>
 
         {/* Payment notice */}
-        <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-3 text-xs font-medium text-amber-800 flex items-center gap-2">
-          <Clock size={14} className="text-amber-600 shrink-0" />
-          <span>{sessionRole === 'COMPANY_ADMIN'
-            ? (isRTL ? 'سيتم تأكيد الحجز بعد استلام الأدمن للدفع' : 'Booking will be confirmed after admin receives payment')
-            : (isRTL ? 'المقعد محجوز لك مؤقتاً — أكمل الدفع الآن وإلا بيتحرر تلقائياً' : 'Your seat is held temporarily — complete payment now or it is released automatically')}</span>
-        </div>
+        {sessionRole !== 'SUPER_ADMIN' && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-3 text-xs font-medium text-amber-800 flex items-center gap-2">
+            <Clock size={14} className="text-amber-600 shrink-0" />
+            <span>{sessionRole === 'COMPANY_ADMIN'
+              ? (isRTL ? 'سيتم تأكيد الحجز بعد استلام الأدمن للدفع' : 'Booking will be confirmed after admin receives payment')
+              : (isRTL ? 'المقعد محجوز لك مؤقتاً — أكمل الدفع الآن وإلا بيتحرر تلقائياً' : 'Your seat is held temporarily — complete payment now or it is released automatically')}</span>
+          </div>
+        )}
+
+        {/* Where the money comes from, for the super admin. There is no choice
+            to make: the platform pays from its own wallet, and the balance is
+            shown so a booking that cannot be covered is refused before it is
+            attempted. */}
+        {sessionRole === 'SUPER_ADMIN' && (
+          <div className="rounded-xl bg-blue-50 border border-blue-200/80 p-3 text-xs font-medium text-blue-900 flex items-center gap-2">
+            <Wallet size={14} className="text-[#1D5BD8] shrink-0" />
+            <span>
+              {isRTL ? 'الحجز على محفظة المنصة' : 'Booked from the platform wallet'}
+              {platformBalance !== null && (
+                <span className="font-extrabold">
+                  {' — '}
+                  {platformBalance.toLocaleString()} {t('common.currency')}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Sticky so the actions stay reachable when the details list is long: the
@@ -1534,8 +1661,9 @@ function ConfirmationCard({ t, isRTL, confirmedBookings, trip, formatDate, forma
       <div className="sticky bottom-0 z-10 grid grid-cols-2 gap-2.5 border-t border-[var(--sp-line)] bg-[var(--sp-card)]/95 p-4 backdrop-blur-sm sm:grid-cols-4">
         {/* Pay now leads: the seat hold is time-boxed, so payment is the
             action the customer is expected to take next. Company bookings
-            settle against the wallet on the spot, so they have no pay page. */}
-        {sessionRole !== 'COMPANY_ADMIN' && (
+            settle against the wallet on the spot, and a platform booking is
+            already paid, so neither has a pay page. */}
+        {sessionRole === 'CUSTOMER' && (
           <button
             onClick={onPayNow}
             className="rounded-xl bg-emerald-600 px-3 py-3 text-center text-[13.5px] font-bold text-white shadow-md transition hover:bg-emerald-700"
