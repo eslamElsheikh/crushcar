@@ -24,6 +24,9 @@ model User {
   emailVerified DateTime? @map("email_verified")
   createdAt     DateTime  @default(now())
   bookings      Booking[]
+  /// Company bookings this user created. Populated when a super admin books on
+  /// a company's behalf; empty for bookings a company made itself.
+  companyBookingsCreated CompanyBooking[] @relation("CompanyBookingCreator")
 }
 
 model Company {
@@ -44,10 +47,14 @@ model Company {
   // is created, instead of waiting for someone to press "confirm payment".
   // Off means the booking stays PENDING and the company settles it itself.
   autoPayEnabled   Boolean  @default(false)
-  // Ceiling on how many seats one company booking may cover. null = use
-  // DEFAULT_MAX_SEATS_PER_BOOKING. 0 is not a valid value: use autoPayEnabled
-  // and isActive to stop a company from booking.
-  maxSeatsPerBooking Int?
+    // Ceiling on how many seats one company booking may cover. null = use
+    // DEFAULT_MAX_SEATS_PER_BOOKING. 0 is not a valid value: use autoPayEnabled
+    // and isActive to stop a company from booking.
+    //
+    // The business rule is a hard maximum of MAX_SEATS_PER_BOOKING (10). This
+    // column may lower it for a company; it can never raise it, and the
+    // server clamps it.
+    maxSeatsPerBooking Int?
   users            User[]
   buses            Bus[]
   companyCustomers CompanyCustomer[]
@@ -57,8 +64,9 @@ model Company {
   depositRequests  DepositRequest[]
   creditLogs       CreditLog[]
   charterBookings  CharterBooking[]
-  reservedTrips    Trip[]   @relation("CompanyReservedTrips")
-  companyTripQuotas CompanyTripQuota[]
+    reservedTrips    Trip[]   @relation("CompanyReservedTrips")
+    companyTripQuotas CompanyTripQuota[]
+    companyRouteQuotas CompanyRouteQuota[]
   createdAt        DateTime @default(now())
 }
 
@@ -138,6 +146,20 @@ model Trip {
   reservedByCompany   Company?   @relation("CompanyReservedTrips", fields: [reservedByCompanyId], references: [id])
   status      String     @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
   stopsJson   String     @default("[]") // JSON: [{stationId, name, order, arrivalTime?, departureTime?, price?}]
+  /// The ordered station-id sequence of this trip, derived from its TripStop
+  /// rows: "stationA|stationB|stationC".
+  ///
+  /// This is the route identity. Several buses serving the same route on the
+  /// same day share one value, which is what a daily company quota is counted
+  /// against. It is order-sensitive, so the reverse direction of a route is a
+  /// different route.
+  ///
+  /// Null until derived, and null forever for a trip with no stops — such trips
+  /// exist and are searchable, they just have no route identity.
+  routeKey    String?
+  /// The travel date as a Cairo calendar day, "yyyy-mm-dd", from departure.
+  /// Null until derived.
+  travelDate  String?
   bookings    Booking[]
   companyBookings CompanyBooking[]
   companyTripQuotas CompanyTripQuota[]
@@ -148,6 +170,7 @@ model Trip {
   createdAt   DateTime   @default(now())
 
   @@index([status, departure])
+  @@index([routeKey, travelDate])
 }
 
 model TripStop {
@@ -298,6 +321,12 @@ model CompanyBooking {
   total           Float
   paidFromWallet  Float    @default(0)
   paidOnCredit    Float    @default(0)
+  /// The authenticated user who created this booking. Set when a super admin
+  /// books on the company's behalf; null for a booking the company made
+  /// itself. This is the audit trail that separates the owner of the booking
+  /// (companyId) from the person who made it.
+  createdByUserId String?
+  createdBy       User?    @relation("CompanyBookingCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   fromStopOrder   Int      @default(1)
   toStopOrder     Int      @default(1)
   expiresAt       DateTime? @map("expires_at")
@@ -318,6 +347,7 @@ model CompanyBooking {
 
   @@index([companyId, status])
   @@index([createdAt, status])
+  @@index([createdByUserId])
 }
 
 /// How many seats one company may hold on one trip.
@@ -338,6 +368,31 @@ model CompanyTripQuota {
 
   @@unique([companyId, tripId])
   @@index([tripId])
+}
+
+/// How many seats a company may hold on one route on one travel date.
+///
+/// The bucket is shared by every bus serving that route on that date: three
+/// buses on Mansoura -> Sharm on the 20th all draw from one allowance, so a
+/// company cannot take its full quota three times over by taking a bus each.
+///
+/// This is the daily allowance. CompanyTripQuota is the separate, stricter
+/// cap on one single bus, and both apply when both are set — the effective
+/// limit is the smaller of the two.
+model CompanyRouteQuota {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The trip's routeKey — the ordered station-id sequence.
+  routeKey  String
+  /// The travel date as a Cairo calendar day, "yyyy-mm-dd".
+  travelDate String
+  maxSeats  Int?     // null = no limit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, routeKey, travelDate])
+  @@index([routeKey, travelDate])
 }
 
 /// The platform's own cash. One row, id = 'main'.
@@ -427,6 +482,10 @@ model WalletTransaction {
   amount      Float    // positive = add, negative = deduct
   description String   @default("")
   reference   String?  @default("") // bookingId
+  /// Makes a retried request harmless: the same charge cannot be recorded
+  /// twice. Null for rows that are not tied to one specific request, and for
+  /// every row written before this column existed.
+  idempotencyKey String? @unique
   createdAt   DateTime @default(now())
 }
 

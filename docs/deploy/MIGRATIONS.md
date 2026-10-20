@@ -58,6 +58,50 @@ npm run check:parity:gen
 | Migration | Effect | Must land before |
 |---|---|---|
 | `20261015000000_add_reference_counter` | Creates `ReferenceCounter`, the per-year sequence behind `ST-…` ticket numbers | Any release containing `src/lib/booking-reference.ts` |
+| `20261016000000_platform_wallet_and_quotas` | Creates `PlatformWallet` and `PlatformTransaction`, adds `CompanyTripQuota`, `Booking.fundingSource`, `Company.autoPayEnabled`, `Company.maxSeatsPerBooking`, `CompanyBooking.expiredAt` | Any release containing `src/lib/platform-wallet.ts` or `/api/platform/bookings` |
+| `20261021000000_route_quota_and_booking_creator` | Adds `Trip.routeKey`, `Trip.travelDate`, `CompanyRouteQuota`, `WalletTransaction.idempotencyKey`, `CompanyBooking.createdByUserId` | Any release containing `src/lib/company-quota.ts` or `/api/admin/company-bookings` |
 
 `ReferenceCounter` is read with raw SQL by `nextBookingSerial`. Until the table
 exists, **every booking fails** — this is not a change that rolls out gradually.
+
+The same is true of `20261021000000`: `CompanyRouteQuota` is read inside the
+transaction that creates a booking, so a missing table fails the whole request
+— every company-funded admin booking returns a 500.
+
+## Backfilling `Trip.routeKey` and `Trip.travelDate`
+
+The migration adds the columns as NULL. Existing trips keep NULL until the
+backfill runs, and a trip with a NULL `routeKey` is not counted against any
+route quota. That is the safe direction — a trip that is not counted cannot
+block a booking — but the quota is not enforced for that trip until it is
+filled in.
+
+```bash
+DATABASE_URL="mysql://…" npx tsx scripts/backfill-route-keys.ts
+```
+
+The script derives the route key from the trip's `TripStop` rows and reports
+the trips it could not derive, with the reason. A trip with no stops has no
+route identity and stays NULL by design.
+
+## Verifying a migration before it reaches production
+
+The pattern that proved the last two migrations: apply the new SQL to a copy
+of the current schema, then diff the result against the schema the Prisma
+client expects. The two must match exactly.
+
+```bash
+mysqldump --no-data --skip-add-drop-table safro_travel_db > before.sql
+mysql -e "CREATE DATABASE migtest CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql migtest < before.sql
+# revert the new objects, so migtest is at the pre-migration state
+mysql migtest < prisma/migrations/<name>/migration.sql
+mysqldump --no-data --skip-add-drop-table migtest > after.sql
+diff before.sql after.sql
+```
+
+An empty diff means the migration produces exactly the intended schema. The
+same files, applied in reverse, must return the database to the pre-migration
+state — that is what `rollback.sql` is for, and it is worth testing the same
+way.
+

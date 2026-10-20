@@ -41,6 +41,16 @@ ALTER TABLE `CompanyBooking`
 -- ── Per-company seat quota on a trip ───────────────────────────────────
 -- No row means the company has no limit on that trip. The count is made live
 -- from the bookings, so there is no counter column to drift.
+--
+-- The two foreign keys cascade: a quota belongs to its company and to its
+-- trip, so deleting either takes the quota with it rather than leaving an
+-- orphan row behind. This matches prisma/schema.mysql.prisma exactly, which
+-- is what `prisma db push` produces — a schema that disagrees with the
+-- migration is a schema that drifts the first time anything rebuilds it.
+--
+-- There is no separate index on companyId: the foreign key creates the
+-- supporting index itself, and naming it after the constraint is what
+-- `db push` produces.
 CREATE TABLE `CompanyTripQuota` (
   `id` VARCHAR(191) NOT NULL,
   `companyId` VARCHAR(191) NOT NULL,
@@ -48,10 +58,15 @@ CREATE TABLE `CompanyTripQuota` (
   `maxSeats` INTEGER NULL,
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL,
-  INDEX `CompanyTripQuota_companyId_idx`(`companyId`),
   INDEX `CompanyTripQuota_tripId_idx`(`tripId`),
   UNIQUE INDEX `CompanyTripQuota_companyId_tripId_key`(`companyId`, `tripId`),
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  CONSTRAINT `CompanyTripQuota_companyId_fkey`
+    FOREIGN KEY (`companyId`) REFERENCES `Company` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `CompanyTripQuota_tripId_fkey`
+    FOREIGN KEY (`tripId`) REFERENCES `Trip` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── The platform's own cash ─────────────────────────────────────────────
