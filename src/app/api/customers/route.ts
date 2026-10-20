@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { REVENUE_STATUS_FILTER } from '@/lib/analytics'
+import { REVENUE_STATUS_FILTER, CUSTOMER_FUNDED } from '@/lib/analytics'
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
       prisma.user.count({ where }),
       prisma.booking.groupBy({
         by: ['userId'],
-        where: { status: REVENUE_STATUS_FILTER },
+        // Only what a customer actually paid. A platform-funded booking carries
+        // the super admin as its user, and counting it here would put the
+        // admin's own spending into the customer revenue totals.
+        where: { ...CUSTOMER_FUNDED, status: REVENUE_STATUS_FILTER },
         _sum: { total: true },
         _count: true,
       }),

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import {
   BUSINESS_TZ,
+  CUSTOMER_FUNDED,
   REVENUE_STATUS_FILTER,
   businessMonth,
   getRevenueBreakdown,
@@ -27,7 +28,9 @@ export async function GET(req: NextRequest) {
     const [revenueByRoute, companyRevenueByRoute, totals, activeTrips, recentTrips] = await Promise.all([
       prisma.booking.groupBy({
         by: ['tripId'],
-        where: { ...customerScope, status: REVENUE_STATUS_FILTER },
+        // Platform-funded seats are not revenue and not a customer's payment,
+        // so they are left out of the revenue a route is reported to have made.
+        where: { ...customerScope, ...CUSTOMER_FUNDED, status: REVENUE_STATUS_FILTER },
         _sum: { total: true },
       }),
       prisma.companyBooking.groupBy({
@@ -81,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     const monthlyRows = await Promise.all([
       prisma.booking.findMany({
-        where: { ...customerScope, status: REVENUE_STATUS_FILTER },
+        where: { ...customerScope, ...CUSTOMER_FUNDED, status: REVENUE_STATUS_FILTER },
         select: { createdAt: true, total: true },
       }),
       prisma.companyBooking.findMany({
@@ -103,7 +106,10 @@ export async function GET(req: NextRequest) {
       await Promise.all([
         prisma.booking.groupBy({
           by: ['userId'],
-          where: { ...customerScope, status: REVENUE_STATUS_FILTER },
+          // A platform-funded booking has the super admin as its user, and
+          // without this filter the admin would be reported as a top customer
+          // for money the platform spent on itself.
+          where: { ...customerScope, ...CUSTOMER_FUNDED, status: REVENUE_STATUS_FILTER },
           _sum: { total: true },
           orderBy: { _sum: { total: 'desc' } },
           take: 10,

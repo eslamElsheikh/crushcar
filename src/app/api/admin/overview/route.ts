@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
       charterRevenue,
       activeTrips,
       revenue,
+      platformWallet,
+      platformFunded,
+      platformSpent,
     ] = await Promise.all([
       prisma.company.aggregate({
         where: { isActive: true },
@@ -52,6 +55,15 @@ export async function GET(req: NextRequest) {
       }),
       prisma.trip.count({ where: activeTripWhere(null, now) }),
       getRevenueBreakdown(prisma, { since }),
+      prisma.platformWallet.findUnique({ where: { id: 'main' } }),
+      prisma.platformTransaction.aggregate({
+        where: { type: 'FUNDING' },
+        _sum: { amountPiastres: true },
+      }),
+      prisma.platformTransaction.aggregate({
+        where: { type: { in: ['BOOKING_CHARGE', 'REFUND'] } },
+        _sum: { amountPiastres: true },
+      }),
     ])
 
     const totalLimit = round2(creditAgg._sum.creditLimit ?? 0)
@@ -78,6 +90,15 @@ export async function GET(req: NextRequest) {
         confirmed: charterConfirmed,
         cancelled: charterCancelled,
         revenue: round2(charterRevenue._sum.price ?? 0),
+      },
+      // The platform's own cash, kept apart from the company credit totals.
+      // These are not the same money: the credit block is what the platform
+      // owes companies, this is what it holds.
+      platform: {
+        balance: round2((platformWallet?.balancePiastres ?? 0) / 100),
+        funded: round2((platformFunded._sum.amountPiastres ?? 0) / 100),
+        spent: round2(Math.abs((platformSpent._sum.amountPiastres ?? 0)) / 100),
+        unsettledEntitlements: round2(revenue.platformUnsettledEntitlements),
       },
     })
   } catch (err) {

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
+    "dev:verify": "node scripts/dev-verify.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -18,6 +19,7 @@
     "check:ref": "tsx scripts/verify-booking-reference.ts",
     "check:collect": "tsx scripts/verify-collect-split.ts",
     "check:limits": "tsx scripts/verify-booking-limits.ts",
+    "check:revenue": "tsx scripts/verify-revenue-classification.ts",
     "check:races": "tsx scripts/verify-booking-races.ts",
     "check:wallet": "tsx scripts/verify-platform-wallet.ts",
     "check:platform": "tsx scripts/verify-platform-booking.ts",

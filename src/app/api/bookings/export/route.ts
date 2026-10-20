@@ -82,7 +82,12 @@ export async function GET(req: NextRequest) {
         String(b.total),
         '',
         b.passengerHotel || '',
-        isRTL ? 'عميل' : 'Customer',
+        // A platform-funded seat is not a customer booking, and saying
+        // "Customer" for it would put the platform's own spending in a
+        // customer report.
+        b.fundingSource === 'PLATFORM'
+          ? (isRTL ? 'محفظة المنصة' : 'Platform wallet')
+          : (isRTL ? 'عميل' : 'Customer'),
         b.user?.name || '',
       ]);
     }
