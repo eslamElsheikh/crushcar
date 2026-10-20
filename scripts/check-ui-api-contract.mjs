@@ -15,7 +15,9 @@ function getSourceFiles(dir) {
   for (const entry of list) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name !== 'node_modules' && entry.name !== '.next' && entry.name !== '.git') {
+      // .next-dev is the dev server's own output directory (see
+      // scripts/dev-verify.mjs); neither is source.
+      if (entry.name !== 'node_modules' && entry.name !== '.next' && entry.name !== '.next-dev' && entry.name !== '.git') {
         results.push(...getSourceFiles(fullPath));
       }
     } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {

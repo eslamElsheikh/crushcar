@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { autoExpireUnpaidBookings } from '@/lib/booking-expiry'
 import { isBookableByCustomer, isBookableByAnyRole } from '@/lib/booking-rules'
+import { routeKeyOfStops, travelDateOf } from '@/lib/route-key'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -68,7 +69,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    return NextResponse.json({ ...trip, stops: trip.tripStops })
+    // How much of this trip the calling company's allowance still covers.
+    // Only the company that owns the allowance is told about it, so one
+    // company cannot see another's.
+    let companyQuota: { maxSeats: number | null; used: number; remaining: number | null } | null = null
+    const companyId = session.user.companyId
+    if (companyId && session.user.role !== 'SUPER_ADMIN') {
+      const quota = await prisma.companyTripQuota.findUnique({
+        where: { companyId_tripId: { companyId, tripId: id } },
+      })
+      const limit = quota?.maxSeats ?? null
+      const used = await prisma.companyBooking.count({
+        where: { companyId, tripId: id, status: { in: ['PENDING', 'PAID', 'BOARDED'] } },
+      })
+      companyQuota = {
+        maxSeats: limit,
+        used,
+        remaining: limit === null ? null : Math.max(0, limit - used),
+      }
+    }
+
+    return NextResponse.json({ ...trip, stops: trip.tripStops, companyQuota })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
@@ -145,6 +166,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (updateData.departure) updateData.departure = new Date(updateData.departure)
       if (updateData.arrival) updateData.arrival = new Date(updateData.arrival)
       if (updateData.stopsJson && Array.isArray(updateData.stopsJson)) updateData.stopsJson = JSON.stringify(updateData.stopsJson)
+
+      // The route identity and the travel date are re-derived from the stop
+      // list that was just written. The stops are replaced wholesale on every
+      // edit, so a key derived before the edit would be stale, and origin and
+      // destination are a display snapshot that the edit page does not even
+      // send.
+      updateData.routeKey = routeKeyOfStops(stops as any)
+      updateData.travelDate = travelDateOf(updateData.departure ?? existing.departure)
 
       return tx.trip.update({
         where: { id },

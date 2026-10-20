@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { searchTripsByDate, SearchInputError } from '@/lib/trip-search'
+import { routeKeyOfStops, travelDateOf } from '@/lib/route-key'
 import { auth } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
@@ -224,6 +225,11 @@ export async function POST(req: NextRequest) {
         price: price || (stops?.[stops?.length - 1]?.priceFromOrigin || 0),
         bookingMode: mode,
         busPrice: charterPrice,
+        // The route identity, derived from the stops that are about to be
+        // written — never from the origin/destination text, which is a
+        // display snapshot and can disagree with the stop list.
+        routeKey: routeKeyOfStops(stops as any),
+        travelDate: travelDateOf(departure),
         tripStops: stops?.length ? {
           create: stops.map((s: any) => ({
             stationId: s.stationId,

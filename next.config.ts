@@ -6,6 +6,16 @@ const nextConfig: NextConfig = {
   // Production runs from .next/standalone/server.js via cPanel Passenger
   // (see docs/deploy/CUTOVER.md). The full-tree note in old docs is superseded.
   output: 'standalone',
+  // Where the build output goes.
+  //
+  // A production build and a dev server cannot share one directory: the build
+  // overwrites the dev server's compiled output, and the dev server then
+  // serves a half-written tree. The symptom is a page of HTML where an API
+  // response should be — the route is not found because the build removed it.
+  //
+  // So the dev server runs in its own directory. The default is unchanged, and
+  // the deploy script still finds the build in .next/standalone.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // This worktree lives under D:\saas\desing\d 2 (which has its own lockfile);
   // pin tracing here or standalone output lands in the wrong tree.
   outputFileTracingRoot: path.join(__dirname),

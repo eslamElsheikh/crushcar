@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Armchair, Bus, Route, Ticket, MapPin, HelpCircle,
   Calendar, Wallet, ScanEye, BarChart3, Users, Clock, CreditCard,
   XCircle, ShieldPlus, LogOut, Menu, X, Image as ImageIcon,
-  History, Settings,
+  History, Settings, Landmark,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,7 @@ const navItems = [
   { href: '/admin/deposit-requests', icon: Wallet, labelKey: 'admin.depositRequests' },
   { href: '/admin/cancellations', icon: XCircle, labelKey: 'admin.cancellations' },
   { href: '/admin/credit-report', icon: CreditCard, labelKey: 'company.creditReport' },
+  { href: '/admin/platform-wallet', icon: Landmark, labelKey: 'admin.platformWallet' },
   { href: '/admin/reports', icon: BarChart3, labelKey: 'nav.reports' },
   { href: '/admin/audit-log', icon: History, labelKey: 'admin.auditLog' },
   { href: '/admin/settings', icon: Settings, labelKey: 'admin.settings' },

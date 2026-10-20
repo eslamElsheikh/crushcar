@@ -1,0 +1,370 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
+import { logger } from '@/lib/logger'
+import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
+import { lockRow } from '@/lib/row-lock'
+import { resolveBookingLimits } from '@/lib/company-quota'
+import { chargeCompanyWalletOnly, splitCharge } from '@/lib/company-charge'
+import { parseCollectAmount } from '@/lib/validations'
+import { companyPaymentDeadline } from '@/lib/payments'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * The company bookings a super admin made on a company's behalf.
+ *
+ * The filter is on the creator, not the company: this is the list of
+ * "bookings I made for someone else". A booking the company made itself has
+ * no creator, so it is not in this list — it is in the company's own bookings.
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const companyId = searchParams.get('companyId')
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50')))
+
+    const bookings = await prisma.companyBooking.findMany({
+      where: { createdByUserId: { not: null }, ...(companyId ? { companyId } : {}) },
+      include: {
+        company: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        trip: { select: { id: true, origin: true, destination: true, departure: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+
+    return NextResponse.json({
+      bookings: bookings.map((b) => ({
+        id: b.id,
+        reference: b.reference,
+        companyId: b.companyId,
+        companyName: b.company?.name || b.companyId,
+        createdBy: b.createdBy,
+        seatLabel: b.seatLabel,
+        passengerName: b.passengerName,
+        total: b.total,
+        status: b.status,
+        trip: b.trip,
+        createdAt: b.createdAt.toISOString(),
+        paidAt: b.paidAt?.toISOString() || null,
+      })),
+    })
+  } catch (err) {
+    logger.error('[Admin Company Bookings GET list]', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
+}
+
+/**
+ * A super admin books seats on a company's behalf.
+ *
+ * The booking belongs to the company: it is a CompanyBooking, so it appears in
+ * that company's bookings, its credit report and its revenue, exactly as if
+ * the company had made it. The person who made it is recorded separately in
+ * createdByUserId, so the owner of the booking and the creator of the booking
+ * are never confused for one another.
+ *
+ * The company's own wallet pays for it. Not the platform wallet, not the
+ * credit line, and never a negative balance: if the wallet cannot cover the
+ * booking the whole thing is refused and nothing is written.
+ *
+ * This is a different thing from the platform-funded booking, which is a
+ * different table and a different wallet. Both exist; neither is the other.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const {
+      tripId,
+      companyId,
+      passengers,
+      fromStationId,
+      toStationId,
+      roundTripGroupId,
+      idempotencyKey,
+    }: {
+      tripId: string
+      companyId: string
+      passengers: {
+        seatLabel: string
+        passengerName?: string
+        passengerPhone?: string
+        passengerHotel?: string
+        passengerNotes?: string
+        collectAmount?: unknown
+      }[]
+      fromStationId?: string | null
+      toStationId?: string | null
+      roundTripGroupId?: string | null
+      idempotencyKey?: string
+    } = await req.json()
+
+    if (!tripId || !companyId || !passengers?.length) {
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    }
+    if (!idempotencyKey) {
+      return NextResponse.json({ error: 'An idempotency key is required' }, { status: 400 })
+    }
+
+    // The company is looked up here, on the server. A company id in the body
+    // is never trusted on its own, and only a super admin may name a company
+    // that is not their own.
+    const company = await prisma.company.findUnique({ where: { id: companyId } })
+    if (!company) {
+      return NextResponse.json({ error: 'No company linked' }, { status: 404 })
+    }
+    if (!company.isActive) {
+      return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
+    }
+
+    return await withRefRetry(() => prisma.$transaction(async (tx) => {
+      // Lock order: company, then trip, then the quota rows.
+      await lockRow(tx, 'Company', companyId)
+
+      const trip = await tx.trip.findUnique({
+        where: { id: tripId },
+        include: {
+          bus: { include: { layout: { include: { seats: true } } } },
+          tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } },
+        },
+      })
+      if (!trip) throw new Error('Trip not found')
+      if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) {
+        throw new Error('CHARTER_TRIP')
+      }
+      if (trip.status !== 'SCHEDULED') throw new Error('TRIP_NOT_BOOKABLE')
+
+      await lockRow(tx, 'Trip', tripId)
+
+      let fromStopOrder = 1
+      let toStopOrder = 1
+      let fromStationName = trip.origin
+      let toStationName = trip.destination
+
+      if (fromStationId && toStationId && trip.tripStops.length > 0) {
+        const fromStop = trip.tripStops.find((s) => s.stationId === fromStationId)
+        const toStop = trip.tripStops.find((s) => s.stationId === toStationId)
+        if (!fromStop || !toStop) throw new Error('Invalid stations')
+        if (fromStop.stopOrder >= toStop.stopOrder) throw new Error('fromStation must be before toStation')
+        fromStopOrder = fromStop.stopOrder
+        toStopOrder = toStop.stopOrder
+        fromStationName = fromStop.station?.name || trip.origin
+        toStationName = toStop.station?.name || trip.destination
+      } else if (trip.tripStops.length > 0) {
+        fromStopOrder = trip.tripStops[0].stopOrder
+        toStopOrder = trip.tripStops[trip.tripStops.length - 1].stopOrder
+        fromStationName = trip.tripStops[0].station?.name || trip.origin
+        toStationName = trip.tripStops[trip.tripStops.length - 1].station?.name || trip.destination
+      }
+
+      // The same pricing the search and the company path use.
+      const priced = passengers.map((p) => {
+        const price = (fromStationId && toStationId && trip.tripStops.length > 0)
+          ? segmentPriceOf(trip, fromStationId, toStationId)
+          : (trip.bus.layout?.seats.find((s: any) => s.label === p.seatLabel)?.price || trip.price)
+        return { ...p, price }
+      })
+      const total = priced.reduce((sum, p) => sum + p.price, 0)
+
+      // The seat limits, shared with the company's own booking path.
+      const limits = await resolveBookingLimits(tx, {
+        company,
+        tripId,
+        trip,
+        requestedSeats: priced.length,
+        roundTripGroupId: roundTripGroupId || null,
+      })
+
+      // Every seat is checked before anything is written.
+      for (const p of priced) {
+        const companyConflict = await tx.companyBooking.findFirst({
+          where: {
+            tripId,
+            seatLabel: p.seatLabel,
+            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
+            fromStopOrder: { lt: toStopOrder },
+            toStopOrder: { gt: fromStopOrder },
+          },
+        })
+        if (companyConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
+
+        const bookingConflict = await tx.booking.findFirst({
+          where: {
+            tripId,
+            seatLabel: p.seatLabel,
+            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
+            fromStopOrder: { lt: toStopOrder },
+            toStopOrder: { gt: fromStopOrder },
+          },
+        })
+        if (bookingConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
+      }
+
+      // The company's wallet, and only the company's wallet.
+      const charge = await chargeCompanyWalletOnly(tx, {
+        companyId,
+        total,
+        reference: tripId,
+        description: `Payment for booking on ${trip.origin} → ${trip.destination}`,
+        idempotencyKey: `charge:${idempotencyKey}`,
+        actorId: session.user.id,
+        actorEmail: session.user.email ?? '',
+      })
+
+      const walletShares = splitCharge(charge.paidFromWallet, priced.length)
+
+      const created: any[] = []
+      for (const [index, p] of priced.entries()) {
+        const reference = await nextBookingRef(tx, {
+          fromStation: fromStationName,
+          toStation: toStationName,
+          seatLabel: p.seatLabel,
+        })
+        const booking = await tx.companyBooking.create({
+          data: {
+            reference,
+            companyId,
+            customerId: null,
+            tripId,
+            seatLabel: p.seatLabel,
+            passengerName: p.passengerName || '',
+            passengerPhone: p.passengerPhone || '',
+            passengerHotel: p.passengerHotel || '',
+            passengerNotes: p.passengerNotes || '',
+            collectAmount: parseCollectAmount(p.collectAmount),
+            bookingType: 'FOR_CLIENT',
+            // Paid at once: the money has already left the company's wallet.
+            status: 'PAID',
+            paidAt: new Date(),
+            expiresAt: null,
+            total: p.price,
+            paidFromWallet: walletShares[index] ?? 0,
+            paidOnCredit: 0,
+            // The audit trail: the company owns the booking, this user made it.
+            createdByUserId: session.user.id,
+            roundTripGroupId: roundTripGroupId || null,
+            fromStopOrder,
+            toStopOrder,
+          },
+          include: {
+            trip: {
+              include: {
+                bus: true,
+                tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' as const } },
+              },
+            },
+          },
+        })
+        created.push(booking)
+      }
+
+      const companyAfter = await tx.company.findUniqueOrThrow({ where: { id: companyId } })
+
+      return NextResponse.json({
+        bookings: created.map((b) => ({
+          ...b,
+          createdAt: b.createdAt.toISOString(),
+          paidAt: b.paidAt?.toISOString() || null,
+          stops: b.trip?.tripStops,
+        })),
+        charged: charge.paidFromWallet,
+        walletBalance: companyAfter.walletBalance,
+        limits: {
+          maxSeats: limits.maxSeats,
+          tripLimit: limits.tripLimit,
+          routeLimit: limits.routeLimit,
+          tripUsed: limits.tripUsed,
+          routeUsed: limits.routeUsed,
+        },
+        requiresPayment: false,
+      })
+    }))
+  } catch (err: any) {
+    const code = err?.code
+    if (code === 'SEAT_CAP_EXCEEDED') {
+      return NextResponse.json(
+        { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${err.max} مقاعد` },
+        { status: 413 },
+      )
+    }
+    if (code === 'TRIP_QUOTA_EXCEEDED') {
+      return NextResponse.json(
+        {
+          error: 'TRIP_QUOTA_EXCEEDED',
+          message: `الحصة المتاحة على هذه الرحلة ${err.remaining} مقاعد`,
+        },
+        { status: 413 },
+      )
+    }
+    if (code === 'DUPLICATE_CHARGE') {
+      return NextResponse.json(
+        { error: 'ALREADY_BOOKED', message: 'هذا الحجز مُسجَّل بالفعل' },
+        { status: 409 },
+      )
+    }
+    if (code === 'INSUFFICIENT_WALLET') {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_WALLET',
+          message: 'رصيد محفظة الشركة غير كافٍ',
+          available: err.available,
+          required: err.required,
+        },
+        { status: 400 },
+      )
+    }
+    if (code === 'COMPANY_INACTIVE') {
+      return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
+    }
+    const message = String(err?.message || '')
+    if (message.startsWith('SEAT_CONFLICT')) {
+      const seat = message.split(':')[1] || ''
+      return NextResponse.json({ error: 'SEAT_TAKEN', message: `الكرسي ${seat} محجوز من شخص آخر` }, { status: 409 })
+    }
+    if (message === 'CHARTER_TRIP') {
+      return NextResponse.json(
+        { error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح عبر طلب الشارتر فقط' },
+        { status: 409 },
+      )
+    }
+    if (message === 'TRIP_NOT_BOOKABLE') {
+      return NextResponse.json({ error: 'TRIP_NOT_BOOKABLE', message: 'هذه الرحلة غير متاحة للحجز' }, { status: 400 })
+    }
+    if (message === 'Invalid stations' || message.includes('fromStation must be before')) {
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+    if (message === 'Trip not found') {
+      return NextResponse.json({ error: message }, { status: 404 })
+    }
+    logger.error('[Admin Company Bookings]', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
+}
+
+/**
+ * The fare for a leg, from the trip's own stop prices. The same arithmetic
+ * the search and the customer path use, so what is shown is what is charged.
+ */
+function segmentPriceOf(
+  trip: { tripStops: { stationId: string; stopOrder: number; priceFromOrigin: number }[] },
+  fromStationId: string,
+  toStationId: string,
+): number {
+  const from = trip.tripStops.find((s) => s.stationId === fromStationId)
+  const to = trip.tripStops.find((s) => s.stationId === toStationId)
+  if (!from || !to) return 0
+  return to.priceFromOrigin - from.priceFromOrigin
+}

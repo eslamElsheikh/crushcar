@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -49,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
-    const { name, subdomain, creditLimit, paymentMode, billingCycle, isActive } = await req.json()
+    const { name, subdomain, creditLimit, paymentMode, billingCycle, isActive, autoPayEnabled, maxSeatsPerBooking } = await req.json()
 
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
@@ -58,6 +59,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (paymentMode !== undefined) updateData.paymentMode = paymentMode
     if (billingCycle !== undefined) updateData.billingCycle = billingCycle
     if (isActive !== undefined) updateData.isActive = isActive
+    // Automatic payment: the booking is charged to the wallet or the credit
+    // line as it is created, instead of waiting for the company to settle it.
+    if (autoPayEnabled !== undefined) updateData.autoPayEnabled = Boolean(autoPayEnabled)
+    // The ceiling on seats in one booking. Null means the application default.
+    // Zero is not a valid ceiling — it would mean "no seats at all", which is
+    // what isActive and autoPayEnabled are for.
+    //
+    // The stored value may only lower the ceiling, never raise it. Ten seats
+    // is the business rule, and a stored number is not a decision to change
+    // that, so a request for more is refused rather than quietly stored and
+    // then ignored.
+    if (maxSeatsPerBooking !== undefined) {
+      if (maxSeatsPerBooking === null || maxSeatsPerBooking === '') {
+        updateData.maxSeatsPerBooking = null
+      } else {
+        const parsed = parseInt(String(maxSeatsPerBooking), 10)
+        if (!Number.isFinite(parsed) || parsed < 1) {
+          return NextResponse.json({ error: 'Seat cap must be at least 1' }, { status: 400 })
+        }
+        if (parsed > MAX_SEATS_PER_BOOKING) {
+          return NextResponse.json(
+            { error: `Seat cap cannot be more than ${MAX_SEATS_PER_BOOKING}` },
+            { status: 400 },
+          )
+        }
+        updateData.maxSeatsPerBooking = parsed
+      }
+    }
 
     const company = await prisma.company.update({
       where: { id },

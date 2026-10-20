@@ -201,6 +201,20 @@ async function main() {
               where: { id: company.id },
               data: { walletBalance: { increment: 100 } },
             })
+          } else {
+            // The payment won, so the ledger records it — the way the real
+            // charge path does. Without this row the ledger check below would
+            // be comparing the wallet against a ledger the test never wrote,
+            // and it would only pass when every cancellation happened to win.
+            await tx.walletTransaction.create({
+              data: {
+                companyId: company.id,
+                type: 'BOOKING_CHARGE',
+                amount: -100,
+                description: `Payment for booking ${id}`,
+                reference: id,
+              },
+            })
           }
         }),
         prisma.companyBooking.updateMany({
@@ -226,13 +240,17 @@ async function main() {
   check('the wallet did not go negative', after.walletBalance >= 0, String(after.walletBalance))
   check('no credit was used', after.outstandingBalance === beforeOutstanding, `${beforeOutstanding} -> ${after.outstandingBalance}`)
 
-  // The ledger must agree with the wallet.
+  // The ledger must agree with the wallet, and there must be exactly one
+  // ledger row for every booking that ended up paid. Which side of the race
+  // wins is not fixed — the point is that the two always agree.
   const ledger = await prisma.walletTransaction.aggregate({
     where: { companyId: company.id, type: 'BOOKING_CHARGE' },
     _sum: { amount: true },
+    _count: true,
   })
   const ledgerSum = ledger._sum.amount ?? 0
   check('the wallet ledger sums to the same amount charged', Math.abs(ledgerSum + (beforeWallet - after.walletBalance)) < 0.001, `ledger ${ledgerSum}, wallet moved ${beforeWallet - after.walletBalance}`)
+  check('one ledger row for every booking that was paid', ledger._count === cbPaid.length, `rows ${ledger._count}, paid ${cbPaid.length}`)
 
   // Cleanup
   await prisma.booking.deleteMany({ where: { id: { in: ids } } })

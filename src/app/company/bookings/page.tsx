@@ -116,6 +116,16 @@ export default function CompanyBookingsPage() {
                     {b.customer?.name ? ` · ${b.customer.name}` : ''}
                     {b.seatLabel ? ` · ${isRTL ? 'مقعد' : 'Seat'} ${b.seatLabel}` : ''}
                   </p>
+                  {/* A booking the platform made for this company. The company
+                      owns it and pays for it, so it is not an extra charge —
+                      but the company should be able to see that it was booked
+                      for them, and by whom. */}
+                  {b.createdBy && (
+                    <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[11.5px] font-bold text-[#1D5BD8]">
+                      {isRTL ? 'حجز بواسطة الإدارة' : 'Booked by the platform'}
+                      <span className="font-normal opacity-80">{b.createdBy.name || b.createdBy.email}</span>
+                    </p>
+                  )}
                 </Link>
               ))}
             </div>

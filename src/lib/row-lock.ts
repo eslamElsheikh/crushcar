@@ -24,6 +24,8 @@ const LOCKABLE_TABLES = new Set([
   'Booking',
   'CompanyBooking',
   'PlatformWallet',
+  'CompanyTripQuota',
+  'CompanyRouteQuota',
 ])
 
 export async function lockRow(

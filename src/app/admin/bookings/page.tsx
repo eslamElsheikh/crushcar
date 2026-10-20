@@ -234,7 +234,11 @@ export default function AdminBookings() {
             // permanently empty columns, so the pair is shown on the company
             // tab only — it slots in right after the route.
             ...(tab === 'company'
-              ? [isRTL ? 'الفندق' : 'Hotel', isRTL ? 'مبلغ التحصيل' : 'Collected']
+              ? [
+                  isRTL ? 'الفندق' : 'Hotel',
+                  isRTL ? 'مبلغ التحصيل' : 'Collected',
+                  isRTL ? 'أنشأه' : 'Created by',
+                ]
               : []),
             t('bookings.seat'),
             isRTL ? 'الإجمالي' : 'Total',
@@ -280,6 +284,22 @@ export default function AdminBookings() {
                 ? [
                     <span key="h" className="text-[13.5px] font-semibold">{b.passengerHotel || '—'}</span>,
                     collectCell,
+                    /* A booking a super admin made for the company. The company
+                       owns it, so the company is what matters, but the person
+                       who made it is shown too — otherwise the record only
+                       says who paid. */
+                    <span key="by" className="text-[12.5px]">
+                      {b.createdBy ? (
+                        <>
+                          <span className="block font-bold">{b.createdBy.name || b.createdBy.email}</span>
+                          <span className="block text-[11.5px] font-normal text-[var(--sp-text-muted)]">
+                            {isRTL ? 'بواسطة' : 'by admin'}
+                          </span>
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </span>,
                   ]
                 : []),
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,

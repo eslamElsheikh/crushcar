@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { effectiveMaxSeatsPerBooking } from '@/lib/booking-limits'
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,6 +26,10 @@ export async function GET(req: NextRequest) {
       busesCount: company._count.buses,
       logoUrl: company.logoUrl,
       showLogoOnTicket: company.showLogoOnTicket,
+      // The seat cap for one booking, so the booking page can stop the
+      // customer selecting more seats than the company may hold. The server
+      // enforces it either way; this is so the page does not let them try.
+      maxSeatsPerBooking: effectiveMaxSeatsPerBooking(company),
     })
   } catch (err) {
     console.error(err)

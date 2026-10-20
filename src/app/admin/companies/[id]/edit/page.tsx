@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowRight, Loader2, Power } from 'lucide-react';
+import { ArrowRight, Loader2, Power, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
+import { DEFAULT_MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits';
 import { V2PageHeader } from '@/components/v2/admin';
 import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
@@ -29,9 +30,83 @@ export default function EditCompanyPage() {
     paymentMode: 'PREPAID',
     billingCycle: 'MONTHLY',
     isActive: true,
+    autoPayEnabled: false,
+    maxSeatsPerBooking: '' as string,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // The daily allowances: how many seats this company may hold on one route
+  // on one travel day, shared by every bus serving that route.
+  const [quotas, setQuotas] = useState<any[]>([]);
+  const [quotasLoading, setQuotasLoading] = useState(true);
+  const [newQuota, setNewQuota] = useState({ routeKey: '', travelDate: '', maxSeats: '' });
+  const [addingQuota, setAddingQuota] = useState(false);
+  // The routes this company could be given an allowance on: the routes its
+  // buses actually run, with the next date each one runs.
+  const [routeOptions, setRouteOptions] = useState<any[]>([]);
+
+  async function loadQuotas() {
+    try {
+      const res = await fetch(`/api/admin/companies/${id}/route-quotas`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setQuotas(data.quotas || []);
+        // The routes this company's own buses run, with the earliest day each
+        // one runs. Offering any other route would be a cap on nothing.
+        setRouteOptions(data.routes || []);
+      }
+    } catch { /* keep empty */ } finally { setQuotasLoading(false); }
+  }
+
+  useEffect(() => {
+    loadQuotas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function addQuota() {
+    if (!newQuota.routeKey || !newQuota.travelDate) {
+      toast.error(isRTL ? 'اختر المسار وتاريخ السفر' : 'Pick a route and a travel date');
+      return;
+    }
+    setAddingQuota(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${id}/route-quotas`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newQuota),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.error || t('common.error'));
+        return;
+      }
+      setNewQuota({ routeKey: '', travelDate: '', maxSeats: '' });
+      await loadQuotas();
+      toast.success(isRTL ? 'تم حفظ الحصة' : 'Quota saved');
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setAddingQuota(false);
+    }
+  }
+
+  async function removeQuota(q: any) {
+    try {
+      const res = await fetch(
+        `/api/admin/companies/${id}/route-quotas?routeKey=${encodeURIComponent(q.routeKey)}&travelDate=${encodeURIComponent(q.travelDate)}`,
+        { method: 'DELETE', credentials: 'include' }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data?.error || t('common.error'));
+        return;
+      }
+      await loadQuotas();
+    } catch {
+      toast.error(t('common.error'));
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -46,6 +121,8 @@ export default function EditCompanyPage() {
             paymentMode: data.paymentMode || 'PREPAID',
             billingCycle: data.billingCycle || 'MONTHLY',
             isActive: data.isActive,
+            autoPayEnabled: data.autoPayEnabled === true,
+            maxSeatsPerBooking: data.maxSeatsPerBooking == null ? '' : String(data.maxSeatsPerBooking),
           });
         }
       } catch { /* keep blank */ } finally { setLoading(false); }
@@ -129,12 +206,151 @@ export default function EditCompanyPage() {
                 {form.isActive ? t('company.isActive') : t('company.isInactive')}
               </button>
             </div>
+            <div className="grid gap-2">
+              <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{isRTL ? 'الدفع التلقائي' : 'Automatic payment'}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.autoPayEnabled}
+                onClick={() => setForm({ ...form, autoPayEnabled: !form.autoPayEnabled })}
+                className={cn(
+                  'flex min-h-[52px] items-center gap-2.5 rounded-xl border px-4 text-[14.5px] font-bold transition lg:min-h-[60px]',
+                  form.autoPayEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'
+                )}
+              >
+                <Zap className="size-5" />
+                {form.autoPayEnabled
+                  ? (isRTL ? 'مفعّل — يُخصم تلقائياً عند الحجز' : 'On — charged when the booking is created')
+                  : (isRTL ? 'متوقف — الشركة تسدد بنفسها' : 'Off — the company settles it itself')}
+              </button>
+            </div>
+            <V2Field label={isRTL ? 'أقصى عدد مقاعد للحجز الواحد' : 'Max seats per booking'}>
+              <V2Input
+                type="number"
+                min="1"
+                max={String(DEFAULT_MAX_SEATS_PER_BOOKING)}
+                value={form.maxSeatsPerBooking}
+                onChange={(e) => setForm({ ...form, maxSeatsPerBooking: e.target.value })}
+                placeholder={String(DEFAULT_MAX_SEATS_PER_BOOKING)}
+                dir="ltr"
+                className="tabular-nums"
+              />
+              <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+                {isRTL
+                  ? `اتركه فارغاً لاستخدام الحد الافتراضي (${DEFAULT_MAX_SEATS_PER_BOOKING} مقاعد).`
+                  : `Leave it empty to use the default of ${DEFAULT_MAX_SEATS_PER_BOOKING} seats.`}
+              </p>
+              <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+                {isRTL
+                  ? `هذا الحد يخفض الحد العام ولا يمكنه رفعه: الحد الأقصى دائماً ${DEFAULT_MAX_SEATS_PER_BOOKING} مقاعد.`
+                  : `This can only lower the limit, never raise it: ${DEFAULT_MAX_SEATS_PER_BOOKING} seats is the maximum either way.`}
+              </p>
+            </V2Field>
           </div>
           <V2Button type="submit" size="lg" disabled={saving} className="mt-5 w-full sm:w-auto">
             {saving && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
           </V2Button>
         </form>
       )}
+
+      {/* ── The daily allowances ─────────────────────────────────────────
+          The cap is on the company, not on the bus: a company running three
+          buses on the same route on the same day shares one allowance. */}
+      <div className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
+        <h2 className="text-[15px] font-extrabold text-[#0B1B33]">
+          {isRTL ? 'حصص المقاعد اليومية' : 'Daily seat allowances'}
+        </h2>
+        <p className="mt-1 text-[12.5px] text-[var(--sp-text-muted)]">
+          {isRTL
+            ? 'عدد المقاعد التي يمكن للشركة حجزها على مسار واحد في يوم واحد، وكل الحافلات التي تسير على نفس المسار تتشارك في هذه الحصة.'
+            : 'How many seats this company may hold on one route on one travel day. Every bus serving that route shares the allowance.'}
+        </p>
+
+        {quotasLoading ? (
+          <div className="mt-4"><V2Skeleton className="h-24 rounded-xl" /></div>
+        ) : quotas.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3 text-[12.5px] font-bold text-[var(--sp-text-muted)]">
+            {isRTL ? 'لا توجد حصص — الشركة غير محدودة حالياً' : 'No allowances — the company is unlimited for now'}
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {quotas.map((q) => (
+              <div
+                key={`${q.routeKey}|${q.travelDate}`}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[13.5px] font-extrabold text-[#0B1B33]">{q.routeName}</p>
+                  <p className="text-[12px] font-bold tabular-nums text-[var(--sp-text-muted)]">
+                    {q.travelDate} · {isRTL ? 'مستخدمة' : 'used'} {q.used} ·{' '}
+                    {isRTL ? 'الحد' : 'cap'}{' '}
+                    {q.maxSeats == null ? '∞' : q.maxSeats}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeQuota(q)}
+                  className="rounded-lg px-2.5 py-1.5 text-[12px] font-extrabold text-rose-600 hover:bg-rose-50"
+                >
+                  {isRTL ? 'حذف' : 'Remove'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <V2Field label={isRTL ? 'المسار' : 'Route'}>
+            <V2Select
+              value={newQuota.routeKey}
+              onChange={(e) => {
+                const opt = routeOptions.find((o) => o.routeKey === e.target.value);
+                setNewQuota({
+                  ...newQuota,
+                  routeKey: e.target.value,
+                  // The date follows the route: the day that route next runs.
+                  travelDate: opt?.travelDate || newQuota.travelDate,
+                });
+              }}
+            >
+              <option value="">{isRTL ? 'اختر المسار…' : 'Choose a route…'}</option>
+              {routeOptions.map((o) => (
+                <option key={o.routeKey} value={o.routeKey}>
+                  {o.label}
+                </option>
+              ))}
+            </V2Select>
+          </V2Field>
+          <V2Field label={isRTL ? 'تاريخ السفر' : 'Travel date'}>
+            <V2Input
+              type="date"
+              value={newQuota.travelDate}
+              onChange={(e) => setNewQuota({ ...newQuota, travelDate: e.target.value })}
+              dir="ltr"
+            />
+          </V2Field>
+          <V2Field label={isRTL ? 'حد المقاعد' : 'Seat cap'}>
+            <V2Input
+              type="number"
+              min="1"
+              value={newQuota.maxSeats}
+              onChange={(e) => setNewQuota({ ...newQuota, maxSeats: e.target.value })}
+              placeholder={isRTL ? 'بلا حد' : 'No limit'}
+              dir="ltr"
+              className="tabular-nums"
+            />
+          </V2Field>
+        </div>
+        <V2Button
+          type="button"
+          onClick={addQuota}
+          disabled={addingQuota || !newQuota.routeKey || !newQuota.travelDate}
+          className="mt-3"
+        >
+          {addingQuota && <Loader2 className="size-5 animate-spin" />}
+          {isRTL ? 'حفظ الحصة' : 'Save allowance'}
+        </V2Button>
+      </div>
     </div>
   );
 }

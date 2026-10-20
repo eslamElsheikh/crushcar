@@ -5,6 +5,9 @@ import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { parseCollectAmount } from '@/lib/validations'
 import { companyBookingExpiryHours } from '@/lib/booking-expiry'
 import { companyPaymentDeadline } from '@/lib/payments'
+import { chargeCompany, splitCharge } from '@/lib/company-charge'
+import { lockRow } from '@/lib/row-lock'
+import { resolveBookingLimits } from '@/lib/company-quota'
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,6 +41,10 @@ export async function GET(req: NextRequest) {
         include: {
           trip: { include: { bus: true, tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } } } },
           customer: true,
+          // Who made the booking, when it was a super admin acting for the
+          // company. The company owns the booking either way; this is only
+          // the record of who pressed the button.
+          createdBy: { select: { id: true, name: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -102,6 +109,13 @@ export async function POST(req: NextRequest) {
       if (!company) throw new Error('Company not found')
       if (!company.isActive) throw new Error('COMPANY_INACTIVE')
 
+      // The trip row is locked before anything is counted or created, so two
+      // requests cannot both read the same seat or the same allowance and both
+      // decide they fit. The company row is locked too, in the canonical order
+      // (company, then platform wallet, then trip), so the balance and the
+      // seat allowance cannot be spent twice over.
+      await lockRow(tx, 'Company', companyId)
+
       const trip = await tx.trip.findUnique({
         where: { id: tripId },
         include: {
@@ -113,6 +127,8 @@ export async function POST(req: NextRequest) {
       })
       if (!trip) throw new Error('Trip not found')
       if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) throw new Error('CHARTER_TRIP')
+
+      await lockRow(tx, 'Trip', tripId)
 
       // How long an unpaid booking of this company may hold its seat.
       const expiryHours = await companyBookingExpiryHours()
@@ -153,6 +169,17 @@ export async function POST(req: NextRequest) {
 
       const grandTotal = seatPrices.reduce((sum, p) => sum + p.price, 0)
 
+      // ── How many seats this booking may cover ─────────────────────────
+      // The rules live in one place, shared with the path where a super admin
+      // books on a company's behalf, so the two cannot drift apart.
+      const limits = await resolveBookingLimits(tx, {
+        company,
+        tripId,
+        trip,
+        requestedSeats: seatPrices.length,
+        roundTripGroupId: roundTripGroupId || null,
+      })
+
       // Check conflicts for ALL seats before creating any
       for (const p of seatPrices) {
         const conflict = await tx.companyBooking.findFirst({
@@ -178,9 +205,34 @@ export async function POST(req: NextRequest) {
         if (bookingConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
       }
 
-      // Create all bookings (no payment processing — deferred to confirm)
+      // ── Payment ───────────────────────────────────────────────────────
+      // With automatic payment on, the booking is charged as it is created
+      // and is paid from the start. With it off, the booking waits as PENDING
+      // and the company settles it with the confirm button, exactly as before.
+      //
+      // The charge happens in this same transaction as the rows, so a booking
+      // is never paid for without the seats, and the seats are never taken
+      // without the money.
+      const autoPay = company.autoPayEnabled === true
+      let paidFromWallet = 0
+      let paidOnCredit = 0
+      if (autoPay && grandTotal > 0) {
+        const charge = await chargeCompany(tx, {
+          companyId,
+          total: grandTotal,
+          description: `Payment for booking on ${trip.origin} → ${trip.destination}`,
+        })
+        paidFromWallet = charge.paidFromWallet
+        paidOnCredit = charge.paidOnCredit
+      }
+      // The per-seat figures are what each booking row records. They are
+      // split so they add back up to what was charged.
+      const walletShares = splitCharge(paidFromWallet, seatPrices.length)
+      const creditShares = splitCharge(paidOnCredit, seatPrices.length)
+
+      // Create all bookings
       const created = []
-      for (const p of seatPrices) {
+      for (const [index, p] of seatPrices.entries()) {
         // Each seat gets its own serial, so a group of ten takes ten numbers off the
         // same counter — they roll back together with the transaction.
         const reference = await nextBookingRef(tx, {
@@ -206,15 +258,17 @@ export async function POST(req: NextRequest) {
             // booking paths go through.
             collectAmount: parseCollectAmount(p.collectAmount),
             bookingType: bookingType || 'FOR_EMPLOYEE',
-            status: 'PENDING',
+            status: autoPay ? 'PAID' : 'PENDING',
+            paidAt: autoPay ? new Date() : null,
             // How long this booking may hold its seat unpaid. Until this was
             // written the column was declared and never set, so an unpaid
             // company booking kept its seat forever and kept eating into the
-            // company's trip allowance.
-            expiresAt: companyPaymentDeadline(new Date(trip.departure), expiryHours),
+            // company's trip allowance. A booking that is already paid has
+            // no window to expire.
+            expiresAt: autoPay ? null : companyPaymentDeadline(new Date(trip.departure), expiryHours),
             total: p.price,
-            paidFromWallet: 0,
-            paidOnCredit: 0,
+            paidFromWallet: walletShares[index] ?? 0,
+            paidOnCredit: creditShares[index] ?? 0,
             roundTripGroupId: roundTripGroupId || null,
             fromStopOrder: globalFromStopOrder,
             toStopOrder: globalToStopOrder,
@@ -245,12 +299,72 @@ export async function POST(req: NextRequest) {
     }))
   } catch (err: any) {
     console.error(err)
+    // The limit errors carry a code and their own numbers, so the message is
+    // not parsed for them.
+    if (err?.code === 'SEAT_CAP_EXCEEDED') {
+      return NextResponse.json(
+        { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${err.max} مقاعد` },
+        { status: 413 },
+      )
+    }
+    if (err?.code === 'TRIP_QUOTA_EXCEEDED') {
+      return NextResponse.json(
+        {
+          error: 'TRIP_QUOTA_EXCEEDED',
+          message: `الحصة المتاحة على هذه الرحلة ${err.remaining} مقاعد`,
+        },
+        { status: 413 },
+      )
+    }
+    if (err?.code === 'DUPLICATE_CHARGE') {
+      return NextResponse.json(
+        { error: 'ALREADY_BOOKED', message: 'هذا الحجز مُسجَّل بالفعل' },
+        { status: 409 },
+      )
+    }
     if (err.message === 'COMPANY_INACTIVE') {
       return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
     }
     if (err.message?.startsWith('SEAT_CONFLICT')) {
       const seat = err.message.split(':')[1] || ''
       return NextResponse.json({ error: 'SEAT_TAKEN', message: `الكرسي ${seat} محجوز من شخص آخر` }, { status: 409 })
+    }
+    if (err.message?.startsWith('SEAT_CAP_EXCEEDED')) {
+      const max = err.message.split(':')[1] || ''
+      return NextResponse.json(
+        { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${max} مقاعد` },
+        { status: 413 },
+      )
+    }
+    if (err.message?.startsWith('TRIP_QUOTA_EXCEEDED')) {
+      const remaining = err.message.split(':')[1] || ''
+      return NextResponse.json(
+        {
+          error: 'TRIP_QUOTA_EXCEEDED',
+          message: `الحصة المتاحة على هذه الرحلة ${remaining} مقاعد`,
+        },
+        { status: 413 },
+      )
+    }
+    if (err.code === 'INSUFFICIENT_WALLET' || err.message === 'INSUFFICIENT_WALLET') {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_WALLET',
+          message: 'رصيد المحفظة غير كافٍ',
+          available: err.available,
+          required: err.required,
+        },
+        { status: 400 },
+      )
+    }
+    if (err.code === 'CREDIT_LIMIT_EXCEEDED' || err.message === 'CREDIT_LIMIT_EXCEEDED') {
+      return NextResponse.json(
+        { error: 'CREDIT_LIMIT_EXCEEDED', message: 'تجاوزت حد الائتمان المتاح' },
+        { status: 400 },
+      )
+    }
+    if (err.code === 'COMPANY_INACTIVE' || err.message === 'COMPANY_INACTIVE') {
+      return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
     }
     if (err.message === 'CHARTER_TRIP') {
       return NextResponse.json({ error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح عبر طلب الشارتر فقط' }, { status: 409 })

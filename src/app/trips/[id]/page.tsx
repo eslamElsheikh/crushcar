@@ -102,6 +102,24 @@ function TripDetailPageContent() {
   const [checkoutPlatformKey] = useState(() => crypto.randomUUID());
   // What the platform wallet holds, shown to the super admin before booking.
   const [platformBalance, setPlatformBalance] = useState<number | null>(null);
+  // Who pays for the booking. A super admin can pay from the platform's own
+  // wallet, or on behalf of a company — and then the company's wallet pays
+  // and the booking belongs to that company. These are two different wallets
+  // and two different owners, so the choice is explicit and never implied.
+  const [fundingMode, setFundingMode] = useState<'PLATFORM' | 'COMPANY'>('PLATFORM');
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [companyId, setCompanyId] = useState<string>('');
+  // The company's allowance and wallet, refreshed whenever the selection
+  // changes so the admin sees what is left before committing.
+  const [companyPreview, setCompanyPreview] = useState<any>(null);
+  const [companyPreviewError, setCompanyPreviewError] = useState<string>('');
+  // How many seats this booking may cover, for the paths that have a cap.
+  //
+  // The cap is a company rule: it applies to a company booking its own seats
+  // and to a super admin booking on a company's behalf. It does not apply to
+  // a customer booking, and it does not apply to a platform booking — the
+  // platform is not a company and has no allowance of its own to spend.
+  const [companySeatCap, setCompanySeatCap] = useState<number | null>(null);
 
   // Stop selection
   const [fromStationId, setFromStationId] = useState<string | null>(urlFromStationId);
@@ -147,6 +165,63 @@ function TripDetailPageContent() {
       })
       .catch(() => {});
   }, [session?.user?.role]);
+
+  // The companies a super admin may book for. Only the active ones: an
+  // inactive company cannot take a booking, and offering it would only lead
+  // to a refusal.
+  useEffect(() => {
+    if (session?.user?.role !== 'SUPER_ADMIN') return;
+    fetch('/api/companies', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : d?.companies || [];
+        setCompanies(list.filter((c: any) => c.isActive !== false));
+      })
+      .catch(() => {});
+  }, [session?.user?.role]);
+
+  // The company's own seat cap, for a company admin booking its own seats.
+  useEffect(() => {
+    if (session?.user?.role !== 'COMPANY_ADMIN') return;
+    fetch('/api/company/info', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.maxSeatsPerBooking === 'number') setCompanySeatCap(d.maxSeatsPerBooking);
+      })
+      .catch(() => {});
+  }, [session?.user?.role]);
+
+  // What the selected company has left, and what it holds. Shown before the
+  // booking so the admin is not left to find out the wallet is empty only
+  // after trying.
+  useEffect(() => {
+    if (fundingMode !== 'COMPANY' || !companyId || !tripId) {
+      setCompanyPreview(null);
+      setCompanyPreviewError('');
+      return;
+    }
+    let cancelled = false;
+    setCompanyPreviewError('');
+    fetch(`/api/admin/company-bookings/preview?companyId=${companyId}&tripId=${tripId}`, {
+      credentials: 'include',
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (cancelled) return;
+        if (!r.ok) {
+          setCompanyPreview(null);
+          setCompanyPreviewError(d?.message || d?.error || '');
+          return;
+        }
+        setCompanyPreview(d);
+      })
+      .catch(() => {
+        if (!cancelled) setCompanyPreviewError('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fundingMode, companyId, tripId]);
 
   // Realtime polling
   useEffect(() => {
@@ -317,11 +392,31 @@ function TripDetailPageContent() {
   const layout = trip?.bus?.layout;
   const returnLayout = returnTrip?.bus?.layout;
 
+  // The cap for the booking being made, or null when the path has no cap.
+  const seatCap = useMemo(() => {
+    const role = session?.user?.role;
+    if (role === 'COMPANY_ADMIN') return companySeatCap;
+    if (role === 'SUPER_ADMIN' && fundingMode === 'COMPANY') {
+      const fromPreview = companyPreview?.limits?.maxSeats;
+      return typeof fromPreview === 'number' ? fromPreview : null;
+    }
+    return null;
+  }, [session?.user?.role, fundingMode, companySeatCap, companyPreview]);
+
   function toggleSeat(label: string) {
     if (reservedSeats.has(label)) return;
-    setSelectedSeats((prev) =>
-      prev.includes(label) ? prev.filter((s) => s !== label) : [...prev, label]
-    );
+    setSelectedSeats((prev) => {
+      if (prev.includes(label)) return prev.filter((s) => s !== label);
+      if (seatCap !== null && prev.length >= seatCap) {
+        toast.error(
+          isRTL
+            ? `الحد الأقصى ${seatCap} مقاعد في الحجز الواحد`
+            : `At most ${seatCap} seats in one booking`
+        );
+        return prev;
+      }
+      return [...prev, label];
+    });
   }
 
   function toggleReturnSeat(label: string) {
@@ -500,6 +595,94 @@ function TripDetailPageContent() {
       // SUPER_ADMIN: the platform pays for the seat from its own wallet, so
       // there is no receipt to ask for and no company to charge.
       if (session.user.role === 'SUPER_ADMIN') {
+        // When the admin is booking on a company's behalf, the company's
+        // wallet pays and the booking belongs to that company. The platform
+        // wallet is not touched at all in that case.
+        if (fundingMode === 'COMPANY') {
+          if (!companyId) {
+            toast.error(isRTL ? 'اختر الشركة أولًا' : 'Pick a company first');
+            return;
+          }
+
+          const companyPassengers = seats.map(s => ({
+            seatLabel: s.seatLabel,
+            passengerName: s.passengerName,
+            passengerPhone: s.passengerPhone,
+            passengerHotel: s.passengerHotel,
+            passengerNotes: s.passengerNotes,
+          }));
+          const companyReturnPassengers = returnSeats
+            ? returnSeats.map(s => ({
+                seatLabel: s.seatLabel,
+                passengerName: s.passengerName,
+                passengerPhone: s.passengerPhone,
+                passengerHotel: s.passengerHotel,
+                passengerNotes: s.passengerNotes,
+              }))
+            : undefined;
+
+          const companyGroups: { tripId: string; passengers: typeof companyPassengers }[] = [];
+          if (companyPassengers.length > 0 && tripId) {
+            companyGroups.push({ tripId, passengers: companyPassengers });
+          }
+          if (companyReturnPassengers && companyReturnPassengers.length > 0 && returnTripId) {
+            companyGroups.push({ tripId: returnTripId, passengers: companyReturnPassengers });
+          }
+
+          const companyRoundTripGroupId = companyGroups.length > 1 ? crypto.randomUUID() : undefined;
+
+          let allOk = true;
+          for (const group of companyGroups) {
+            const isGroupReturn = group.tripId === returnTripId;
+            const groupFromId = isGroupReturn ? returnFromId : outboundFromId;
+            const groupToId = isGroupReturn ? returnToId : outboundToId;
+            // One key per leg, so a retried request cannot charge the
+            // company's wallet twice for the same seats.
+            const idempotencyKey = `${checkoutPlatformKey}:${group.tripId}`;
+            const res = await fetch('/api/admin/company-bookings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tripId: group.tripId,
+                companyId,
+                passengers: group.passengers,
+                fromStationId: groupFromId || null,
+                toStationId: groupToId || null,
+                roundTripGroupId: companyRoundTripGroupId,
+                idempotencyKey,
+              }),
+              credentials: 'include',
+            });
+            const data = await res.json();
+            if (res.ok && data.bookings) {
+              confirmed.push(...data.bookings);
+            } else {
+              allOk = false;
+              if (res.status === 401) {
+                toast.error(isRTL ? 'انتهت جلستك، يرجى تسجيل الدخول' : 'Session expired, please sign in');
+                router.push('/login');
+                break;
+              }
+              toast.error(data.message || data.error || t('common.error'));
+              break;
+            }
+          }
+
+          if (allOk && confirmed.length > 0) {
+            setConfirmedBookings(confirmed);
+            setSelectedSeats([]);
+            setReturnSelectedSeats([]);
+            setPassenger({ name: session.user?.name || '', phone: '', hotel: '', notes: '', collectAmount: '' });
+            const companyName = companies.find((c: any) => c.id === companyId)?.name || '';
+            toast.success(
+              isRTL
+                ? `تم الحجز باسم ${companyName} من محفظتها`
+                : `Booked on behalf of ${companyName} from its wallet`
+            );
+          }
+          return;
+        }
+
         const platformPassengers = seats.map(s => ({
           seatLabel: s.seatLabel,
           passengerName: s.passengerName,
@@ -1145,6 +1328,113 @@ function TripDetailPageContent() {
                   </div>
                 )}
               </div>
+
+              {/* Who pays. A super admin can pay from the platform's own
+                  wallet, or on behalf of a company — and then that company's
+                  wallet pays and the booking becomes the company's. Two
+                  different wallets and two different owners, so the choice is
+                  always explicit. */}
+              {session?.user?.role === 'SUPER_ADMIN' && (
+                <div className="border-t border-slate-100 pt-5 mb-5">
+                  <h4 className="text-xs font-bold text-[#0B1B33] mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                    <Wallet size={13} className="text-[#1D5BD8]" />
+                    {isRTL ? 'الجهة الدافعة' : 'Paid by'}
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFundingMode('PLATFORM')}
+                      className={`rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-bold transition ${
+                        fundingMode === 'PLATFORM'
+                          ? 'border-[#1D5BD8] bg-blue-50 text-[#0B1B33]'
+                          : 'border-[var(--sp-line)] bg-[var(--sp-inset)] text-[var(--sp-text-muted)] hover:border-[#1D5BD8]/40'
+                      }`}
+                    >
+                      {isRTL ? 'محفظة المنصة' : 'Platform wallet'}
+                      {platformBalance !== null && (
+                        <span className="block text-[11.5px] font-bold tabular-nums text-[var(--sp-text-muted)]">
+                          {platformBalance.toLocaleString()} {t('common.currency')}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFundingMode('COMPANY')}
+                      className={`rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-bold transition ${
+                        fundingMode === 'COMPANY'
+                          ? 'border-[#1D5BD8] bg-blue-50 text-[#0B1B33]'
+                          : 'border-[var(--sp-line)] bg-[var(--sp-inset)] text-[var(--sp-text-muted)] hover:border-[#1D5BD8]/40'
+                      }`}
+                    >
+                      {isRTL ? 'محفظة شركة' : "A company's wallet"}
+                      <span className="block text-[11.5px] font-bold text-[var(--sp-text-muted)]">
+                        {isRTL ? 'الحجز يُنسب للشركة' : 'The booking belongs to the company'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {fundingMode === 'COMPANY' && (
+                    <div className="mt-3 space-y-2.5">
+                      <select
+                        value={companyId}
+                        onChange={(e) => setCompanyId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm font-bold focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
+                      >
+                        <option value="">
+                          {isRTL ? 'اختر الشركة…' : 'Choose a company…'}
+                        </option>
+                        {companies.map((c: any) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {companyPreviewError && (
+                        <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700">
+                          {companyPreviewError}
+                        </p>
+                      )}
+
+                      {companyPreview && (
+                        <div className="rounded-xl bg-[var(--sp-inset)] px-3.5 py-3 text-[12.5px] font-bold">
+                          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                            <span className="tabular-nums">
+                              {isRTL ? 'رصيد المحفظة: ' : 'Wallet: '}
+                              {Number(companyPreview.company?.walletBalance || 0).toLocaleString()}{' '}
+                              {t('common.currency')}
+                            </span>
+                            <span className="tabular-nums">
+                              {isRTL ? 'المقاعد المتاحة: ' : 'Seats available: '}
+                              {companyPreview.availableSeats}
+                            </span>
+                            <span className="tabular-nums">
+                              {isRTL ? 'سعر المقعد: ' : 'Seat price: '}
+                              {Number(companyPreview.seatPrice || 0).toLocaleString()}{' '}
+                              {t('common.currency')}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[11.5px] text-[var(--sp-text-muted)]">
+                            <span>
+                              {isRTL ? 'الحد لكل حجز: ' : 'Per-booking cap: '}
+                              {companyPreview.limits?.maxSeats}
+                            </span>
+                            <span>
+                              {isRTL ? 'حصة الرحلة: ' : 'Trip quota: '}
+                              {companyPreview.limits?.tripLimit ?? '∞'}
+                            </span>
+                            <span>
+                              {isRTL ? 'حصة المسار اليومي: ' : 'Daily route quota: '}
+                              {companyPreview.limits?.routeLimit ?? '∞'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Passenger details */}
               <AnimatePresence>

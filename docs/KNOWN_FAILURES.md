@@ -70,6 +70,45 @@ re-run any failure in isolation before treating it as a regression.
 
 ---
 
+## 3. `deploy-fix.php` is still in production `public_html`
+
+**Where:** `https://safrotravel.com/deploy-fix.php`
+
+**Symptom:** requests without the key answer 403. Nothing is exposed — the
+script refuses to run without the key — but it should not be there.
+
+**Why it is still there:** removing it needs a write to production
+`public_html`, and production writes were not authorised for this work. The
+other eight diagnostic scripts were confirmed absent from production; only
+this one remains.
+
+**Blocks:** nothing functionally. It is a hygiene item.
+
+**To fix:** delete `deploy-fix.php` from production `public_html`. The
+diagnostics it was written to support are documented in
+`docs/deploy/DIAGNOSTICS.md` and are not needed in production.
+
+---
+
+## 4. The cPanel cron job is not configured
+
+**What:** the booking-expiry sweep and the reminder job need a cron entry with
+`JOB_CRON_KEY` in production's environment.
+
+**Why it is not done:** cPanel cron configuration is a change to the
+production account, and production changes were not authorised for this work.
+It also needs a secret that only the account owner can see.
+
+**Blocks:** expired bookings are not swept on a schedule, so a seat can be held
+by a booking that was never paid for until something else clears it. The
+in-request sweep still runs — this is about the scheduled one.
+
+**To fix:** the project owner adds the cron entry and sets `JOB_CRON_KEY` in
+the production environment. The `lastCronRunAt` indicator in the admin
+overview shows whether it is actually running.
+
+---
+
 ## Passing baseline
 
 Everything else is green. Measured on the final commit:
@@ -78,15 +117,28 @@ Everything else is green. Measured on the final commit:
 |---|---|
 | `tsc --noEmit` | clean |
 | `npm run build` | clean |
-| `npm run check:lang` | 415 keys, all defined |
-| `npm run check:routes` | 205 files, direction-correct |
+| `npm run check:lang` | 433 keys, all defined |
+| `npm run check:routes` | 219 files, direction-correct |
 | `npm run check:charter` | all pass |
 | `npm run check:ref` | all pass |
 | `npm run check:users` | all pass |
+| `npm run check:limits` | all pass |
+| `npm run check:races` | all pass |
+| `npm run check:wallet` | all pass |
+| `npm run check:platform` | all pass |
+| `npm run check:company-limits` | all pass |
+| `npm run check:admin-booking` | all pass |
+| `npm run check:admin-race` | all pass |
+| `npm run check:refund-revenue` | all pass |
 | Phase A, mobile 390x844 | 44/44 |
 | Phase A, desktop 1280 | 44/44 |
 | Phase B, mobile 390x844 | 23/24 (the failure above) |
 | Phase C, mobile 390x844 | 16/17 (the flake above) |
+
+The database-backed suites above were run against MariaDB 10.11, which is the
+engine production runs on. SQLite has one writer, so it cannot prove the
+concurrency behaviour — see `scripts/verify-admin-booking-race.ts` and
+`scripts/verify-refund-and-revenue.ts` for what each of them proves.
 
 ---
 

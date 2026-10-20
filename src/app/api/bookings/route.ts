@@ -61,6 +61,9 @@ export async function GET(req: NextRequest) {
             trip: { include: { bus: true, tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } } } },
             company: { select: { id: true, name: true } },
             customer: true,
+            // Who made the booking, when a super admin made it for the
+            // company. The company owns the booking either way.
+            createdBy: { select: { id: true, name: true, email: true } },
           },
           orderBy: { createdAt: 'desc' },
           skip,

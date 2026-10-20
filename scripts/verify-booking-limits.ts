@@ -34,7 +34,9 @@ check('the default is 10 seats', DEFAULT_MAX_SEATS_PER_BOOKING === 10, String(DE
 check('a company with no override gets the default', effectiveMaxSeatsPerBooking({ maxSeatsPerBooking: null }) === 10)
 check('a company with no row gets the default', effectiveMaxSeatsPerBooking(null) === 10)
 check('a company with no row at all gets the default', effectiveMaxSeatsPerBooking(undefined) === 10)
-check('an override wins', effectiveMaxSeatsPerBooking({ maxSeatsPerBooking: 25 }) === 25)
+// A stored value may only lower the ceiling. The ten-seat rule is the rule,
+// and a stored number is not a decision to change it.
+check('an override above the maximum is clamped down to it', effectiveMaxSeatsPerBooking({ maxSeatsPerBooking: 25 }) === 10, 'the hard maximum stands')
 check('an override of 1 is honoured', effectiveMaxSeatsPerBooking({ maxSeatsPerBooking: 1 }) === 1)
 check('an override of 0 falls back to the default', effectiveMaxSeatsPerBooking({ maxSeatsPerBooking: 0 }) === 10, '0 is not a valid ceiling')
 check('a negative override falls back to the default', effectiveMaxSeatsPerBooking({ maxSeatsPerBooking: -5 }) === 10)
