@@ -176,8 +176,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       // PENDING → cancel immediately (no money involved)
       if (booking.status === 'PENDING') {
-        const updated = await prisma.companyBooking.update({
-          where: { id },
+        // Conditional on the status: the earlier check was a read, and two
+        // admins cancelling the same booking at once could both pass it.
+        const claimed = await prisma.companyBooking.updateMany({
+          where: { id, status: 'PENDING' },
           data: {
             status: 'CANCELLED',
             cancelledAt: new Date(),
@@ -185,9 +187,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             cancellationReason: reason || '',
           },
         })
+        if (claimed.count === 0) {
+          return NextResponse.json(
+            { error: 'Booking was already changed', message: 'تم تغيير حالة هذا الحجز بالفعل' },
+            { status: 409 }
+          )
+        }
+        const row = await prisma.companyBooking.findUnique({ where: { id } })
         return NextResponse.json({
-          ...updated,
-          cancelledAt: updated.cancelledAt?.toISOString() || null,
+          ...row,
+          cancelledAt: row?.cancelledAt?.toISOString() || null,
         })
       }
 
@@ -207,8 +216,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         return NextResponse.json({ error: 'Cancellation not allowed at this time' }, { status: 400 })
       }
 
-      const updated = await prisma.companyBooking.update({
-        where: { id },
+      // The refund figures are written by a conditional update, so a booking
+      // that another admin cancelled a moment ago cannot be given a second
+      // refund amount — which would be refunded twice.
+      const claimed = await prisma.companyBooking.updateMany({
+        where: { id, status: 'PAID', refundProcessedAt: null },
         data: {
           status: 'CANCELLED',
           cancelledAt: new Date(),
@@ -218,10 +230,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           cancellationFee,
         },
       })
+      if (claimed.count === 0) {
+        return NextResponse.json(
+          { error: 'Booking was already changed', message: 'تم تغيير حالة هذا الحجز بالفعل' },
+          { status: 409 }
+        )
+      }
+      const updated = await prisma.companyBooking.findUnique({ where: { id } })
 
       return NextResponse.json({
         ...updated,
-        cancelledAt: updated.cancelledAt?.toISOString() || null,
+        cancelledAt: updated?.cancelledAt?.toISOString() || null,
         refundAmount,
         cancellationFee,
         refundPercent,

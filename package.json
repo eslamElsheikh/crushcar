@@ -20,6 +20,8 @@
     "check:collect": "tsx scripts/verify-collect-split.ts",
     "check:limits": "tsx scripts/verify-booking-limits.ts",
     "check:revenue": "tsx scripts/verify-revenue-classification.ts",
+    "check:refund-race": "tsx scripts/verify-refund-race.ts",
+    "check:guard": "tsx scripts/verify-test-db-guard.ts",
     "check:races": "tsx scripts/verify-booking-races.ts",
     "check:wallet": "tsx scripts/verify-platform-wallet.ts",
     "check:platform": "tsx scripts/verify-platform-booking.ts",

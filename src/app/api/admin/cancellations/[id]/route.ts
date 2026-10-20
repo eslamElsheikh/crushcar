@@ -20,7 +20,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         })
         if (!booking) return NextResponse.json({ error: 'Not found' }, { status: 404 })
         if (booking.status !== 'CANCELLED') return NextResponse.json({ error: 'Not cancelled' }, { status: 400 })
-        if (booking.refundProcessedAt) return NextResponse.json({ error: 'Already processed' }, { status: 400 })
+
+        // Claim the row before any money moves.
+        //
+        // Reading refundProcessedAt and then writing it is a race: two admins
+        // (or one admin double-clicking) can both read "not processed yet" and
+        // both credit the company. The claim is a conditional update, so the
+        // database decides the winner and only one request may proceed.
+        // The whole thing is one transaction, so if the money movement below
+        // fails, the claim is rolled back with it.
+        const claimed = await tx.companyBooking.updateMany({
+          where: { id, status: 'CANCELLED', refundProcessedAt: null },
+          data: {
+            refundProcessedAt: new Date(),
+            refundProcessedBy: session.user.id,
+          },
+        })
+        if (claimed.count === 0) {
+          return NextResponse.json({ error: 'Already processed' }, { status: 409 })
+        }
 
         const refundAmount = booking.refundAmount || 0
         const refundWallet = Math.min(refundAmount, booking.paidFromWallet || 0)
@@ -38,6 +56,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               amount: refundWallet,
               description: `Refund for cancelled booking ${booking.reference}`,
               reference: booking.id,
+              // A second guard at the ledger level: even if a future change
+              // weakens the claim above, this row cannot be written twice.
+              idempotencyKey: `company-refund:${id}`,
             },
           })
         }
@@ -49,17 +70,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           })
         }
 
-        const updated = await tx.companyBooking.update({
-          where: { id },
-          data: {
-            refundProcessedAt: new Date(),
-            refundProcessedBy: session.user.id,
-          },
-        })
+        const updated = await tx.companyBooking.findUnique({ where: { id } })
 
         return NextResponse.json({
           ...updated,
-          refundProcessedAt: updated.refundProcessedAt?.toISOString() || null,
+          refundProcessedAt: updated?.refundProcessedAt?.toISOString() || null,
         })
       })
     }

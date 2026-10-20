@@ -2,11 +2,18 @@
  * Proves the platform wallet behaves.
  *
  * Run against MariaDB, not SQLite:
- *   DATABASE_URL="mysql://root:refpass@127.0.0.1:3306/walletdb" npx tsx scripts/verify-platform-wallet.ts
+ *   DATABASE_URL="mysql://root:refpass@127.0.0.1:3306/wallet_test" npx tsx scripts/verify-platform-wallet.ts
  *
  * SQLite has one writer, so it cannot reproduce the concurrent spend that
  * matters here. Every check that depends on two transactions overlapping has
  * to run on the engine production uses.
+ *
+ * ⚠ This script clears the platform ledger, because the chain check only
+ * means anything against a ledger that starts empty. That is the platform's
+ * cash record, and deleting it cannot be undone. So the script refuses to
+ * run unless DATABASE_URL points at a database whose name contains "test" —
+ * see scripts/lib/test-db-guard.ts. Production's database is named
+ * "safro_travel_db" and cannot pass that check.
  *
  * Covers:
  *   - funding, charging and refunding move the balance and the ledger
@@ -16,6 +23,10 @@
  *   - the ledger and the balance always reconcile
  */
 import { PrismaClient } from '@prisma/client'
+import { assertTestDatabase } from './lib/test-db-guard'
+
+// Before anything else: this script deletes the ledger.
+assertTestDatabase()
 
 const prisma = new PrismaClient()
 
@@ -32,8 +43,38 @@ function check(name: string, ok: boolean, detail = '') {
 const SUFFIX = Date.now().toString(36)
 const ACTOR = { id: 'actor-1', email: 'actor@example.com' }
 
-async function reset() {
-  await prisma.platformTransaction.deleteMany({ where: { reference: { startsWith: SUFFIX } } })
+/**
+ * Clears the platform ledger so the chain check starts from a known state.
+ *
+ * The whole ledger is cleared, not just this run's rows. A previous run that
+ * was interrupted — a killed test process, a stopped dev server — leaves rows
+ * behind whose balanceAfter no longer follows from their predecessor, and the
+ * chain check then reports a break that has nothing to do with the code.
+ *
+ * This deletes the platform's cash record, so it is guarded twice over: the
+ * guard at the top of the file has already refused to start unless the
+ * database is a test one, and the check here refuses again at the moment of
+ * deletion. The second check is not redundant — it is the one that stands
+ * between a mistake and an irreversible loss if the code above is ever
+ * rearranged.
+ *
+ * `why` says what the rows being deleted are, so the note cannot mislead: the
+ * rows cleared at the end of the run are the ones this run wrote, and saying
+ * they were "left by an earlier run" would send the next reader looking for a
+ * leak that is not there.
+ */
+async function reset(why: 'stale' | 'own') {
+  assertTestDatabase()
+
+  const count = await prisma.platformTransaction.count()
+  if (count > 0) {
+    console.log(
+      why === 'stale'
+        ? `  note  clearing ${count} ledger row(s) left by an earlier run`
+        : `  note  clearing ${count} ledger row(s) this run wrote`
+    )
+  }
+  await prisma.platformTransaction.deleteMany({})
   await prisma.platformWallet.deleteMany({ where: { id: 'main' } })
 }
 
@@ -48,7 +89,7 @@ async function ledgerSum() {
 }
 
 async function main() {
-  await reset()
+  await reset('stale')
 
   console.log('funding')
   const { fundPlatform, chargePlatform, refundPlatform, adjustPlatform } = await import(
@@ -199,7 +240,7 @@ async function main() {
   }
   check('the chain of balances is continuous', broken === null, broken ? `broke at ${broken.id}` : '')
 
-  await reset()
+  await reset('own')
   console.log(failures === 0 ? '\nall checks passed' : `\n${failures} check(s) failed`)
   process.exit(failures === 0 ? 0 : 1)
 }
