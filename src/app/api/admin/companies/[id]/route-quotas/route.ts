@@ -99,18 +99,6 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       }
     }
 
-    // The station names behind a route key, so the row can be read by a
-    // person and not only by the code.
-    const stationIds = new Set<string>()
-    for (const q of quotas) {
-      for (const id of q.routeKey.split('|')) if (id) stationIds.add(id)
-    }
-    const stations = await prisma.station.findMany({
-      where: { id: { in: [...stationIds] } },
-      select: { id: true, name: true },
-    })
-    const stationName = new Map(stations.map((s) => [s.id, s.name]))
-
     // The routes this company could be given an allowance on.
     //
     // Two sources, and the union of them:
@@ -153,20 +141,35 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       orderBy: { departure: 'asc' },
     })
 
+    // The station names behind a route key, so the row can be read by a
+    // person and not only by the code. The names are needed both for the
+    // allowances already set and for the routes that can be chosen, so they
+    // are loaded in one go.
+    const stationIds = new Set<string>()
+    for (const q of quotas) {
+      for (const id of q.routeKey.split('|')) if (id) stationIds.add(id)
+    }
+    for (const t of companyTrips) {
+      const identity = resolveRouteIdentity(t)
+      if (identity.problem) continue
+      for (const id of identity.routeKey.split('|')) if (id) stationIds.add(id)
+    }
+    const stations = await prisma.station.findMany({
+      where: { id: { in: [...stationIds] } },
+      select: { id: true, name: true },
+    })
+    const stationName = new Map(stations.map((s) => [s.id, s.name]))
+
     // Deduplicated by the full canonical route identity, so the reverse of a
     // route and a route with different intermediate stops stay apart, and the
     // same route reached from both sources is listed once.
-    const routeByKey = new Map<string, { routeKey: string; travelDate: string; label: string }>()
+    const routeByKey = new Map<string, RouteOption>()
     for (const t of companyTrips) {
       const identity = resolveRouteIdentity(t)
       if (identity.problem) continue
       const existing = routeByKey.get(identity.routeKey)
       if (!existing || identity.travelDate < existing.travelDate) {
-        routeByKey.set(identity.routeKey, {
-          routeKey: identity.routeKey,
-          travelDate: identity.travelDate,
-          label: `${t.origin} → ${t.destination}`,
-        })
+        routeByKey.set(identity.routeKey, describeRoute(identity.routeKey, identity.travelDate, t, stationName))
       }
     }
 
@@ -181,14 +184,9 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       },
       quotas: quotas.map((q) => ({
         id: q.id,
-        routeKey: q.routeKey,
-        travelDate: q.travelDate,
         maxSeats: q.maxSeats,
         used: usedByRouteDay.get(routeDayKey(q.routeKey, q.travelDate)) ?? 0,
-        routeName: q.routeKey
-          .split('|')
-          .map((id) => stationName.get(id) || id)
-          .join(' → '),
+        ...describeRoute(q.routeKey, q.travelDate, { origin: '', destination: '' }, stationName),
         updatedAt: q.updatedAt.toISOString(),
       })),
       routes: [...routeByKey.values()],
@@ -196,6 +194,74 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   } catch (err) {
     logger.error('[Company Route Quotas GET]', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
+}
+
+/** A route as the editor shows it. */
+interface RouteOption {
+  routeKey: string
+  travelDate: string
+  /** The origin and destination as the trip displays them. */
+  origin: string
+  destination: string
+  /** The ordered stops, in the order the bus visits them. A null is a stop whose name is not known. */
+  stops: (string | null)[]
+  /** False when a stop's name is missing, so the stops cannot be shown. */
+  stopsComplete: boolean
+  /** A ready-made label, for anything that does not compose its own. */
+  label: string
+}
+
+/**
+ * Describes a route for the editor.
+ *
+ * Two journeys can have the same origin and the same destination and still be
+ * different journeys — the same endpoints with a different stop in between, or
+ * the same road run the other way. The canonical key keeps them apart; the
+ * label has to as well, or the administrator cannot tell which one they are
+ * choosing.
+ *
+ * So the stops are returned in the order the bus visits them, and the label
+ * carries the intermediate ones. A name that is not known is not invented: it
+ * is reported as unknown, and the label says so rather than guessing.
+ *
+ * The trip's own origin and destination text is used when it is there, and
+ * the stop names are used when it is not — which is the case for an
+ * allowance that was set on a route with no trip behind it.
+ */
+function describeRoute(
+  routeKey: string,
+  travelDate: string,
+  trip: { origin: string; destination: string },
+  stationName: Map<string, string>,
+): RouteOption {
+  const ids = routeKey.split('|').filter(Boolean)
+  const stops = ids.map((id) => stationName.get(id) ?? null)
+  const stopsComplete = stops.every((s) => s !== null)
+
+  const first = stops[0] ?? ''
+  const last = stops.length > 1 ? stops[stops.length - 1] : first
+  const intermediates = stops.slice(1, -1)
+
+  const from = trip.origin || first
+  const to = trip.destination || last
+  let label = `${from} → ${to}`
+  if (!stopsComplete) {
+    // A stop's name is not known. The endpoints still say which journey it
+    // is, and the label says that the stops could not be read.
+    label += ' (stops unknown)'
+  } else if (intermediates.length > 0) {
+    label += ` (via ${intermediates.join(', ')})`
+  }
+
+  return {
+    routeKey,
+    travelDate,
+    origin: trip.origin,
+    destination: trip.destination,
+    stops,
+    stopsComplete,
+    label,
   }
 }
 

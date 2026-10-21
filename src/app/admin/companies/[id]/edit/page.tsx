@@ -23,6 +23,32 @@ function isNextDay(after: string, day: string): boolean {
   return Math.round((b - a) / 86400000) === 1;
 }
 
+/**
+ * How a route is named in the editor.
+ *
+ * Two journeys can have the same origin and the same destination and still
+ * be different journeys. The canonical key keeps them apart; the label has to
+ * as well, or the administrator cannot tell which one they are choosing. So
+ * the intermediate stops are shown, in the order the bus visits them.
+ *
+ * A stop whose name is not known is not invented: the label says the stops
+ * are unknown rather than guessing at them.
+ */
+function routeLabelText(route: any, isRTL: boolean): string {
+  const from = route?.origin || route?.stops?.[0] || '';
+  const to = route?.destination || route?.stops?.[route.stops.length - 1] || '';
+  const base = `${from} → ${to}`;
+  if (route?.stopsComplete === false) {
+    return isRTL ? `${base} (المحطات غير معروفة)` : `${base} (stops unknown)`;
+  }
+  const intermediates = (route?.stops ?? []).slice(1, -1);
+  if (intermediates.length > 0) {
+    const via = intermediates.join(isRTL ? ' · ' : ', ');
+    return isRTL ? `${base} (عبر ${via})` : `${base} (via ${via})`;
+  }
+  return base;
+}
+
 export default function EditCompanyPage() {
   const params = useParams();
   const router = useRouter();
@@ -131,6 +157,7 @@ export default function EditCompanyPage() {
     const groups: {
       routeKey: string;
       routeName: string;
+      route: any;
       from: string;
       to: string;
       maxSeats: number | null;
@@ -150,6 +177,7 @@ export default function EditCompanyPage() {
         groups.push({
           routeKey: q.routeKey,
           routeName: q.routeName,
+          route: q,
           from: q.travelDate,
           to: q.travelDate,
           maxSeats: q.maxSeats,
@@ -398,7 +426,9 @@ export default function EditCompanyPage() {
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-extrabold text-[#0B1B33]">{g.routeName}</p>
+                  <p className="truncate text-[13.5px] font-extrabold text-[#0B1B33]">
+                    {routeLabelText(g.route, isRTL)}
+                  </p>
                   <p className="text-[12px] font-bold tabular-nums text-[var(--sp-text-muted)]">
                     {g.from === g.to ? g.from : `${g.from} → ${g.to}`} ·{' '}
                     {isRTL ? 'مستخدمة' : 'used'} {g.used} ·{' '}
@@ -435,7 +465,7 @@ export default function EditCompanyPage() {
               <option value="">{isRTL ? 'اختر المسار…' : 'Choose a route…'}</option>
               {routeOptions.map((o) => (
                 <option key={o.routeKey} value={o.routeKey}>
-                  {o.label}
+                  {routeLabelText(o, isRTL)}
                 </option>
               ))}
             </V2Select>

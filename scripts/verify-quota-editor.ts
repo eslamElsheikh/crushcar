@@ -156,8 +156,13 @@ async function main() {
   )
   check(
     'the quota shows the route by name',
-    String(list.json?.quotas?.[0]?.routeName || '').includes('→'),
-    `routeName=${list.json?.quotas?.[0]?.routeName}`
+    String(list.json?.quotas?.[0]?.label || '').includes('→'),
+    `label=${list.json?.quotas?.[0]?.label}`
+  )
+  check(
+    'and the stops it passes through',
+    Array.isArray(list.json?.quotas?.[0]?.stops) && list.json?.quotas?.[0]?.stops.length === 2,
+    `stops=${JSON.stringify(list.json?.quotas?.[0]?.stops)}`
   )
   check(
     "the company's own routes are offered",
@@ -328,6 +333,69 @@ async function main() {
     new Set(keys).size === keys.length && keys.length >= 3,
     JSON.stringify(keys).slice(0, 200))
 
+  console.log('the labels tell the journeys apart')
+  const byKey = new Map<string, any>((distinctList.json?.routes || []).map((r: any) => [r.routeKey, r]))
+  const direct = byKey.get(bookedRouteKey)
+  const reverse = byKey.get(`${stationB.id}|${stationA.id}`)
+  const viaOther = byKey.get(`${stationA.id}|${stationC.id}|${stationB.id}`)
+
+  check('the direct route shows its two stops',
+    direct?.stops?.length === 2, JSON.stringify(direct?.stops))
+  check('and no intermediate stops', !direct?.label?.includes('via'), direct?.label)
+  check('the route with an intermediate stop shows it',
+    viaOther?.stops?.length === 3, JSON.stringify(viaOther?.stops))
+  check('and names it in the label', viaOther?.label?.includes('via'), viaOther?.label)
+  check('the two labels are different', direct?.label !== viaOther?.label,
+    `${direct?.label} vs ${viaOther?.label}`)
+  check('the reverse direction has a different label too', direct?.label !== reverse?.label,
+    `${direct?.label} vs ${reverse?.label}`)
+  check('and its stops are in the other order',
+    JSON.stringify(reverse?.stops) === JSON.stringify([...(direct?.stops ?? [])].reverse()),
+    `${JSON.stringify(reverse?.stops)} vs ${JSON.stringify(direct?.stops)}`)
+
+  console.log('a route that is both booked and served is listed once')
+  // The same route reached from the bookings and from a bus the company owns.
+  const ownedBus = await prisma.bus.create({
+    data: { name: `Owned Bus ${SUFFIX}`, type: 'COACH_BUS', seatCount: 1, companyId: booked.id },
+  })
+  const ownedLayout = await prisma.busLayout.create({ data: { busId: ownedBus.id, rows: 1, cols: 1, aisleAfter: 0 } })
+  await prisma.seat.create({ data: { layoutId: ownedLayout.id, label: 'S1-1', row: 1, col: 1, type: 'NORMAL', price: 100 } })
+  const ownedTrip = await prisma.trip.create({
+    data: {
+      busId: ownedBus.id, origin: 'A', destination: 'B',
+      departure: bookedDeparture, arrival: new Date(bookedDeparture.getTime() + 6 * 3600000),
+      price: 100, status: 'SCHEDULED', bookingMode: 'SEAT',
+      routeKey: bookedRouteKey, travelDate: bookedTravelDate,
+      tripStops: { create: bookedRoute.map((s, i) => ({ stationId: s, stopOrder: i + 1, priceFromOrigin: i * 50 })) },
+    },
+  })
+  const bothList = await api(`/api/admin/companies/${booked.id}/route-quotas`, { token })
+  const bothKeys = (bothList.json?.routes || []).map((r: any) => r.routeKey)
+  check('the route appears once, not twice',
+    bothKeys.filter((k: string) => k === bookedRouteKey).length === 1,
+    JSON.stringify(bothKeys).slice(0, 200))
+  check('and the canonical key is unchanged', bothKeys.includes(bookedRouteKey))
+
+  console.log('a route whose stop names are unknown is not given invented ones')
+  // An allowance written long ago can name a station that has since been
+  // deleted. The key still points at it, and the editor has to say so rather
+  // than make a name up.
+  const unknownRouteKey = `${stationA.id}|ghost-station-id`
+  await prisma.companyRouteQuota.upsert({
+    where: { companyId_routeKey_travelDate: { companyId: booked.id, routeKey: unknownRouteKey, travelDate: bookedTravelDate } },
+    create: { companyId: booked.id, routeKey: unknownRouteKey, travelDate: bookedTravelDate, maxSeats: 5 },
+    update: { maxSeats: 5 },
+  })
+  const unknownList = await api(`/api/admin/companies/${booked.id}/route-quotas`, { token })
+  const unknownRow = (unknownList.json?.quotas || []).find((q: any) => q.routeKey === unknownRouteKey)
+  check('the row is still listed', !!unknownRow)
+  check('and it says the stops are unknown', unknownRow?.stopsComplete === false,
+    JSON.stringify(unknownRow?.stops))
+  check('the unknown stop is not given a name', unknownRow?.stops?.includes('ghost-station-id') === false,
+    JSON.stringify(unknownRow?.stops))
+  check('and the label says so', String(unknownRow?.label).includes('stops unknown'),
+    unknownRow?.label)
+
   console.log('a date range is written as one row per day')
   const range = await api(`/api/admin/companies/${booked.id}/route-quotas`, {
     method: 'PUT',
@@ -356,10 +424,10 @@ async function main() {
   await prisma.companyBooking.deleteMany({ where: { companyId: booked.id } })
   await prisma.companyRouteQuota.deleteMany({ where: { companyId: booked.id } })
   await prisma.companyTripQuota.deleteMany({ where: { companyId: booked.id } })
-  await prisma.trip.deleteMany({ where: { id: { in: [bookedTrip.id, reverseTrip.id, otherStopsTrip.id] } } })
-  await prisma.seat.deleteMany({ where: { layoutId: orphanLayout.id } })
-  await prisma.busLayout.delete({ where: { id: orphanLayout.id } })
-  await prisma.bus.delete({ where: { id: orphanBus.id } })
+  await prisma.trip.deleteMany({ where: { id: { in: [bookedTrip.id, reverseTrip.id, otherStopsTrip.id, ownedTrip.id] } } })
+  await prisma.seat.deleteMany({ where: { layoutId: { in: [orphanLayout.id, ownedLayout.id] } } })
+  await prisma.busLayout.deleteMany({ where: { id: { in: [orphanLayout.id, ownedLayout.id] } } })
+  await prisma.bus.deleteMany({ where: { id: { in: [orphanBus.id, ownedBus.id] } } })
   await prisma.company.delete({ where: { id: booked.id } })
   // A user still pointing at the company would make the company delete fail,
   // so the user is released first.
