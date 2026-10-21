@@ -177,6 +177,27 @@ async function main() {
     body: { routeKey: `${stationA.id}|${stationB.id}`, travelDate, maxSeats: 0 },
   })
   check('a zero cap is refused', bad.status === 400, `status=${bad.status}`)
+  check('and it says which values are allowed',
+    bad.json?.error === 'INVALID_SEAT_CAP' && bad.json?.min === 1 && bad.json?.max === 500,
+    JSON.stringify(bad.json).slice(0, 140))
+
+  // A cap above the bound is refused too, and nothing is written.
+  const tooBig = await api(`/api/admin/companies/${company.id}/route-quotas`, {
+    method: 'PUT',
+    token,
+    body: { routeKey: `${stationA.id}|${stationB.id}`, travelDate, maxSeats: 501 },
+  })
+  check('a cap above 500 is refused', tooBig.status === 400, `status=${tooBig.status}`)
+
+  // And the largest allowed cap is accepted, so the bound is a bound and not
+  // a smaller rule.
+  const atTheBound = await api(`/api/admin/companies/${company.id}/route-quotas`, {
+    method: 'PUT',
+    token,
+    body: { routeKey: `${stationA.id}|${stationB.id}`, travelDate, maxSeats: 500 },
+  })
+  check('a cap of exactly 500 is allowed', atTheBound.status === 200, `status=${atTheBound.status}`)
+
 
   const badDate = await api(`/api/admin/companies/${company.id}/route-quotas`, {
     method: 'PUT',

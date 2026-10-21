@@ -68,6 +68,16 @@ export default function EditCompanyPage() {
       toast.error(isRTL ? 'اختر المسار وتاريخ السفر' : 'Pick a route and a travel date');
       return;
     }
+    // The same rule the server applies, so the admin is told straight away
+    // rather than after a round trip. The server still checks it: this is a
+    // convenience, not the rule.
+    if (newQuota.maxSeats !== '') {
+      const cap = Number(newQuota.maxSeats);
+      if (!Number.isFinite(cap) || cap < 1 || cap > 500) {
+        toast.error(t('quota.invalidCap'));
+        return;
+      }
+    }
     setAddingQuota(true);
     try {
       const res = await fetch(`/api/admin/companies/${id}/route-quotas`, {
@@ -78,7 +88,7 @@ export default function EditCompanyPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data?.error || t('common.error'));
+        toast.error(data?.error === 'INVALID_SEAT_CAP' ? t('quota.invalidCap') : (data?.message || data?.error || t('common.error')));
         return;
       }
       setNewQuota({ routeKey: '', travelDate: '', maxSeats: '' });
@@ -333,12 +343,18 @@ export default function EditCompanyPage() {
             <V2Input
               type="number"
               min="1"
+              max="500"
               value={newQuota.maxSeats}
               onChange={(e) => setNewQuota({ ...newQuota, maxSeats: e.target.value })}
               placeholder={isRTL ? 'بلا حد' : 'No limit'}
               dir="ltr"
               className="tabular-nums"
             />
+            <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+              {isRTL
+                ? 'من 1 إلى 500 مقعد. اتركه فارغاً لعدم وضع حد. هذا الحد لا يرفع حد الـ 10 مقاعد لكل حجز.'
+                : '1 to 500 seats. Leave it empty for no limit. This cap cannot raise the ten-seat limit on a single booking.'}
+            </p>
           </V2Field>
         </div>
         <V2Button

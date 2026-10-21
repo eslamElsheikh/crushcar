@@ -198,7 +198,14 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       // it just stops a typo from silently turning a cap into no cap at all.
       if (!Number.isFinite(parsed) || parsed < 1 || parsed > 500) {
         return NextResponse.json(
-          { error: 'The seat cap must be between 1 and 500' },
+          {
+            error: 'INVALID_SEAT_CAP',
+            // The code is what the page keys off to show a translated
+            // message; this one is for anything reading the response raw.
+            message: 'The seat cap must be between 1 and 500',
+            min: 1,
+            max: 500,
+          },
           { status: 400 },
         )
       }

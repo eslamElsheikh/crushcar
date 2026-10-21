@@ -576,6 +576,7 @@ const translations: Record<string, Record<Language, string>> = {
   'platformWallet.platformDue': { ar: 'مستحقات المنصة غير المسددة', en: 'Unsettled platform entitlements' },
   'platformWallet.funded': { ar: 'الممول', en: 'Funded' },
   'platformWallet.spent': { ar: 'المصروف', en: 'Spent' },
+  'quota.invalidCap': { ar: 'حد المقاعد يجب أن يكون بين 1 و 500', en: 'The seat cap must be between 1 and 500' },
   'depositRequest.title': { ar: 'طلب شحن رصيد', en: 'Wallet Deposit Request' },
   'depositRequest.newRequest': { ar: 'طلب شحن جديد', en: 'New Deposit Request' },
   'depositRequest.amount': { ar: 'المبلغ', en: 'Amount' },
