@@ -29,6 +29,7 @@ const prisma = new PrismaClient()
 const COMPANY_PREFIXES = [
   'Race Co ', 'Refund Co ', 'Quota Co ', 'Limits Co ', 'Other Co ',
   'Backfill Co ', 'P ', 'Admin Co ', 'Co ',
+  'Seats Co ', 'Route Race Co ', 'Rehearsal Co ', 'Admin Booking Co ',
 ]
 
 function isTestCompany(name: string): boolean {
