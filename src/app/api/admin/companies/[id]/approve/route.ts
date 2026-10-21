@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -44,21 +45,62 @@ if (action === 'reject') {
       });
     }
 
-    const updated = await prisma.company.update({
-      where: { id },
-      data: {
-        isActive: true,
-        creditLimit: creditLimit || 0,
-        paymentMode: paymentMode || 'PREPAID',
-        billingCycle: billingCycle || 'MONTHLY',
-      },
-      include: {
-        users: {
-          where: { role: 'COMPANY_ADMIN' },
-          select: { id: true, name: true, email: true },
+    // The credit limit an approval sets is a change to the company's
+    // exposure, and it is written down like any other change: the limit
+    // before and after, the exact change, the reason, and who approved it.
+    //
+    // Nothing is written when the limit did not actually move — a log row
+    // recording a change of zero is a record of nothing.
+    const newCreditLimit = creditLimit || 0;
+    const updated = await prisma.$transaction(async (tx) => {
+      const before = await tx.company.findUnique({
+        where: { id },
+        select: { creditLimit: true },
+      });
+      const previousLimit = before?.creditLimit ?? 0;
+      const changeAmount = newCreditLimit - previousLimit;
+
+      const company = await tx.company.update({
+        where: { id },
+        data: {
+          isActive: true,
+          creditLimit: newCreditLimit,
+          paymentMode: paymentMode || 'PREPAID',
+          billingCycle: billingCycle || 'MONTHLY',
         },
-      },
-    })
+        include: {
+          users: {
+            where: { role: 'COMPANY_ADMIN' },
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+
+      if (changeAmount !== 0) {
+        await tx.creditLog.create({
+          data: {
+            companyId: id,
+            previousLimit,
+            newLimit: newCreditLimit,
+            changeAmount,
+            reason: 'Credit limit set when the company was approved',
+            createdById: session.user.id,
+            createdByEmail: session.user.email || '',
+          },
+        });
+        await audit({
+          action: 'UPDATE',
+          entity: 'CreditLimit',
+          entityId: id,
+          companyId: id,
+          session,
+          metadata: { previousLimit, newLimit: newCreditLimit, changeAmount, reason: 'Company approval' },
+          client: tx,
+        });
+      }
+
+      return company;
+    });
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { MAX_DAILY_SEATS, MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits'
+import { audit } from '@/lib/audit'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -114,9 +115,58 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    const company = await prisma.company.update({
-      where: { id },
-      data: updateData,
+    const company = await prisma.$transaction(async (tx) => {
+      // A credit limit that moves is a change to the company's exposure, and
+      // it is written down: the limit before and after, the exact change, the
+      // reason, and who did it. The dedicated credit-limit endpoint has
+      // always done this; this path could change the limit without a word of
+      // it, which left a change with no trace of it.
+      //
+      // Nothing is written when the limit did not actually move. A log row
+      // that records a change of zero is a record of nothing, and a pile of
+      // them hides the ones that matter.
+      let creditLog: { previousLimit: number; newLimit: number; changeAmount: number } | null = null
+      if (creditLimit !== undefined) {
+        const before = await tx.company.findUnique({
+          where: { id },
+          select: { creditLimit: true },
+        })
+        const previousLimit = before?.creditLimit ?? 0
+        const newLimit = Number(creditLimit)
+        if (Number.isFinite(newLimit) && newLimit !== previousLimit) {
+          creditLog = { previousLimit, newLimit, changeAmount: newLimit - previousLimit }
+        }
+      }
+
+      const updated = await tx.company.update({
+        where: { id },
+        data: updateData,
+      })
+
+      if (creditLog) {
+        await tx.creditLog.create({
+          data: {
+            companyId: id,
+            previousLimit: creditLog.previousLimit,
+            newLimit: creditLog.newLimit,
+            changeAmount: creditLog.changeAmount,
+            reason: 'Credit limit changed from the company settings',
+            createdById: session.user.id,
+            createdByEmail: session.user.email || '',
+          },
+        })
+        await audit({
+          action: 'UPDATE',
+          entity: 'CreditLimit',
+          entityId: id,
+          companyId: id,
+          session,
+          metadata: creditLog,
+          client: tx,
+        })
+      }
+
+      return updated
     })
 
     return NextResponse.json({
