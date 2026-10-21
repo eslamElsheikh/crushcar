@@ -30,6 +30,7 @@ const COMPANY_PREFIXES = [
   'Race Co ', 'Refund Co ', 'Quota Co ', 'Limits Co ', 'Other Co ',
   'Backfill Co ', 'P ', 'Admin Co ', 'Co ',
   'Seats Co ', 'Route Race Co ', 'Rehearsal Co ', 'Admin Booking Co ',
+  'Credit ', 'Daily Co ', 'Daily Sub Co ',
 ]
 
 function isTestCompany(name: string): boolean {
@@ -42,11 +43,9 @@ async function main() {
   })
   const targets = companies.filter((c) => isTestCompany(c.name))
 
-  if (targets.length === 0) {
-    console.log('  nothing to clean')
-    return
+  if (targets.length > 0) {
+    console.log(`  cleaning ${targets.length} test company/companies`)
   }
-  console.log(`  cleaning ${targets.length} test company/companies`)
 
   for (const company of targets) {
     const busIds = (await prisma.bus.findMany({
@@ -82,12 +81,21 @@ async function main() {
     console.log(`    removed ${company.name}`)
   }
 
-  // The users the scripts made.
+  // The users the scripts made. Matched by the prefixes they use for their
+  // email addresses, so a real user is never touched.
   const users = await prisma.user.findMany({ select: { id: true, email: true } })
-  const testUsers = users.filter((u) => /^(super|quota|admin|company|platform)-/.test(u.email))
+  const testUsers = users.filter((u) =>
+    /^(super|quota|admin|company|platform|seats|credit|daily|race|limits|other|backfill|rehearsal|refund|route|p)-/.test(
+      u.email,
+    ),
+  )
   if (testUsers.length > 0) {
     await prisma.user.deleteMany({ where: { id: { in: testUsers.map((u) => u.id) } } })
     console.log(`  removed ${testUsers.length} test user(s)`)
+  }
+
+  if (targets.length === 0 && testUsers.length === 0) {
+    console.log('  nothing to clean')
   }
 
   // The platform ledger: the platform wallet's own rows are not test data and

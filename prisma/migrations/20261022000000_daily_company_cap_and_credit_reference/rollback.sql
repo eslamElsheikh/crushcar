@@ -26,6 +26,13 @@
 -- This file removes the columns. It does not restore data that was created
 -- after the migration.
 
+-- The idempotency key on the booking rows. Dropping it means a retried
+-- request can no longer be recognised as a replay, so the protection against
+-- a double booking has to go with it.
+ALTER TABLE `CompanyBooking`
+  DROP INDEX `CompanyBooking_idempotencyKey_idx`,
+  DROP COLUMN `idempotencyKey`;
+
 ALTER TABLE `CreditLog`
   DROP COLUMN `bookingReference`;
 

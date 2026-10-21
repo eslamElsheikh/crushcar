@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import type { Prisma } from '@prisma/client'
 
 const ACTIONS = [
   'CREATE', 'UPDATE', 'DELETE', 'CANCEL', 'APPROVE', 'REJECT',
@@ -17,6 +18,18 @@ const ENTITIES = [
 type AuditAction = (typeof ACTIONS)[number]
 type AuditEntity = (typeof ENTITIES)[number]
 
+/**
+ * Writes an audit row.
+ *
+ * By default the row goes through the ordinary client and a failure is
+ * logged and swallowed: an audit trail that breaks the operation it is
+ * describing is worse than no trail.
+ *
+ * When the caller passes a transaction client the row is written inside that
+ * transaction, and a failure is raised rather than swallowed. A financial
+ * change that is recorded in a transaction has to roll back with it, or the
+ * record and the change can disagree.
+ */
 export async function audit(params: {
   action: AuditAction
   entity: AuditEntity
@@ -25,13 +38,15 @@ export async function audit(params: {
   companyId?: string
   metadata?: Record<string, unknown>
   ip?: string
+  /** Write inside this transaction, and fail loudly if it cannot be written. */
+  client?: Prisma.TransactionClient
 }) {
-  try {
-    const userId = params.session?.user?.id
-    const userEmail = params.session?.user?.email
-    const companyId = params.companyId || params.session?.user?.companyId
+  const userId = params.session?.user?.id
+  const userEmail = params.session?.user?.email
+  const companyId = params.companyId || params.session?.user?.companyId
 
-    await prisma.auditLog.create({
+  const write = (db: Prisma.TransactionClient | typeof prisma) =>
+    db.auditLog.create({
       data: {
         action: params.action,
         entity: params.entity,
@@ -43,6 +58,16 @@ export async function audit(params: {
         ip: params.ip || '',
       },
     })
+
+  if (params.client) {
+    // Inside a transaction: the row is part of the operation, so a failure
+    // has to abort it.
+    await write(params.client)
+    return
+  }
+
+  try {
+    await write(prisma)
   } catch (err) {
     logger.error('[Audit] Failed to write audit log:', err)
   }

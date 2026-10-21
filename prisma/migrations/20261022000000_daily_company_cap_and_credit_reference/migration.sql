@@ -38,6 +38,23 @@ ALTER TABLE `Company`
 ALTER TABLE `CreditLog`
   ADD COLUMN `bookingReference` VARCHAR(191) NULL;
 
+-- ── The request that created a company booking ─────────────────────────
+-- A super admin booking is made by a request that can be retried, and a
+-- retry must not book or charge twice. The wallet ledger cannot carry that
+-- marker: a booking paid entirely on credit moves no money, and a ledger row
+-- that records no movement is not a ledger row.
+--
+-- Every seat of one request carries the same key, so it is NOT unique. The
+-- company row is locked for the whole booking transaction, so two requests
+-- with the same key are decided one after the other, and the second one sees
+-- the first one's rows.
+--
+-- NULL for a booking made by the company itself, which is not a request that
+-- can be retried.
+ALTER TABLE `CompanyBooking`
+  ADD COLUMN `idempotencyKey` VARCHAR(191) NULL,
+  ADD INDEX `CompanyBooking_idempotencyKey_idx`(`idempotencyKey`);
+
 -- ── Why there is no index on Trip.travelDate ───────────────────────────
 -- The daily cap counts a company's bookings on a date, and that count is
 -- driven from CompanyBooking, which already has @@index([companyId, status]).

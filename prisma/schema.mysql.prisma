@@ -346,6 +346,18 @@ model CompanyBooking {
   /// (companyId) from the person who made it.
   createdByUserId String?
   createdBy       User?    @relation("CompanyBookingCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  /// The request that created this booking.
+  ///
+  /// A super admin booking is made by a request that can be retried, and a
+  /// retry must not book or charge twice. The wallet ledger cannot be the
+  /// marker for that: a booking paid entirely on credit moves no money, and
+  /// a ledger row that records no movement is not a ledger row.
+  ///
+  /// Every seat of one request carries the same key, so it is not unique. The
+  /// company row is locked for the whole booking transaction, so two requests
+  /// with the same key are decided one after the other and the second sees
+  /// the first's rows.
+  idempotencyKey String?
   fromStopOrder   Int      @default(1)
   toStopOrder     Int      @default(1)
   expiresAt       DateTime? @map("expires_at")
@@ -367,6 +379,7 @@ model CompanyBooking {
   @@index([companyId, status])
   @@index([createdAt, status])
   @@index([createdByUserId])
+  @@index([idempotencyKey])
 }
 
 /// How many seats one company may hold on one trip.

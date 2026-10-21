@@ -200,7 +200,13 @@ async function main() {
     (await prisma.companyBooking.count({ where: { tripId: trip.id } })) === 3)
 
   console.log('\na short wallet refuses the whole thing')
-  await prisma.company.update({ where: { id: company.id }, data: { walletBalance: 10 } })
+  // A prepaid company has no credit line to fall back on, so a short wallet
+  // is a refusal. A company that may use credit is a different case, and it
+  // is covered by check:credit-policy.
+  await prisma.company.update({
+    where: { id: company.id },
+    data: { walletBalance: 10, paymentMode: 'PREPAID' },
+  })
   const short = await api('/api/admin/company-bookings', {
     method: 'POST',
     token,
@@ -216,8 +222,14 @@ async function main() {
     (await prisma.companyBooking.count({ where: { tripId: trip.id } })) === 3)
   const walletShort = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
   check('the wallet did not move', walletShort.walletBalance === 10, String(walletShort.walletBalance))
+  check('the credit limit was not raised', walletShort.creditLimit === 500000, String(walletShort.creditLimit))
   check('no ledger row was written',
     (await prisma.walletTransaction.count({ where: { companyId: company.id } })) === 1)
+
+  await prisma.company.update({
+    where: { id: company.id },
+    data: { walletBalance: 100000, paymentMode: 'BOTH' },
+  })
 
   console.log('\na replayed request')
   await prisma.company.update({ where: { id: company.id }, data: { walletBalance: 100000 } })

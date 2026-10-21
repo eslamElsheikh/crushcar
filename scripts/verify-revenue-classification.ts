@@ -120,7 +120,13 @@ async function main() {
     },
   })
 
-  const breakdown = await getRevenueBreakdown(prisma, { since: new Date(Date.now() - 86400000) })
+  // Scoped to this test's own company, so the numbers it checks are its own
+  // and not whatever else happens to be in the database. An unscoped total
+  // makes the test depend on the order the suites run in.
+  const breakdown = await getRevenueBreakdown(prisma, {
+    companyId: company.id,
+    since: new Date(Date.now() - 86400000),
+  })
 
   // The customer booking is 75 of customer revenue. The platform booking is
   // 250 and must not be in that number.
@@ -181,6 +187,7 @@ async function main() {
 
   if (charter) {
     const withCharter = await getRevenueBreakdown(prisma, {
+      companyId: company.id,
       since: new Date(Date.now() - 86400000),
     })
     check(

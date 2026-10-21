@@ -221,6 +221,10 @@ async function main() {
   check('the quota is gone', list2.json?.quotas?.length === 0, `count=${list2.json?.quotas?.length}`)
 
   // ── Clean up ─────────────────────────────────────────────────────────
+  // A user still pointing at the company would make the company delete fail,
+  // so the user is released first.
+  await prisma.user.updateMany({ where: { companyId: company.id }, data: { companyId: null } })
+  await prisma.user.deleteMany({ where: { id: { in: [admin.id] } } })
   await prisma.companyRouteQuota.deleteMany({ where: { companyId: company.id } })
   await prisma.companyTripQuota.deleteMany({ where: { companyId: company.id } })
   await prisma.tripStop.deleteMany({ where: { tripId: trip.id } })
@@ -230,7 +234,6 @@ async function main() {
   await prisma.bus.delete({ where: { id: bus.id } })
   await prisma.station.deleteMany({ where: { id: { in: [stationA.id, stationB.id] } } })
   await prisma.company.delete({ where: { id: company.id } })
-  await prisma.user.delete({ where: { id: admin.id } })
 
   console.log(failures === 0 ? '\n  all checks passed' : `\n  ${failures} check(s) failed`)
   process.exit(failures === 0 ? 0 : 1)

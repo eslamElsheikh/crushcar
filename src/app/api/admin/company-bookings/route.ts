@@ -5,7 +5,8 @@ import { logger } from '@/lib/logger'
 import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { lockRow } from '@/lib/row-lock'
 import { resolveBookingLimits } from '@/lib/company-quota'
-import { chargeCompanyWalletOnly, splitCharge } from '@/lib/company-charge'
+import { chargeCompanyWithCreditTopUp, splitCharge } from '@/lib/company-charge'
+import { audit } from '@/lib/audit'
 import { parseCollectAmount } from '@/lib/validations'
 import { companyPaymentDeadline } from '@/lib/payments'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
@@ -136,6 +137,24 @@ export async function POST(req: NextRequest) {
       // Lock order: company, then trip, then the quota rows.
       await lockRow(tx, 'Company', companyId)
 
+      // A replay of a request that was already charged is refused here, while
+      // the company lock is held. Two requests with the same key are therefore
+      // decided one after the other, and the second one sees the first one's
+      // rows.
+      //
+      // The check has to be on the bookings and not only on the wallet
+      // ledger: a booking paid entirely on credit moves no money, so there is
+      // no ledger row to find.
+      const replay = await tx.companyBooking.findFirst({
+        where: { companyId, idempotencyKey },
+        select: { id: true, reference: true },
+      })
+      if (replay) {
+        const err = new Error('Duplicate charge')
+        ;(err as Error & { code?: string }).code = 'DUPLICATE_CHARGE'
+        throw err
+      }
+
       const trip = await tx.trip.findUnique({
         where: { id: tripId },
         include: {
@@ -201,8 +220,26 @@ export async function POST(req: NextRequest) {
         toStopOrder,
       })
 
-      // The company's wallet, and only the company's wallet.
-      const charge = await chargeCompanyWalletOnly(tx, {
+      // The references are drawn before the money moves, so the credit log can
+      // name the booking that caused an automatic limit increase.
+      const references: string[] = []
+      for (const p of priced) {
+        references.push(
+          await nextBookingRef(tx, {
+            fromStation: fromStationName,
+            toStation: toStationName,
+            seatLabel: p.seatLabel,
+          }),
+        )
+      }
+
+      // The company's own money: the wallet first, then the credit the
+      // company already has, and if that is not enough the credit limit is
+      // raised by exactly the shortfall.
+      //
+      // A prepaid company has no credit line. It is refused when its wallet
+      // is short, and its limit is not touched.
+      const charge = await chargeCompanyWithCreditTopUp(tx, {
         companyId,
         total,
         reference: tripId,
@@ -210,17 +247,35 @@ export async function POST(req: NextRequest) {
         idempotencyKey: `charge:${idempotencyKey}`,
         actorId: session.user.id,
         actorEmail: session.user.email ?? '',
+        bookingReference: references[0] ?? null,
       })
 
+      if (charge.creditLimitIncrease > 0) {
+        // The generic audit trail, written inside the transaction so it
+        // rolls back with the increase it describes.
+        await audit({
+          action: 'UPDATE',
+          entity: 'CreditLimit',
+          entityId: companyId,
+          companyId,
+          session: { user: { id: session.user.id, email: session.user.email ?? '' } },
+          metadata: {
+            previousLimit: charge.previousCreditLimit,
+            newLimit: charge.newCreditLimit,
+            changeAmount: charge.creditLimitIncrease,
+            reason: 'Automatic credit increase for a Super Admin company booking',
+            bookingReference: references[0] ?? null,
+          },
+          client: tx,
+        })
+      }
+
       const walletShares = splitCharge(charge.paidFromWallet, priced.length)
+      const creditShares = splitCharge(charge.paidOnCredit, priced.length)
 
       const created: any[] = []
       for (const [index, p] of priced.entries()) {
-        const reference = await nextBookingRef(tx, {
-          fromStation: fromStationName,
-          toStation: toStationName,
-          seatLabel: p.seatLabel,
-        })
+        const reference = references[index]
         const booking = await tx.companyBooking.create({
           data: {
             reference,
@@ -234,15 +289,18 @@ export async function POST(req: NextRequest) {
             passengerNotes: p.passengerNotes || '',
             collectAmount: parseCollectAmount(p.collectAmount),
             bookingType: 'FOR_CLIENT',
-            // Paid at once: the money has already left the company's wallet.
+            // Paid at once: the money has already left the company's wallet
+            // and, where it was needed, its credit line.
             status: 'PAID',
             paidAt: new Date(),
             expiresAt: null,
             total: p.price,
             paidFromWallet: walletShares[index] ?? 0,
-            paidOnCredit: 0,
+            paidOnCredit: creditShares[index] ?? 0,
             // The audit trail: the company owns the booking, this user made it.
             createdByUserId: session.user.id,
+            // The request that made it, so a retry can be recognised.
+            idempotencyKey,
             roundTripGroupId: roundTripGroupId || null,
             fromStopOrder,
             toStopOrder,
@@ -269,19 +327,38 @@ export async function POST(req: NextRequest) {
           stops: b.trip?.tripStops,
         })),
         charged: charge.paidFromWallet,
+        chargedOnCredit: charge.paidOnCredit,
+        creditLimitIncrease: charge.creditLimitIncrease,
+        previousCreditLimit: charge.previousCreditLimit,
+        newCreditLimit: charge.newCreditLimit,
         walletBalance: companyAfter.walletBalance,
+        outstandingBalance: companyAfter.outstandingBalance,
         limits: {
           maxSeats: limits.maxSeats,
           tripLimit: limits.tripLimit,
           routeLimit: limits.routeLimit,
           tripUsed: limits.tripUsed,
           routeUsed: limits.routeUsed,
+          dailyLimit: limits.dailyLimit,
+          dailyUsed: limits.dailyUsed,
         },
         requiresPayment: false,
       })
     }, BOOKING_ISOLATION))
   } catch (err: any) {
     const code = err?.code
+    // A unique-constraint failure on the idempotency key means a request with
+    // this key is already being charged. It is a conflict, not a server
+    // fault, and it must not be reported as one.
+    if (code === 'P2002') {
+      const target = String(err?.meta?.target ?? '')
+      if (target.includes('idempotencyKey')) {
+        return NextResponse.json(
+          { error: 'ALREADY_BOOKED', message: 'هذا الحجز مُسجَّل بالفعل' },
+          { status: 409 },
+        )
+      }
+    }
     if (code === 'UNKNOWN_SEAT') {
       return NextResponse.json(
         { error: 'UNKNOWN_SEAT', message: `الكرسي ${err.seatLabel} غير موجود في تصميم الحافلة` },
@@ -351,9 +428,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'INSUFFICIENT_WALLET',
+          // A prepaid company has no credit line to fall back on, so the
+          // message says the limit was not raised rather than leaving the
+          // administrator to wonder whether it was.
           message: 'رصيد محفظة الشركة غير كافٍ',
           available: err.available,
           required: err.required,
+          creditLimitIncreased: false,
         },
         { status: 400 },
       )
