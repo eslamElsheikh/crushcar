@@ -42,6 +42,63 @@ Each one was rehearsed against a copy of the production schema: applied, it
 reproduces the target structure exactly, and rolled back it returns to the
 pre-migration state exactly.
 
+**They are independent of one another.** No column is touched by two of them,
+so a release that was interrupted after the first can finish with the other
+two in any order. The order below is by convention, not by dependency.
+
+**But the code depends on all three, and on the backfill.** A column the
+code reads and the migration has not added is an error on every request that
+reads it:
+
+| The code needs | From | What happens without it |
+|---|---|---|
+| `Booking.fundingSource` | 16th | the platform-funded booking path cannot read the column |
+| `CompanyTripQuota` | 16th | the per-trip allowance cannot be read |
+| `Trip.routeKey`, `Trip.travelDate` | 21st | the route allowance is counted against a key that is not there |
+| `CompanyRouteQuota` | 21st | the route allowance cannot be read |
+| `WalletTransaction.idempotencyKey` | 21st | a retried charge is not recognised as a replay |
+| `CompanyBooking.createdByUserId` | 21st | the record of who made a booking is not written |
+| `Company.maxDailySeats` | 22nd | the overall daily cap cannot be read |
+| `CreditLog.bookingReference` | 22nd | an automatic credit increase is not traceable to its booking |
+| `CompanyBooking.idempotencyKey` | 22nd | a retried request is not recognised as a replay |
+| the backfilled keys | the backfill | every company booking on an existing trip is refused with `UNRESOLVED_ROUTE` |
+
+### If a migration fails part way through
+
+**MariaDB commits DDL implicitly.** There is no transaction to roll back:
+if the fourth statement of a migration fails, the first three have already
+been applied and they stay applied. Re-running the file does not help —
+`ADD COLUMN` on a column that is already there fails with "duplicate column
+name".
+
+So a partial migration is undone with its own rollback, and then applied
+again:
+
+```bash
+mysql -u safro_user -p safro_travel_db < prisma/migrations/<name>/rollback.sql
+mysql -u safro_user -p safro_travel_db < prisma/migrations/<name>/migration.sql
+```
+
+All three pending migrations have a `rollback.sql` beside them for exactly
+this. Check which statements landed before rolling back, so the rollback
+does not try to remove something that was never added:
+
+```sql
+SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'safro_travel_db'
+  AND ((TABLE_NAME = 'Company' AND COLUMN_NAME IN ('autoPayEnabled','maxSeatsPerBooking','maxDailySeats'))
+    OR (TABLE_NAME = 'Trip' AND COLUMN_NAME IN ('routeKey','travelDate'))
+    OR (TABLE_NAME = 'CreditLog' AND COLUMN_NAME = 'bookingReference'));
+```
+
+**A migration that has been applied and then rolled back leaves the data
+alone.** These migrations add columns and tables; they do not move rows. The
+one thing to check afterwards is the tables the migrations create, since
+rolling one of those back drops the rows in it — and for the wallet and the
+route quota, those rows are real. **Do not roll back a migration that has
+already been used.**
+
+
 
 ---
 
@@ -168,6 +225,34 @@ without stops, 0 stops without a key.
 
 6. **Deploy the code** that reads the columns. Until then the application
    still derives the keys itself and the columns are simply unused.
+
+### If the backfill fails part way through
+
+The script writes one trip at a time and each write is its own statement, so
+a run that dies half way has written the trips it got to and left the rest
+alone. **It is safe to run again**: a trip that already has a key is left
+exactly as it is, because the script only writes the trips that are missing
+one. So the recovery is to run it again, not to undo it.
+
+```bash
+DATABASE_URL="…" SAFRO_BACKFILL_APPLY_PRODUCTION=1 \
+  npx tsx scripts/backfill-route-keys.ts --apply
+```
+
+Check afterwards with the two queries in step 5, and read the dry-run output
+again: the number of trips still missing a key should have gone down to the
+ones that have no stops.
+
+### If the code is deployed before the backfill
+
+Every company booking on an existing trip is refused with
+`UNRESOLVED_ROUTE` and a message that says the trip has no route identity.
+Nothing is corrupted and nothing is lost — the refusal is the safe direction,
+because the alternative is a booking that quietly escapes the daily
+allowance. The fix is the backfill, and it is the same fix as above.
+
+The customer booking path is not affected: it does not use the route
+allowance, so a customer can book any trip while the backfill is pending.
 
 ---
 
