@@ -6,6 +6,8 @@ import { paymentDeadline } from '@/lib/payments'
 import { isBookableByCustomer, BOOKING_CLOSED_MESSAGE_AR } from '@/lib/booking-rules'
 import { segmentPrice } from '@/lib/segment-price'
 import { UnknownSeatError, assertSeatBookable } from '@/lib/seat-availability'
+import { lockRow } from '@/lib/row-lock'
+import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 
 export async function GET(req: NextRequest) {
   try {
@@ -166,6 +168,12 @@ export async function POST(req: NextRequest) {
       })
       if (!trip) throw new Error('Trip not found')
 
+      // The trip row is locked before the seat is checked, so two requests for
+      // the same seat cannot both find it free and both book it. The lock
+      // order is the trip alone: no company is involved, and the company
+      // paths take the company row before the trip, so there is no cycle.
+      await lockRow(tx, 'Trip', tripId)
+
       // A charter trip is sold whole to one company. Seats on it are not
       // bookable, otherwise the customer pays for a seat on a bus they own.
       if (trip.bookingMode === 'BUS' || trip.reservedByCompanyId) throw new Error('CHARTER_TRIP')
@@ -314,7 +322,7 @@ export async function POST(req: NextRequest) {
         booking: { ...booking, stops: booking.trip?.tripStops },
         requiresPayment: true,
       })
-    }))
+    }, BOOKING_ISOLATION))
   } catch (err: any) {
     console.error(err)
     if (err.message === 'HOLD_EXPIRED_OR_INVALID') {

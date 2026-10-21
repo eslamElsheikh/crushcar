@@ -132,6 +132,35 @@ async function main() {
     },
     secret, salt: 'next-auth.session-token',
   })
+  // A customer, for the customer seat race.
+  const customer = await prisma.user.create({
+    data: {
+      email: `seats-customer-${SUFFIX}@example.com`,
+      name: 'Seats Customer',
+      role: 'CUSTOMER',
+      password: 'x',
+    },
+  })
+  const customerToken = await encode({
+    token: {
+      id: customer.id, sub: customer.id, email: customer.email, name: customer.name,
+      role: 'CUSTOMER', companyId: null, image: null, activeCheckedAt: Date.now(),
+    },
+    secret, salt: 'next-auth.session-token',
+  })
+
+  // The platform wallet needs money before it can book a seat.
+  const { fundPlatform } = await import('../src/lib/platform-wallet')
+  await prisma.$transaction((tx) =>
+    fundPlatform(tx, {
+      amountPiastres: 1000000,
+      method: 'BANK',
+      reference: `seats-${SUFFIX}`,
+      description: 'Seat validation test',
+      actorId: admin.id,
+      actorEmail: admin.email,
+    }),
+  )
 
   console.log('a seat that is not in the bus layout')
   const ghostAdmin = await post('/api/admin/company-bookings', {
@@ -223,6 +252,54 @@ async function main() {
   check('the seat is booked once',
     (await prisma.companyBooking.count({ where: { companyId: company.id, seatLabel: freeSeat } })) === 1)
 
+  console.log('a platform-funded booking is held to the same seat rules')
+  const platformGhost = await post('/api/platform/bookings', {
+    tripId: trip.id,
+    passengers: [{ seatLabel: 'NOT-A-SEAT' }],
+    idempotencyKey: `platform-ghost-${SUFFIX}`,
+  }, adminToken)
+  check('a seat that does not exist is refused', platformGhost.status === 400,
+    `status=${platformGhost.status}`)
+  check('and it says the seat does not exist', platformGhost.json?.error === 'UNKNOWN_SEAT',
+    JSON.stringify(platformGhost.json).slice(0, 120))
+
+  const platformBlocked = await post('/api/platform/bookings', {
+    tripId: trip.id,
+    passengers: [{ seatLabel: labels[1] }],
+    idempotencyKey: `platform-blocked-${SUFFIX}`,
+  }, adminToken)
+  check('a blocked seat is refused', platformBlocked.status === 409,
+    `status=${platformBlocked.status}`)
+  check('and it says the seat is blocked', platformBlocked.json?.error === 'SEAT_BLOCKED',
+    JSON.stringify(platformBlocked.json).slice(0, 120))
+
+  const platformTaken = await post('/api/platform/bookings', {
+    tripId: trip.id,
+    passengers: [{ seatLabel: labels[0] }],
+    idempotencyKey: `platform-taken-${SUFFIX}`,
+  }, adminToken)
+  check('a seat a company already holds is refused', platformTaken.status === 409,
+    `status=${platformTaken.status}`)
+  check('and it says the seat is taken', platformTaken.json?.error === 'SEAT_TAKEN',
+    JSON.stringify(platformTaken.json).slice(0, 120))
+
+  console.log('two customer requests for the same seat at the same moment')
+  const customerSeat = labels[3]
+  const customerRacers = await Promise.all(
+    Array.from({ length: 8 }, () =>
+      post('/api/bookings', {
+        tripId: trip.id,
+        seatLabel: customerSeat,
+        fromStationId: undefined,
+      }, customerToken)
+    )
+  )
+  const customerWon = customerRacers.filter((r) => r.status === 200)
+  check('exactly one of them wins', customerWon.length === 1,
+    `won=${customerWon.length} statuses=${customerRacers.map((r) => r.status).join(',')}`)
+  check('the seat is booked once',
+    (await prisma.booking.count({ where: { tripId: trip.id, seatLabel: customerSeat } })) === 1)
+
   console.log('and the money matches the bookings')
   const bookings = await prisma.companyBooking.findMany({ where: { companyId: company.id } })
   const charged = bookings.reduce((sum, b) => sum + b.total, 0)
@@ -242,7 +319,12 @@ async function main() {
   await prisma.busLayout.delete({ where: { id: layout.id } })
   await prisma.bus.delete({ where: { id: bus.id } })
   await prisma.station.deleteMany({ where: { id: { in: Object.values(st) }, tripStops: { none: {} } } })
-  await prisma.user.deleteMany({ where: { id: { in: [admin.id, companyUser.id] } } })
+  // The platform wallet rows this test wrote, so the chain check in
+  // check:wallet still starts from a ledger it can account for.
+  await prisma.platformTransaction.deleteMany({ where: { reference: `seats-${SUFFIX}` } })
+  await prisma.platformWallet.deleteMany({ where: { id: 'main' } })
+  await prisma.user.updateMany({ where: { companyId: company.id }, data: { companyId: null } })
+  await prisma.user.deleteMany({ where: { id: { in: [admin.id, companyUser.id, customer.id] } } })
   await prisma.company.delete({ where: { id: company.id } })
 
   console.log(failures === 0 ? '\n  all checks passed' : `\n  ${failures} check(s) failed`)

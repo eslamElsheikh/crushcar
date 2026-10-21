@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { autoExpireUnpaidBookings } from '@/lib/booking-expiry'
+import { autoExpireUnpaidBookings, autoExpireUnpaidCompanyBookings } from '@/lib/booking-expiry'
 import { isBookableByCustomer, isBookableByAnyRole } from '@/lib/booking-rules'
 import { routeKeyOfStops, travelDateOf } from '@/lib/route-key'
 
@@ -14,7 +14,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // seats also happens here. This is the path the booking screen polls, so a
     // seat never stays blocked because a job never fired. Failures are
     // swallowed: a sweep problem must not break trip browsing.
+    //
+    // The company sweep runs here too. It used to be left entirely to the
+    // cron, and with the cron unconfigured an unpaid company booking held
+    // its seat — and its share of the company's daily allowance — for good.
     await autoExpireUnpaidBookings().catch(() => {})
+    await autoExpireUnpaidCompanyBookings().catch(() => {})
 
     const { id } = await params
 

@@ -8,6 +8,7 @@ import { segmentPrice } from '@/lib/segment-price'
 import { parseCollectAmount } from '@/lib/validations'
 import { chargePlatform, toPiastres, fromPiastres } from '@/lib/platform-wallet'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
+import { assertSeatsBookable } from '@/lib/seat-availability'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,30 +114,17 @@ export async function POST(req: NextRequest) {
       })
       const total = priced.reduce((sum, p) => sum + p.price, 0)
 
-      // Every seat is checked before any row is written.
-      for (const p of priced) {
-        const conflict = await tx.booking.findFirst({
-          where: {
-            tripId,
-            seatLabel: p.seatLabel,
-            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-            fromStopOrder: { lt: toStopOrder },
-            toStopOrder: { gt: fromStopOrder },
-          },
-        })
-        if (conflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
-
-        const companyConflict = await tx.companyBooking.findFirst({
-          where: {
-            tripId,
-            seatLabel: p.seatLabel,
-            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-            fromStopOrder: { lt: toStopOrder },
-            toStopOrder: { gt: fromStopOrder },
-          },
-        })
-        if (companyConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
-      }
+      // Every seat is checked before any row is written: it has to exist, it
+      // must not be blocked, and it must be free for the leg being booked.
+      // The same check the company and customer paths use, so a platform-funded
+      // seat is held to the same rules as any other.
+      await assertSeatsBookable(tx, {
+        tripId,
+        seatLabels: priced.map((p) => p.seatLabel),
+        layoutSeatLabels: (trip.bus.layout?.seats ?? []).map((s: any) => s.label),
+        fromStopOrder,
+        toStopOrder,
+      })
 
       // The money. The wallet lock and the conditional decrement mean two
       // bookings can never spend the same balance twice.
@@ -208,6 +196,24 @@ export async function POST(req: NextRequest) {
     }, BOOKING_ISOLATION))
   } catch (err: any) {
     const message = String(err?.message || '')
+    if (err?.code === 'UNKNOWN_SEAT') {
+      return NextResponse.json(
+        { error: 'UNKNOWN_SEAT', message: `المقعد ${err.seatLabel} غير موجود في تصميم الحافلة` },
+        { status: 400 },
+      )
+    }
+    if (err?.code === 'SEAT_BLOCKED') {
+      return NextResponse.json(
+        { error: 'SEAT_BLOCKED', message: `المقعد ${err.seatLabel} معطَّل من الإدارة` },
+        { status: 409 },
+      )
+    }
+    if (err?.code === 'SEAT_CONFLICT') {
+      return NextResponse.json(
+        { error: 'SEAT_TAKEN', message: `المقعد ${err.seatLabel} محجوز بالفعل` },
+        { status: 409 },
+      )
+    }
     if (message.startsWith('SEAT_CONFLICT')) {
       const seat = message.split(':')[1] || ''
       return NextResponse.json(
