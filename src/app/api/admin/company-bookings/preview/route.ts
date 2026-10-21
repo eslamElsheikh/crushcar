@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
         isActive: company.isActive,
         walletBalance: company.walletBalance,
         maxSeatsPerBooking: company.maxSeatsPerBooking,
+        maxDailySeats: company.maxDailySeats,
       },
       trip: {
         id: trip.id,
@@ -72,17 +73,56 @@ export async function GET(req: NextRequest) {
       seatPrice,
       // The seats the company could take right now: the smallest of the
       // ceilings that applies, less what it already holds.
+      //
+      // Every ceiling is a "room left" figure, and the smallest of them is
+      // the one that decides. The per-booking ceiling leaves the whole cap
+      // free, because it is about one request. The other three are about
+      // seats the company already holds.
       availableSeats: Math.max(
         0,
         Math.min(
           limits.maxSeats,
-          limits.tripLimit ?? limits.maxSeats,
-          limits.routeLimit ?? limits.maxSeats,
-        ) - Math.max(limits.tripUsed, limits.routeUsed),
+          limits.tripLimit === null ? Infinity : limits.tripLimit - limits.tripUsed,
+          limits.routeLimit === null ? Infinity : limits.routeLimit - limits.routeUsed,
+          limits.dailyLimit === null ? Infinity : limits.dailyLimit - limits.dailyUsed,
+        ),
       ),
+      // The reason a booking would be refused, so the admin is told before
+      // trying rather than after.
+      reason: reasonForRefusal(limits),
     })
   } catch (err) {
     logger.error('[Admin Company Bookings Preview]', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
+}
+
+/**
+ * Which ceiling leaves the least room, and how much room that is.
+ *
+ * The same comparison the booking path makes, so the preview names the limit
+ * that would actually refuse the booking.
+ */
+function reasonForRefusal(limits: {
+  maxSeats: number
+  tripLimit: number | null
+  tripUsed: number
+  routeLimit: number | null
+  routeUsed: number
+  dailyLimit: number | null
+  dailyUsed: number
+}) {
+  const room = {
+    booking: limits.maxSeats,
+    trip: limits.tripLimit === null ? Infinity : limits.tripLimit - limits.tripUsed,
+    route: limits.routeLimit === null ? Infinity : limits.routeLimit - limits.routeUsed,
+    daily: limits.dailyLimit === null ? Infinity : limits.dailyLimit - limits.dailyUsed,
+  }
+  const tightest = (Object.keys(room) as (keyof typeof room)[]).reduce((a, b) =>
+    room[a] <= room[b] ? a : b,
+  )
+  return {
+    limit: tightest,
+    remaining: room[tightest] === Infinity ? null : Math.max(0, room[tightest]),
   }
 }

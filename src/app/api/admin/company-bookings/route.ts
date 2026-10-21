@@ -314,6 +314,15 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       )
     }
+    if (code === 'DAILY_QUOTA_EXCEEDED') {
+      return NextResponse.json(
+        {
+          error: 'DAILY_QUOTA_EXCEEDED',
+          message: `الحصة اليومية لهذه الشركة في هذا اليوم مكتملة، والمتاح ${err.remaining} مقاعد`,
+        },
+        { status: 413 },
+      )
+    }
     if (code === 'SEAT_CAP_EXCEEDED') {
       return NextResponse.json(
         { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${err.max} مقاعد` },

@@ -20,6 +20,7 @@
     "check:collect": "tsx scripts/verify-collect-split.ts",
     "check:limits": "tsx scripts/verify-booking-limits.ts",
     "check:company-limits": "tsx scripts/verify-company-limits.ts",
+    "check:daily-quota": "tsx scripts/verify-daily-quota.ts",
     "check:route-race": "tsx scripts/verify-route-quota-race.ts",
     "check:seats": "tsx scripts/verify-seat-validation.ts",
     "check:admin-booking": "tsx scripts/verify-admin-company-booking.ts",

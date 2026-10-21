@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 import { lockRow } from './row-lock'
 import {
   SEAT_HOLDING_STATUSES,
+  effectiveDailyCap,
   effectiveMaxSeatsPerBooking,
   effectiveTripQuota,
   fitsQuota,
@@ -59,6 +60,23 @@ export class TripQuotaExceededError extends Error {
 }
 
 /**
+ * The company has used up its overall daily allowance.
+ *
+ * This is the cap for one travel date, counted across every trip, route,
+ * direction and bus on that date. It is separate from the per-booking
+ * ceiling and from the route allowance, and it is not an allowance on top of
+ * either of them: the company has a number of seats it may hold on that day,
+ * and the route allowance is a subset of it.
+ */
+export class DailyQuotaExceededError extends Error {
+  readonly code = 'DAILY_QUOTA_EXCEEDED'
+  constructor(readonly remaining: number) {
+    super('Daily quota exceeded')
+    this.name = 'DailyQuotaExceededError'
+  }
+}
+
+/**
  * The trip cannot be placed in a route bucket, so the daily allowance cannot
  * be enforced against it.
  *
@@ -96,7 +114,11 @@ export interface BookingLimitResult {
   tripUsed: number
   /** Seats the company already holds on this route and day, across every bus. */
   routeUsed: number
-  /** Seats already in this booking, from the other leg of a round trip. */
+  /** The overall daily cap, or null when the company has none. */
+  dailyLimit: number | null
+  /** Seats the company already holds on this travel date, across every route, direction and bus. */
+  dailyUsed: number
+  /** Seats still in this booking, from the other leg of a round trip. */
   inBooking: number
 }
 
@@ -186,7 +208,14 @@ export async function resolveRouteBucket(
     tripStops?: { stationId: string; stopOrder: number }[]
     departure?: Date | string | null
   },
-): Promise<{ routeKey: string; travelDate: string; legacyTripIds: string[] }> {
+): Promise<{
+  routeKey: string
+  travelDate: string
+  /** Trips in this route bucket whose stored key is still missing. */
+  legacyTripIds: string[]
+  /** Trips on this travel date whose stored date is still missing. */
+  legacyTripIdsOnDate: string[]
+}> {
   const identity = resolveRouteIdentity(trip)
   if (identity.problem) {
     throw new UnresolvedRouteError(identity.problem, trip.id)
@@ -194,13 +223,18 @@ export async function resolveRouteBucket(
 
   const { routeKey, travelDate } = identity
 
-  // The legacy set: trips with no stored key whose own stops put them in this
-  // same bucket. They are counted explicitly, because the stored column on
-  // them is still null and a filter on it would match nothing.
+  // The legacy set: trips whose stored route key or stored travel date is
+  // still missing. They are counted explicitly, because a filter on a column
+  // that is null matches nothing.
+  //
+  // One scan answers both questions. A trip with no stored key and no stored
+  // date is missing both; a trip with a stored key but no stored date is
+  // missing only the date, and it still belongs to this date's bucket.
   const unkeyed = await tx.trip.findMany({
-    where: { routeKey: null },
+    where: { OR: [{ routeKey: null }, { travelDate: null }] },
     select: {
       id: true,
+      routeKey: true,
       travelDate: true,
       departure: true,
       tripStops: { select: { stationId: true, stopOrder: true } },
@@ -208,23 +242,42 @@ export async function resolveRouteBucket(
   })
 
   const legacyTripIds: string[] = []
+  const legacyTripIdsOnDate: string[] = []
   for (const other of unkeyed) {
     const otherIdentity = resolveRouteIdentity(other)
     if (otherIdentity.problem) continue
-    if (otherIdentity.routeKey === routeKey && otherIdentity.travelDate === travelDate) {
-      legacyTripIds.push(other.id)
+    if (otherIdentity.travelDate === travelDate) {
+      legacyTripIdsOnDate.push(other.id)
+      if (otherIdentity.routeKey === routeKey) legacyTripIds.push(other.id)
     }
   }
 
-  return { routeKey, travelDate, legacyTripIds }
+  return { routeKey, travelDate, legacyTripIds, legacyTripIdsOnDate }
 }
 
 /**
- * Works out whether a booking of `requestedSeats` fits, and refuses it if not.
+ * The limits that apply to one company booking, and the decision about
+ * whether it fits.
  *
- * The trip row must already be locked by the caller, and so must the company
- * row. The order is always Company → Trip → quota rows, because two
- * transactions taking the same two rows in opposite orders is a deadlock.
+ * Both booking paths go through here — a company booking its own seats and a
+ * super admin booking on a company's behalf. The rules are the rules; having
+ * one copy of them is what stops the two paths from drifting apart, which is
+ * exactly how the same status ended up with two different colours and two
+ * different refund policies in this codebase before.
+ *
+ * Four ceilings, and the effective limit is the smallest that applies:
+ *
+ *   1. the hard per-booking rule (ten seats),
+ *   2. the company's own lower per-booking ceiling, if it has one,
+ *   3. the per-trip cap, if one is set for this trip,
+ *   4. the daily route+date allowance, if one is set,
+ *   5. the company's overall daily cap, if it has one.
+ *
+ * The counts are made live from the bookings, so a cancelled booking returns
+ * its seats by itself and no stored counter can drift away from reality.
+ *
+ * When more than one ceiling would be breached, the one that leaves the least
+ * room is the one reported. That is the ceiling the admin has to change.
  */
 export async function resolveBookingLimits(
   tx: Prisma.TransactionClient,
@@ -244,11 +297,13 @@ export async function resolveBookingLimits(
 ): Promise<BookingLimitResult> {
   const { company, tripId, trip, requestedSeats } = args
 
-  // ── 1 and 2: the per-booking ceiling ────────────────────────────────
-  const maxSeats = effectiveMaxSeatsPerBooking(company)
-  if (requestedSeats > maxSeats) {
-    throw new SeatCapExceededError(maxSeats)
-  }
+  // The company's own ceilings are read again here, after the caller has
+  // locked the company row. The copy the caller passed in was read before
+  // that lock, and a limit that moved in between must not be applied from a
+  // stale value.
+  const companyLimits = await readCompanyLimits(tx, company.id)
+  const maxSeats = effectiveMaxSeatsPerBooking(companyLimits)
+  const dailyLimit = effectiveDailyCap(companyLimits)
 
   // A round trip is two requests, so the booking total is measured across
   // both legs using the group id they share.
@@ -262,7 +317,10 @@ export async function resolveBookingLimits(
       },
     })
   }
-  if (inBooking + requestedSeats > maxSeats) {
+
+  // ── 1 and 2: the per-booking ceiling ────────────────────────────────
+  const perBookingRemaining = maxSeats - inBooking
+  if (requestedSeats > perBookingRemaining) {
     throw new SeatCapExceededError(maxSeats)
   }
 
@@ -279,9 +337,6 @@ export async function resolveBookingLimits(
       status: { in: [...SEAT_HOLDING_STATUSES] },
     },
   })
-  if (!fitsQuota(tripUsed, tripLimit, requestedSeats)) {
-    throw new TripQuotaExceededError(Math.max(0, (tripLimit ?? 0) - tripUsed))
-  }
 
   // ── 4: the daily allowance for the route, across every bus ─────────
   // The bucket is worked out once, here, and used for both the lookup of the
@@ -290,10 +345,7 @@ export async function resolveBookingLimits(
   // stored column — and a legacy trip, whose stored column is still null, was
   // counted as holding nothing.
   const bucket = await resolveRouteBucket(tx, { ...trip, id: trip.id ?? tripId })
-  const { routeKey, travelDate, legacyTripIds } = bucket
-
-  let routeLimit: number | null = null
-  let routeUsed = 0
+  const { routeKey, travelDate, legacyTripIds, legacyTripIdsOnDate } = bucket
 
   await ensureAndLockQuota(tx, 'CompanyRouteQuota', {
     companyId: company.id,
@@ -303,11 +355,11 @@ export async function resolveBookingLimits(
   const routeQuota = await tx.companyRouteQuota.findUnique({
     where: { companyId_routeKey_travelDate: { companyId: company.id, routeKey, travelDate } },
   })
-  routeLimit = effectiveTripQuota(routeQuota)
+  const routeLimit = effectiveTripQuota(routeQuota)
   // Counted across every bus serving the route on that day, which is the
   // point of the bucket. The legacy trips are included by id, because their
   // stored route key is still null and the column filter would miss them.
-  routeUsed = await tx.companyBooking.count({
+  const routeUsed = await tx.companyBooking.count({
     where: {
       companyId: company.id,
       status: { in: [...SEAT_HOLDING_STATUSES] },
@@ -317,11 +369,80 @@ export async function resolveBookingLimits(
       ],
     },
   })
-  if (!fitsQuota(routeUsed, routeLimit, requestedSeats)) {
-    throw new RouteQuotaExceededError(Math.max(0, (routeLimit ?? 0) - routeUsed))
+
+  // ── 5: the overall daily cap ───────────────────────────────────────
+  // Every seat the company holds on this travel date, whatever the route,
+  // the direction, the bus or the trip. The date is the Cairo day of the
+  // departure, the same day the route allowance uses.
+  //
+  // The company row is locked by the caller, and every booking for a company
+  // takes that lock, so this count cannot race with another booking for the
+  // same company. The legacy trips are included by id for the same reason the
+  // route bucket includes them: a trip whose stored date is still null would
+  // otherwise be counted as holding nothing.
+  const dailyUsed = await tx.companyBooking.count({
+    where: {
+      companyId: company.id,
+      status: { in: [...SEAT_HOLDING_STATUSES] },
+      OR: [
+        { trip: { travelDate } },
+        { tripId: { in: legacyTripIdsOnDate } },
+      ],
+    },
+  })
+
+  // The effective capacity is the smallest room any of the ceilings leaves.
+  // The one that leaves the least is the one that would refuse the booking,
+  // so it is the one worth naming.
+  const room = {
+    booking: perBookingRemaining,
+    trip: tripLimit === null ? Infinity : tripLimit - tripUsed,
+    route: routeLimit === null ? Infinity : routeLimit - routeUsed,
+    daily: dailyLimit === null ? Infinity : dailyLimit - dailyUsed,
+  }
+  const tightest = (Object.keys(room) as (keyof typeof room)[]).reduce((a, b) =>
+    room[a] <= room[b] ? a : b,
+  )
+  if (requestedSeats > room[tightest]) {
+    switch (tightest) {
+      case 'booking':
+        throw new SeatCapExceededError(maxSeats)
+      case 'trip':
+        throw new TripQuotaExceededError(Math.max(0, room.trip))
+      case 'route':
+        throw new RouteQuotaExceededError(Math.max(0, room.route))
+      default:
+        throw new DailyQuotaExceededError(Math.max(0, room.daily))
+    }
   }
 
-  return { maxSeats, tripLimit, routeLimit, tripUsed, routeUsed, inBooking }
+  return {
+    maxSeats,
+    tripLimit,
+    routeLimit,
+    tripUsed,
+    routeUsed,
+    dailyLimit,
+    dailyUsed,
+    inBooking,
+  }
+}
+
+/**
+ * The company's own seat ceilings, read fresh.
+ *
+ * The caller holds the company row lock, so this read sees the committed
+ * state and cannot change underneath the transaction.
+ */
+async function readCompanyLimits(
+  db: Prisma.TransactionClient | PrismaClient,
+  companyId: string,
+): Promise<CompanyLimitFields> {
+  const row = await db.company.findUnique({
+    where: { id: companyId },
+    select: { maxSeatsPerBooking: true, maxDailySeats: true },
+  })
+  return row ?? {}
 }
 
 /**
@@ -352,7 +473,9 @@ export async function readBookingLimits(
 ): Promise<BookingLimitResult> {
   const { company, tripId, trip } = args
 
-  const maxSeats = effectiveMaxSeatsPerBooking(company)
+  const companyLimits = await readCompanyLimits(db, company.id)
+  const maxSeats = effectiveMaxSeatsPerBooking(companyLimits)
+  const dailyLimit = effectiveDailyCap(companyLimits)
 
   const tripQuota = await db.companyTripQuota.findUnique({
     where: { companyId_tripId: { companyId: company.id, tripId } },
@@ -372,7 +495,7 @@ export async function readBookingLimits(
     ...trip,
     id: trip.id ?? tripId,
   })
-  const { routeKey, travelDate, legacyTripIds } = bucket
+  const { routeKey, travelDate, legacyTripIds, legacyTripIdsOnDate } = bucket
 
   const routeQuota = await db.companyRouteQuota.findUnique({
     where: { companyId_routeKey_travelDate: { companyId: company.id, routeKey, travelDate } },
@@ -389,5 +512,25 @@ export async function readBookingLimits(
     },
   })
 
-  return { maxSeats, tripLimit, routeLimit, tripUsed, routeUsed, inBooking: 0 }
+  const dailyUsed = await db.companyBooking.count({
+    where: {
+      companyId: company.id,
+      status: { in: [...SEAT_HOLDING_STATUSES] },
+      OR: [
+        { trip: { travelDate } },
+        { tripId: { in: legacyTripIdsOnDate } },
+      ],
+    },
+  })
+
+  return {
+    maxSeats,
+    tripLimit,
+    routeLimit,
+    tripUsed,
+    routeUsed,
+    dailyLimit,
+    dailyUsed,
+    inBooking: 0,
+  }
 }

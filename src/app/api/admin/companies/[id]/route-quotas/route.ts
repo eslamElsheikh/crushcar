@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, maxDailySeats: true },
     })
     if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
 
@@ -67,10 +67,12 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       },
     })
     const bucketByTrip = new Map<string, string>()
+    const dateByTrip = new Map<string, string>()
     for (const t of trips) {
       const identity = resolveRouteIdentity(t)
       if (identity.problem) continue
       bucketByTrip.set(t.id, routeDayKey(identity.routeKey, identity.travelDate))
+      dateByTrip.set(t.id, identity.travelDate)
     }
 
     const held = await prisma.companyBooking.groupBy({
@@ -83,10 +85,18 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     })
 
     const usedByRouteDay = new Map<string, number>()
+    // The same seats, counted per travel date. The overall daily cap is about
+    // a date, not about a route, so the day has to be counted on its own.
+    const dailyUsedByDate = new Map<string, number>()
     for (const h of held) {
       const key = bucketByTrip.get(h.tripId)
-      if (!key) continue
-      usedByRouteDay.set(key, (usedByRouteDay.get(key) ?? 0) + h._count._all)
+      if (key) {
+        usedByRouteDay.set(key, (usedByRouteDay.get(key) ?? 0) + h._count._all)
+      }
+      const date = dateByTrip.get(h.tripId)
+      if (date) {
+        dailyUsedByDate.set(date, (dailyUsedByDate.get(date) ?? 0) + h._count._all)
+      }
     }
 
     // The station names behind a route key, so the row can be read by a
@@ -138,6 +148,13 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
     return NextResponse.json({
       company: company,
+      // The overall daily cap, and what the company has used of it on each
+      // date it has booked on. It is the ceiling the route allowances sit
+      // inside, so it is shown next to them.
+      dailyCap: {
+        limit: company.maxDailySeats ?? null,
+        usedByDate: dailyUsedByDate,
+      },
       quotas: quotas.map((q) => ({
         id: q.id,
         routeKey: q.routeKey,

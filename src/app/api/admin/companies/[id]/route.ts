@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits'
+import { MAX_DAILY_SEATS, MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
-    const { name, subdomain, creditLimit, paymentMode, billingCycle, isActive, autoPayEnabled, maxSeatsPerBooking } = await req.json()
+    const { name, subdomain, creditLimit, paymentMode, billingCycle, isActive, autoPayEnabled, maxSeatsPerBooking, maxDailySeats } = await req.json()
 
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
@@ -85,6 +85,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           )
         }
         updateData.maxSeatsPerBooking = parsed
+      }
+    }
+    // The overall daily cap: how many seats this company may hold on one
+    // travel date, across every trip, route, direction and bus on that date.
+    //
+    // Null means no daily cap. It is not the ten-seat per-booking ceiling and
+    // it is not bounded by it: a company may hold more seats across a day than
+    // it may hold in one booking.
+    if (maxDailySeats !== undefined) {
+      if (maxDailySeats === null || maxDailySeats === '') {
+        updateData.maxDailySeats = null
+      } else {
+        const parsed = parseInt(String(maxDailySeats), 10)
+        if (!Number.isFinite(parsed) || parsed < 1) {
+          return NextResponse.json(
+            { error: 'The daily cap must be at least 1' },
+            { status: 400 },
+          )
+        }
+        if (parsed > MAX_DAILY_SEATS) {
+          return NextResponse.json(
+            { error: `The daily cap cannot be more than ${MAX_DAILY_SEATS}` },
+            { status: 400 },
+          )
+        }
+        updateData.maxDailySeats = parsed
       }
     }
 

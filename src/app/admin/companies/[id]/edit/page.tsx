@@ -7,7 +7,7 @@ import { ArrowRight, Loader2, Power, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
-import { DEFAULT_MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits';
+import { DEFAULT_MAX_SEATS_PER_BOOKING, MAX_DAILY_SEATS } from '@/lib/booking-limits';
 import { V2PageHeader } from '@/components/v2/admin';
 import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
@@ -32,6 +32,7 @@ export default function EditCompanyPage() {
     isActive: true,
     autoPayEnabled: false,
     maxSeatsPerBooking: '' as string,
+    maxDailySeats: '' as string,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,6 +45,12 @@ export default function EditCompanyPage() {
   // The routes this company could be given an allowance on: the routes its
   // buses actually run, with the next date each one runs.
   const [routeOptions, setRouteOptions] = useState<any[]>([]);
+  // The overall daily cap, and what the company has used of it on each date
+  // it has booked on.
+  const [dailyCap, setDailyCap] = useState<{ limit: number | null; usedByDate: Record<string, number> }>({
+    limit: null,
+    usedByDate: {},
+  });
 
   async function loadQuotas() {
     try {
@@ -54,6 +61,7 @@ export default function EditCompanyPage() {
         // The routes this company's own buses run, with the earliest day each
         // one runs. Offering any other route would be a cap on nothing.
         setRouteOptions(data.routes || []);
+        setDailyCap(data.dailyCap || { limit: null, usedByDate: {} });
       }
     } catch { /* keep empty */ } finally { setQuotasLoading(false); }
   }
@@ -133,6 +141,7 @@ export default function EditCompanyPage() {
             isActive: data.isActive,
             autoPayEnabled: data.autoPayEnabled === true,
             maxSeatsPerBooking: data.maxSeatsPerBooking == null ? '' : String(data.maxSeatsPerBooking),
+            maxDailySeats: data.maxDailySeats == null ? '' : String(data.maxDailySeats),
           });
         }
       } catch { /* keep blank */ } finally { setLoading(false); }
@@ -256,6 +265,28 @@ export default function EditCompanyPage() {
                   : `This can only lower the limit, never raise it: ${DEFAULT_MAX_SEATS_PER_BOOKING} seats is the maximum either way.`}
               </p>
             </V2Field>
+            <V2Field label={isRTL ? 'الحصة اليومية الإجمالية' : 'Overall daily seat cap'}>
+              <V2Input
+                type="number"
+                min="1"
+                max={String(MAX_DAILY_SEATS)}
+                value={form.maxDailySeats}
+                onChange={(e) => setForm({ ...form, maxDailySeats: e.target.value })}
+                placeholder={isRTL ? 'بلا حد' : 'No limit'}
+                dir="ltr"
+                className="tabular-nums"
+              />
+              <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+                {isRTL
+                  ? 'عدد المقاعد التي يمكن للشركة حجزها في يوم سفر واحد، عبر كل الرحلات والمسارات والحافلات في ذلك اليوم.'
+                  : 'How many seats this company may hold on one travel date, across every trip, route and bus on that date.'}
+              </p>
+              <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+                {isRTL
+                  ? `هذا الحد مختلف عن حد الحجز الواحد (${DEFAULT_MAX_SEATS_PER_BOOKING} مقاعد)، والأصغر منهما هو المطبَّق. اتركه فارغاً لعدم وضع حد يومي.`
+                  : `This is separate from the per-booking limit of ${DEFAULT_MAX_SEATS_PER_BOOKING} seats; the smaller of the two applies. Leave it empty for no daily limit.`}
+              </p>
+            </V2Field>
           </div>
           <V2Button type="submit" size="lg" disabled={saving} className="mt-5 w-full sm:w-auto">
             {saving && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
@@ -275,6 +306,27 @@ export default function EditCompanyPage() {
             ? 'عدد المقاعد التي يمكن للشركة حجزها على مسار واحد في يوم واحد، وكل الحافلات التي تسير على نفس المسار تتشارك في هذه الحصة.'
             : 'How many seats this company may hold on one route on one travel day. Every bus serving that route shares the allowance.'}
         </p>
+
+        {/* The overall daily cap, and what the company has used of it. The
+            route allowances sit inside it, so it is shown next to them. */}
+        <div className="mt-4 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3">
+          <p className="text-[13px] font-extrabold text-[#0B1B33]">
+            {isRTL ? 'الحصة اليومية الإجمالية' : 'Overall daily cap'}
+          </p>
+          <p className="mt-1 text-[12px] font-bold tabular-nums text-[var(--sp-text-muted)]">
+            {isRTL ? 'الحد' : 'cap'}{' '}
+            {dailyCap.limit == null ? '∞' : dailyCap.limit}
+            {Object.keys(dailyCap.usedByDate).length > 0 && (
+              <>
+                {' · '}
+                {isRTL ? 'المستخدم' : 'used'}{' '}
+                {Object.entries(dailyCap.usedByDate)
+                  .map(([date, used]) => `${date}: ${used}`)
+                  .join(' · ')}
+              </>
+            )}
+          </p>
+        </div>
 
         {quotasLoading ? (
           <div className="mt-4"><V2Skeleton className="h-24 rounded-xl" /></div>
