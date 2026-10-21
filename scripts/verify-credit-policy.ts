@@ -283,6 +283,80 @@ async function main() {
       String(logs.reduce((sum, l) => sum + l.changeAmount, 0)))
   }
 
+  console.log('a failure after the credit was granted rolls the grant back')
+  {
+    // The charge raises the limit, moves the wallet and takes the credit. If
+    // anything after it fails, none of it may survive: a company left with a
+    // limit it was given for a booking that never happened is a company
+    // carrying exposure for nothing.
+    const company = await makeCompany('Credit Rollback', { walletBalance: 0, creditLimit: 0 })
+    const before = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
+
+    let threw = false
+    try {
+      await prisma.$transaction(async (tx) => {
+        const { chargeCompanyWithCreditTopUp } = await import('../src/lib/company-charge')
+        await chargeCompanyWithCreditTopUp(tx, {
+          companyId: company.id,
+          total: 1000,
+          reference: 'rollback-test',
+          description: 'A charge that will not complete',
+          idempotencyKey: `rollback-${SUFFIX}`,
+          actorId: admin.id,
+          actorEmail: admin.email,
+          bookingReference: 'ST-ROLLBACK',
+        })
+        // The booking that would have used the credit fails.
+        throw new Error('the booking failed after the money moved')
+      })
+    } catch {
+      threw = true
+    }
+    check('the transaction failed', threw)
+
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
+    check('the credit limit was not left raised', after.creditLimit === before.creditLimit,
+      `${before.creditLimit} -> ${after.creditLimit}`)
+    check('the wallet was not debited', after.walletBalance === before.walletBalance,
+      `${before.walletBalance} -> ${after.walletBalance}`)
+    check('nothing was left outstanding', after.outstandingBalance === before.outstandingBalance,
+      `${before.outstandingBalance} -> ${after.outstandingBalance}`)
+    check('no credit record was left behind',
+      (await prisma.creditLog.count({ where: { companyId: company.id } })) === 0)
+    check('no ledger row was left behind',
+      (await prisma.walletTransaction.count({ where: { companyId: company.id } })) === 0)
+  }
+
+  console.log('the same request twice at the same moment')
+  {
+    // Two requests with one key, arriving together. The company row is
+    // locked for the whole booking, so the second one waits and then finds
+    // the first one's rows.
+    const company = await makeCompany('Credit Twice', { walletBalance: 0, creditLimit: 0 })
+    const { trip, seatLabels } = await setup(company.id, 2)
+    const key = `${SUFFIX}-twice`
+
+    const results = await Promise.all([
+      book(company.id, trip.id, key, [seatLabels[0]]),
+      book(company.id, trip.id, key, [seatLabels[1]]),
+    ])
+    const accepted = results.filter((r) => r.status === 200)
+    const refused = results.filter((r) => r.status !== 200)
+
+    check('exactly one of them is accepted', accepted.length === 1,
+      `accepted=${accepted.length} statuses=${results.map((r) => r.status).join(',')}`)
+    check('the other is refused as a replay', refused.length === 1 &&
+      refused[0].json?.error === 'ALREADY_BOOKED',
+      JSON.stringify(refused[0].json?.error))
+    check('only one booking was created',
+      (await prisma.companyBooking.count({ where: { companyId: company.id } })) === 1)
+    const afterTwice = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
+    check('the limit was raised once, by the one booking', afterTwice.creditLimit === 1000,
+      String(afterTwice.creditLimit))
+    check('and one credit record was written',
+      (await prisma.creditLog.count({ where: { companyId: company.id } })) === 1)
+  }
+
   // ── Clean up ─────────────────────────────────────────────────────────
   // Every run's leftovers, not only this one's: a run that was interrupted
   // leaves rows behind, and the next run should tidy them rather than pile

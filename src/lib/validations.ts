@@ -178,3 +178,21 @@ export const creditLimitSchema = z.object({
   creditLimit: z.number().min(0, 'الحد الائتماني يجب أن يكون 0 أو أكثر'),
   reason: z.string().optional().default(''),
 });
+
+/**
+ * The rule for one credit limit value.
+ *
+ * The same rule as creditLimitSchema, on its own, so a route that sets the
+ * limit among other fields — the company settings page, or the approval of a
+ * pending company — can apply it without having to parse a whole body
+ * against the object schema.
+ *
+ * A credit limit is the ceiling on what a company may owe. A negative one is
+ * not a smaller allowance, it is a statement that the company already owes
+ * more than it may owe, and the arithmetic that reads it treats the ceiling as
+ * lower than the exposure. It is refused rather than stored.
+ */
+export const creditLimitValueSchema = z
+  .number({ invalid_type_error: 'الحد الائتماني يجب أن يكون رقماً' })
+  .finite('الحد الائتماني يجب أن يكون رقماً')
+  .min(0, 'الحد الائتماني يجب أن يكون 0 أو أكثر');

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { creditLimitValueSchema } from '@/lib/validations'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -51,7 +52,18 @@ if (action === 'reject') {
     //
     // Nothing is written when the limit did not actually move — a log row
     // recording a change of zero is a record of nothing.
-    const newCreditLimit = creditLimit || 0;
+    //
+    // The same rule the other two paths apply: a limit is a ceiling on what
+    // a company may owe, and a negative one is not a smaller allowance. It
+    // is refused here rather than stored.
+    let newCreditLimit = 0;
+    if (creditLimit !== undefined && creditLimit !== null && creditLimit !== '') {
+      const parsed = creditLimitValueSchema.safeParse(Number(creditLimit));
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+      }
+      newCreditLimit = parsed.data;
+    }
     const updated = await prisma.$transaction(async (tx) => {
       const before = await tx.company.findUnique({
         where: { id },

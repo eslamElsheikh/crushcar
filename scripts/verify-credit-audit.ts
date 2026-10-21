@@ -197,11 +197,88 @@ async function main() {
   check('with the reason that was given', dedicatedLog?.reason === 'A deliberate increase',
     String(dedicatedLog?.reason))
 
+  console.log('a limit that does not move leaves no record on the dedicated endpoint either')
+  const dedicatedCount = await prisma.creditLog.count({ where: { companyId: company.id } })
+  const dedicatedSame = await api(`/api/admin/companies/${company.id}/credit-limit`, {
+    method: 'POST',
+    token,
+    body: { creditLimit: 3000, reason: 'The same value again' },
+  })
+  check('the request is still accepted', dedicatedSame.status === 200, String(dedicatedSame.status))
+  const dedicatedCountAfter = await prisma.creditLog.count({ where: { companyId: company.id } })
+  check('and no record is written for it', dedicatedCountAfter === dedicatedCount,
+    `${dedicatedCount} -> ${dedicatedCountAfter}`)
+
+  console.log('a negative limit is refused by every path that can set one')
+  const negativeChecks: [string, () => Promise<{ status: number; json: any }>][] = [
+    [
+      'the company settings page',
+      () => api(`/api/admin/companies/${company.id}`, {
+        method: 'PATCH', token, body: { creditLimit: -1000 },
+      }),
+    ],
+    [
+      'the dedicated credit-limit endpoint',
+      () => api(`/api/admin/companies/${company.id}/credit-limit`, {
+        method: 'POST', token, body: { creditLimit: -1000, reason: 'negative' },
+      }),
+    ],
+  ]
+  for (const [name, call] of negativeChecks) {
+    const before = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
+    const logsBefore = await prisma.creditLog.count({ where: { companyId: company.id } })
+    const res = await call()
+    check(`${name} refuses a negative limit`, res.status === 400, `status=${res.status}`)
+    check(`${name} says what is wrong`, typeof res.json?.error === 'string' && res.json.error.length > 0,
+      JSON.stringify(res.json?.error))
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
+    check(`${name} leaves the limit alone`, after.creditLimit === before.creditLimit,
+      `${before.creditLimit} -> ${after.creditLimit}`)
+    const logsAfter = await prisma.creditLog.count({ where: { companyId: company.id } })
+    check(`${name} writes no record`, logsAfter === logsBefore, `${logsBefore} -> ${logsAfter}`)
+  }
+
+  console.log('an approval with a negative limit is refused too')
+  const negativePending = await prisma.company.create({
+    data: {
+      name: `Negative Co ${SUFFIX}`, subdomain: `negative-${SUFFIX}`, isActive: false,
+      creditLimit: 0, walletBalance: 0, paymentMode: 'PREPAID', outstandingBalance: 0,
+      billingCycle: 'MONTHLY', autoPayEnabled: false, maxSeatsPerBooking: null,
+    },
+  })
+  const negativeApproval = await api(`/api/admin/companies/${negativePending.id}/approve`, {
+    method: 'PATCH',
+    token,
+    body: { action: 'approve', creditLimit: -500, paymentMode: 'CREDIT', billingCycle: 'MONTHLY' },
+  })
+  check('it is refused', negativeApproval.status === 400, `status=${negativeApproval.status}`)
+  const stillPending = await prisma.company.findUniqueOrThrow({ where: { id: negativePending.id } })
+  check('the company is not activated', stillPending.isActive === false)
+  check('and its limit is not negative', stillPending.creditLimit === 0, String(stillPending.creditLimit))
+  check('and no record was written',
+    (await prisma.creditLog.count({ where: { companyId: negativePending.id } })) === 0)
+
+  console.log('zero is a valid limit')
+  const zeroed = await api(`/api/admin/companies/${company.id}`, {
+    method: 'PATCH',
+    token,
+    body: { creditLimit: 0 },
+  })
+  check('it is accepted', zeroed.status === 200, `status=${zeroed.status}`)
+  const afterZero = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
+  check('and the limit is zero', afterZero.creditLimit === 0, String(afterZero.creditLimit))
+  const zeroLog = await prisma.creditLog.findFirst({
+    where: { companyId: company.id },
+    orderBy: { createdAt: 'desc' },
+  })
+  check('and it was written down', zeroLog?.newLimit === 0, String(zeroLog?.newLimit))
+  check('with the change it made', zeroLog?.changeAmount === -3000, String(zeroLog?.changeAmount))
+
   // ── Clean up ─────────────────────────────────────────────────────────
-  await prisma.creditLog.deleteMany({ where: { companyId: { in: [company.id, pending.id] } } })
-  await prisma.auditLog.deleteMany({ where: { companyId: { in: [company.id, pending.id] } } })
-  await prisma.user.updateMany({ where: { companyId: { in: [company.id, pending.id] } }, data: { companyId: null } })
-  await prisma.company.deleteMany({ where: { id: { in: [company.id, pending.id] } } })
+  await prisma.creditLog.deleteMany({ where: { companyId: { in: [company.id, pending.id, negativePending.id] } } })
+  await prisma.auditLog.deleteMany({ where: { companyId: { in: [company.id, pending.id, negativePending.id] } } })
+  await prisma.user.updateMany({ where: { companyId: { in: [company.id, pending.id, negativePending.id] } }, data: { companyId: null } })
+  await prisma.company.deleteMany({ where: { id: { in: [company.id, pending.id, negativePending.id] } } })
   await prisma.user.delete({ where: { id: admin.id } })
 
   console.log(failures === 0 ? '\n  all checks passed' : `\n  ${failures} check(s) failed`)

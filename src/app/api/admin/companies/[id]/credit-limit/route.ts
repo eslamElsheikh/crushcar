@@ -67,25 +67,34 @@ export async function POST(
         data: { creditLimit },
       });
 
-      await tx.creditLog.create({
-        data: {
-          companyId: id,
-          previousLimit,
-          newLimit: creditLimit,
-          changeAmount,
-          reason: reason || '',
-          createdById: session.user.id,
-          createdByEmail: session.user.email || '',
-        },
-      });
+      // A record is written only when the limit actually moved. A row that
+      // records a change of zero is a record of nothing, and a pile of them
+      // buries the ones that matter.
+      if (changeAmount !== 0) {
+        await tx.creditLog.create({
+          data: {
+            companyId: id,
+            previousLimit,
+            newLimit: creditLimit,
+            changeAmount,
+            reason: reason || '',
+            createdById: session.user.id,
+            createdByEmail: session.user.email || '',
+          },
+        });
 
-      await audit({
-        action: 'UPDATE',
-        entity: 'CreditLimit',
-        entityId: id,
-        session,
-        metadata: { previousLimit, newLimit: creditLimit, changeAmount, reason },
-      });
+        // Written inside the transaction, so the record and the change stand
+        // or fall together.
+        await audit({
+          action: 'UPDATE',
+          entity: 'CreditLimit',
+          entityId: id,
+          companyId: id,
+          session,
+          metadata: { previousLimit, newLimit: creditLimit, changeAmount, reason },
+          client: tx,
+        });
+      }
 
       return NextResponse.json({
         ...updated,

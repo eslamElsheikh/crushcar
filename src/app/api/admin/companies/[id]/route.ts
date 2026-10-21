@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { MAX_DAILY_SEATS, MAX_SEATS_PER_BOOKING } from '@/lib/booking-limits'
+import { creditLimitValueSchema } from '@/lib/validations'
 import { audit } from '@/lib/audit'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,7 +57,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
     if (subdomain !== undefined) updateData.subdomain = subdomain
-    if (creditLimit !== undefined) updateData.creditLimit = creditLimit
+    if (creditLimit !== undefined) {
+      // The same rule the dedicated credit-limit endpoint applies: a limit is
+      // a ceiling on what a company may owe, and a negative one is not a
+      // smaller allowance. It is refused here rather than stored.
+      const parsed = creditLimitValueSchema.safeParse(creditLimit)
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+      }
+      updateData.creditLimit = parsed.data
+    }
     if (paymentMode !== undefined) updateData.paymentMode = paymentMode
     if (billingCycle !== undefined) updateData.billingCycle = billingCycle
     if (isActive !== undefined) updateData.isActive = isActive
