@@ -9,6 +9,7 @@ import { chargeCompanyWalletOnly, splitCharge } from '@/lib/company-charge'
 import { parseCollectAmount } from '@/lib/validations'
 import { companyPaymentDeadline } from '@/lib/payments'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
+import { assertSeatsBookable } from '@/lib/seat-availability'
 
 export const dynamic = 'force-dynamic'
 
@@ -189,30 +190,16 @@ export async function POST(req: NextRequest) {
         roundTripGroupId: roundTripGroupId || null,
       })
 
-      // Every seat is checked before anything is written.
-      for (const p of priced) {
-        const companyConflict = await tx.companyBooking.findFirst({
-          where: {
-            tripId,
-            seatLabel: p.seatLabel,
-            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-            fromStopOrder: { lt: toStopOrder },
-            toStopOrder: { gt: fromStopOrder },
-          },
-        })
-        if (companyConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
-
-        const bookingConflict = await tx.booking.findFirst({
-          where: {
-            tripId,
-            seatLabel: p.seatLabel,
-            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-            fromStopOrder: { lt: toStopOrder },
-            toStopOrder: { gt: fromStopOrder },
-          },
-        })
-        if (bookingConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
-      }
+      // Every seat is checked before anything is written: it has to exist,
+      // it must not be blocked, and it must be free for the leg being
+      // booked.
+      await assertSeatsBookable(tx, {
+        tripId,
+        seatLabels: priced.map((p) => p.seatLabel),
+        layoutSeatLabels: (trip.bus.layout?.seats ?? []).map((s: any) => s.label),
+        fromStopOrder,
+        toStopOrder,
+      })
 
       // The company's wallet, and only the company's wallet.
       const charge = await chargeCompanyWalletOnly(tx, {
@@ -295,6 +282,24 @@ export async function POST(req: NextRequest) {
     }, BOOKING_ISOLATION))
   } catch (err: any) {
     const code = err?.code
+    if (code === 'UNKNOWN_SEAT') {
+      return NextResponse.json(
+        { error: 'UNKNOWN_SEAT', message: `الكرسي ${err.seatLabel} غير موجود في تصميم الحافلة` },
+        { status: 400 }
+      )
+    }
+    if (code === 'SEAT_BLOCKED') {
+      return NextResponse.json(
+        { error: 'SEAT_BLOCKED', message: `الكرسي ${err.seatLabel} معطَّل من الإدارة` },
+        { status: 409 }
+      )
+    }
+    if (code === 'SEAT_CONFLICT') {
+      return NextResponse.json(
+        { error: 'SEAT_TAKEN', message: `الكرسي ${err.seatLabel} محجوز من شخص آخر` },
+        { status: 409 }
+      )
+    }
     if (code === 'UNRESOLVED_ROUTE') {
       return NextResponse.json(
         {
@@ -348,10 +353,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
     }
     const message = String(err?.message || '')
-    if (message.startsWith('SEAT_CONFLICT')) {
-      const seat = message.split(':')[1] || ''
-      return NextResponse.json({ error: 'SEAT_TAKEN', message: `الكرسي ${seat} محجوز من شخص آخر` }, { status: 409 })
-    }
     if (message === 'CHARTER_TRIP') {
       return NextResponse.json(
         { error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح عبر طلب الشارتر فقط' },

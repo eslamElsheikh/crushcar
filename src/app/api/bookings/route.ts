@@ -5,6 +5,7 @@ import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { paymentDeadline } from '@/lib/payments'
 import { isBookableByCustomer, BOOKING_CLOSED_MESSAGE_AR } from '@/lib/booking-rules'
 import { segmentPrice } from '@/lib/segment-price'
+import { UnknownSeatError, assertSeatBookable } from '@/lib/seat-availability'
 
 export async function GET(req: NextRequest) {
   try {
@@ -220,6 +221,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // The seat has to be a seat. A label that is not in the bus layout is
+      // not a seat, and a booking of one would be a booking of nothing. It
+      // must also not be one an administrator has blocked.
+      assertSeatBookable({
+        layoutSeatLabels: (trip.bus.layout?.seats ?? []).map((s: any) => s.label),
+        seatLabel,
+      })
+      const blocked = await tx.seatBlock.findFirst({
+        where: { tripId, seatLabel },
+        select: { id: true },
+      })
+      if (blocked) throw new Error('SEAT_BLOCKED')
+
       // Validate hold if provided
       if (holdId) {
         const hold = await tx.seatHold.findFirst({
@@ -308,6 +322,15 @@ export async function POST(req: NextRequest) {
     }
     if (err.message === 'SEAT_CONFLICT') {
       return NextResponse.json({ error: 'SEAT_TAKEN', message: 'الكـرس محجوز من شخص آخر' }, { status: 409 })
+    }
+    if (err.message === 'SEAT_BLOCKED') {
+      return NextResponse.json({ error: 'SEAT_BLOCKED', message: 'الكرسي معطَّل من الإدارة' }, { status: 409 })
+    }
+    if (err instanceof UnknownSeatError) {
+      return NextResponse.json(
+        { error: 'UNKNOWN_SEAT', message: `الكرسي ${err.seatLabel} غير موجود في تصميم الحافلة` },
+        { status: 400 }
+      )
     }
     if (err.message === 'CHARTER_TRIP') {
       return NextResponse.json({ error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح للشركات فقط' }, { status: 409 })

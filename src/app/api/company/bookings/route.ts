@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { parseCollectAmount } from '@/lib/validations'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
+import { assertSeatsBookable } from '@/lib/seat-availability'
 import { companyBookingExpiryHours } from '@/lib/booking-expiry'
 import { companyPaymentDeadline } from '@/lib/payments'
 import { chargeCompany, splitCharge } from '@/lib/company-charge'
@@ -181,30 +182,15 @@ export async function POST(req: NextRequest) {
         roundTripGroupId: roundTripGroupId || null,
       })
 
-      // Check conflicts for ALL seats before creating any
-      for (const p of seatPrices) {
-        const conflict = await tx.companyBooking.findFirst({
-          where: {
-            tripId,
-            seatLabel: p.seatLabel,
-            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-            fromStopOrder: { lt: globalToStopOrder },
-            toStopOrder: { gt: globalFromStopOrder },
-          },
-        })
-        if (conflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
-
-        const bookingConflict = await tx.booking.findFirst({
-          where: {
-            tripId,
-            seatLabel: p.seatLabel,
-            status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-            fromStopOrder: { lt: globalToStopOrder },
-            toStopOrder: { gt: globalFromStopOrder },
-          },
-        })
-        if (bookingConflict) throw new Error(`SEAT_CONFLICT:${p.seatLabel}`)
-      }
+      // Check every seat before creating any: it has to exist, it must not
+      // be blocked, and it must be free for the leg being booked.
+      await assertSeatsBookable(tx, {
+        tripId,
+        seatLabels: seatPrices.map((p) => p.seatLabel),
+        layoutSeatLabels: (trip.bus.layout?.seats ?? []).map((s: any) => s.label),
+        fromStopOrder: globalFromStopOrder,
+        toStopOrder: globalToStopOrder,
+      })
 
       // ── Payment ───────────────────────────────────────────────────────
       // With automatic payment on, the booking is charged as it is created
@@ -302,6 +288,24 @@ export async function POST(req: NextRequest) {
     console.error(err)
     // The limit errors carry a code and their own numbers, so the message is
     // not parsed for them.
+    if (err?.code === 'UNKNOWN_SEAT') {
+      return NextResponse.json(
+        { error: 'UNKNOWN_SEAT', message: `الكرسي ${err.seatLabel} غير موجود في تصميم الحافلة` },
+        { status: 400 }
+      )
+    }
+    if (err?.code === 'SEAT_BLOCKED') {
+      return NextResponse.json(
+        { error: 'SEAT_BLOCKED', message: `الكرسي ${err.seatLabel} معطَّل من الإدارة` },
+        { status: 409 }
+      )
+    }
+    if (err?.code === 'SEAT_CONFLICT') {
+      return NextResponse.json(
+        { error: 'SEAT_TAKEN', message: `الكرسي ${err.seatLabel} محجوز من شخص آخر` },
+        { status: 409 }
+      )
+    }
     if (err?.code === 'UNRESOLVED_ROUTE') {
       return NextResponse.json(
         {
@@ -342,10 +346,6 @@ export async function POST(req: NextRequest) {
     }
     if (err.message === 'COMPANY_INACTIVE') {
       return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
-    }
-    if (err.message?.startsWith('SEAT_CONFLICT')) {
-      const seat = err.message.split(':')[1] || ''
-      return NextResponse.json({ error: 'SEAT_TAKEN', message: `الكرسي ${seat} محجوز من شخص آخر` }, { status: 409 })
     }
     if (err.message?.startsWith('SEAT_CAP_EXCEEDED')) {
       const max = err.message.split(':')[1] || ''

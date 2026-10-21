@@ -21,6 +21,7 @@
     "check:limits": "tsx scripts/verify-booking-limits.ts",
     "check:company-limits": "tsx scripts/verify-company-limits.ts",
     "check:route-race": "tsx scripts/verify-route-quota-race.ts",
+    "check:seats": "tsx scripts/verify-seat-validation.ts",
     "check:admin-booking": "tsx scripts/verify-admin-company-booking.ts",
     "check:admin-race": "tsx scripts/verify-admin-booking-race.ts",
     "check:revenue": "tsx scripts/verify-revenue-classification.ts",
