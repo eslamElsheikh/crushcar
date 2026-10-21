@@ -1,5 +1,9 @@
 # Backfilling the route keys — production runbook
 
+**Nothing in this runbook has been run against production. Every step below
+waits for explicit approval.** The approvals each step needs are listed in
+§7.
+
 The `20261021000000_route_quota_and_booking_creator` migration adds two
 columns to `Trip`:
 
@@ -20,8 +24,24 @@ keys to `Station.id` with an explicit order. Nothing is derived from the
 origin and destination text, which is a display snapshot and disagrees with
 the stop list on some trips.
 
-**Nothing in this runbook has been run against production. Every step below
-waits for explicit approval.**
+---
+
+## 0. The three pending migrations
+
+Three migrations are ready and none has been applied to production. They touch
+different tables and columns, so they are **independent**: a partially applied
+release can be completed in any order. The order below is by convention.
+
+| Migration | What it adds | Must land before |
+|---|---|---|
+| `20261016000000_platform_wallet_and_quotas` | `PlatformWallet`, `PlatformTransaction`, `CompanyTripQuota`, `Booking.fundingSource`, `Company.autoPayEnabled`, `Company.maxSeatsPerBooking`, `CompanyBooking.expiredAt` | any release containing `/api/platform/bookings` |
+| `20261021000000_route_quota_and_booking_creator` | `Trip.routeKey`, `Trip.travelDate`, `CompanyRouteQuota`, `WalletTransaction.idempotencyKey`, `CompanyBooking.createdByUserId` | any release containing `/api/admin/company-bookings` |
+| `20261022000000_daily_company_cap_and_credit_reference` | `Company.maxDailySeats`, `CreditLog.bookingReference`, `CompanyBooking.idempotencyKey` | any release containing the daily cap or the credit top-up |
+
+Each one was rehearsed against a copy of the production schema: applied, it
+reproduces the target structure exactly, and rolled back it returns to the
+pre-migration state exactly.
+
 
 ---
 
@@ -246,3 +266,70 @@ The `routeKey` and `travelDate` come from the backfill's dry-run output.
 - The two ambiguous journeys need a person to look at them. The key keeps
   them apart; the label does not, so the quota editor should show the stop
   sequence and not only the origin and destination text.
+
+> **This is now done.** The quota editor shows the ordered stops and names
+> the intermediate ones, so the two journeys no longer read the same. The
+> canonical key is untouched, and the allowance set against it still applies
+> to the same journey. A stop whose name is gone is reported as unknown
+> rather than given an invented one.
+
+---
+
+## 6. The operational items, and the approval each one needs
+
+None of these has been done. They are listed with the approval that would
+let them happen, so the order is clear and nothing is done by accident.
+
+| # | Item | What it involves | Approval needed |
+|---|---|---|---|
+| 1 | **Apply the three migrations** | A schema change on the production database | Explicit approval naming the three migrations, after a verified backup |
+| 2 | **Run the route-key backfill** | A data change on every trip | Explicit approval, after the dry run has been read and the unresolved trips checked |
+| 3 | **Configure the cPanel cron** | A cron entry and `JOB_CRON_KEY` in the production environment | The account owner's action; the key is theirs to set |
+| 4 | **Remove `deploy-fix.php` from the production server** | Deleting a file from `public_html` | Explicit approval; it is the only one of the nine still up there |
+| 5 | **Rotate the deploy credential** | The key the nine diagnostic files carry | Explicit approval; the key is live and accepting requests |
+
+The in-request sweep now releases expired company bookings as well as
+customer ones, so step 3 is no longer a blocker for the quotas — it is
+still wanted, because the scheduled sweep is what keeps the numbers right
+when nobody is looking at a trip.
+
+## 7. The order the production steps should happen in
+
+Each step says what it needs, so nothing is done out of order.
+
+```
+1. BACKUP                    approval: none needed, but do it anyway
+     mysqldump -u safro_user -p safro_travel_db > backup-$(date +%F).sql
+     verify: the file is not empty and the row counts look right
+
+2. MIGRATIONS                approval: explicit, naming the three migrations
+     mysql -u safro_user -p safro_travel_db < .../20261016000000_.../migration.sql
+     mysql -u safro_user -p safro_travel_db < .../20261021000000_.../migration.sql
+     mysql -u safro_user -p safro_travel_db < .../20261022000000_.../migration.sql
+     verify: SHOW CREATE TABLE Company; Trip; CompanyRouteQuota; CreditLog
+
+3. BACKFILL DRY RUN          approval: none needed, it writes nothing
+     DATABASE_URL=... npx tsx scripts/backfill-route-keys.ts
+     read: the unresolved trips, and the journeys whose text matches but
+           whose stops differ
+
+4. BACKFILL APPLY            approval: explicit, after step 3 has been read
+     DATABASE_URL=... SAFRO_BACKFILL_APPLY_PRODUCTION=1 \
+       npx tsx scripts/backfill-route-keys.ts --apply
+     verify: the query in §2 of this runbook returns 0
+
+5. DEPLOY THE CODE           approval: explicit
+     verify: npm run check:company-limits, check:daily-quota,
+             check:credit-policy, check:credit-audit, check:charter-isolation,
+             check:quota-editor, check:seats, check:backfill
+
+6. CRON                      approval: the account owner's action
+7. REMOVE deploy-fix.php     approval: explicit
+8. ROTATE THE CREDENTIAL     approval: explicit
+```
+
+**The order matters in one place:** step 5 needs steps 1 to 4 to have
+happened, because the code reads columns the migrations add and keys the
+quotas the backfill writes. Deploying the code first means every company
+booking on an existing trip is refused with `UNRESOLVED_ROUTE`.
+
