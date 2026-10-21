@@ -61,6 +61,19 @@ model Company {
     // column may lower it for a company; it can never raise it, and the
     // server clamps it.
     maxSeatsPerBooking Int?
+    // The overall daily seat cap: how many seats this company may hold on
+    // ONE travel date, counted across every trip, route, direction and bus
+    // on that date.
+    //
+    // null means no overall daily cap, which is the same as no limit. It is
+    // not the same as the ten-seat per-booking cap above: that one is per
+    // booking request, this one is per day, and the smaller of the two is
+    // what applies.
+    //
+    // The travel date is the Cairo day of the trip's departure, the same day
+    // the route allowance uses, so the two never disagree about which day a
+    // seat belongs to.
+    maxDailySeats     Int?
   users            User[]
   buses            Bus[]
   companyCustomers CompanyCustomer[]
@@ -561,6 +574,12 @@ model CreditLog {
   newLimit       Float
   changeAmount   Float
   reason         String   @default("")
+  /// The booking this limit change belongs to, when there is one.
+  ///
+  /// A limit raised automatically to cover a booking must be traceable to
+  /// that booking, and a reason string is not something you can query on. It
+  /// is null for a limit a person changed by hand.
+  bookingReference String?
   createdById    String
   createdByEmail String   @default("")
   createdAt      DateTime @default(now())
