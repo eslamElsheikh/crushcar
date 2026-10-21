@@ -25,6 +25,18 @@ DEPLOY.md
 /data_live/
 /docs/security/
 /scripts/deploy-fix.php
+# The other production diagnostics. Every one of them carries the same deploy
+# key, so they are kept out the same way. They are listed one by one on
+# purpose: a blanket pattern would hide a new file with a different name, and
+# these are exactly the files that must never be committed by accident.
+/scripts/db-diag.php
+/scripts/db-diag2.php
+/scripts/deploy-state.php
+/scripts/migrate-refcounter.php
+/scripts/repair-env.php
+/scripts/verify-ref.php
+/scripts/verify-static.php
+/scripts/verify-static2.php
 /vercel.json.tmp
 /backfill-tmp.cjs
 *_tmp.ts
