@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowRight, Loader2, Power, Zap } from 'lucide-react';
@@ -14,6 +14,14 @@ import { V2Button } from '@/components/v2/Button';
 import { V2Skeleton } from '@/components/v2/ui';
 
 /* V2 company edit — same GET/PATCH as V1. */
+
+/** Whether a day is the one right after another. */
+function isNextDay(after: string, day: string): boolean {
+  const a = new Date(`${after}T00:00:00Z`).getTime();
+  const b = new Date(`${day}T00:00:00Z`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b)) return false;
+  return Math.round((b - a) / 86400000) === 1;
+}
 
 export default function EditCompanyPage() {
   const params = useParams();
@@ -40,7 +48,7 @@ export default function EditCompanyPage() {
   // on one travel day, shared by every bus serving that route.
   const [quotas, setQuotas] = useState<any[]>([]);
   const [quotasLoading, setQuotasLoading] = useState(true);
-  const [newQuota, setNewQuota] = useState({ routeKey: '', travelDate: '', maxSeats: '' });
+  const [newQuota, setNewQuota] = useState({ routeKey: '', travelDate: '', dateTo: '', maxSeats: '' });
   const [addingQuota, setAddingQuota] = useState(false);
   // The routes this company could be given an allowance on: the routes its
   // buses actually run, with the next date each one runs.
@@ -99,7 +107,7 @@ export default function EditCompanyPage() {
         toast.error(data?.error === 'INVALID_SEAT_CAP' ? t('quota.invalidCap') : (data?.message || data?.error || t('common.error')));
         return;
       }
-      setNewQuota({ routeKey: '', travelDate: '', maxSeats: '' });
+      setNewQuota({ routeKey: '', travelDate: '', dateTo: '', maxSeats: '' });
       await loadQuotas();
       toast.success(isRTL ? 'تم حفظ الحصة' : 'Quota saved');
     } catch {
@@ -109,12 +117,60 @@ export default function EditCompanyPage() {
     }
   }
 
-  async function removeQuota(q: any) {
+  /**
+   * Consecutive days with the same route and the same cap are one allowance
+   * as far as the administrator is concerned, so they are shown as one row
+   * with a range on it. The model is still one row per day underneath.
+   */
+  const groupedQuotas = useMemo(() => {
+    const sorted = [...quotas].sort((a, b) =>
+      a.routeKey === b.routeKey
+        ? a.travelDate.localeCompare(b.travelDate)
+        : a.routeKey.localeCompare(b.routeKey),
+    );
+    const groups: {
+      routeKey: string;
+      routeName: string;
+      from: string;
+      to: string;
+      maxSeats: number | null;
+      used: number;
+    }[] = [];
+    for (const q of sorted) {
+      const last = groups[groups.length - 1];
+      const sameRun =
+        last &&
+        last.routeKey === q.routeKey &&
+        last.maxSeats === q.maxSeats &&
+        isNextDay(last.to, q.travelDate);
+      if (sameRun) {
+        last.to = q.travelDate;
+        last.used += q.used || 0;
+      } else {
+        groups.push({
+          routeKey: q.routeKey,
+          routeName: q.routeName,
+          from: q.travelDate,
+          to: q.travelDate,
+          maxSeats: q.maxSeats,
+          used: q.used || 0,
+        });
+      }
+    }
+    return groups;
+  }, [quotas]);
+
+  async function removeQuota(g: { routeKey: string; from: string; to: string }) {
     try {
-      const res = await fetch(
-        `/api/admin/companies/${id}/route-quotas?routeKey=${encodeURIComponent(q.routeKey)}&travelDate=${encodeURIComponent(q.travelDate)}`,
-        { method: 'DELETE', credentials: 'include' }
-      );
+      const params = new URLSearchParams({
+        routeKey: g.routeKey,
+        travelDate: g.from,
+      });
+      if (g.from !== g.to) params.set('dateTo', g.to);
+      const res = await fetch(`/api/admin/companies/${id}/route-quotas?${params.toString()}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (!res.ok) {
         const data = await res.json();
         toast.error(data?.error || t('common.error'));
@@ -336,22 +392,23 @@ export default function EditCompanyPage() {
           </p>
         ) : (
           <div className="mt-4 space-y-2">
-            {quotas.map((q) => (
+            {groupedQuotas.map((g) => (
               <div
-                key={`${q.routeKey}|${q.travelDate}`}
+                key={`${g.routeKey}|${g.from}|${g.to}`}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-extrabold text-[#0B1B33]">{q.routeName}</p>
+                  <p className="truncate text-[13.5px] font-extrabold text-[#0B1B33]">{g.routeName}</p>
                   <p className="text-[12px] font-bold tabular-nums text-[var(--sp-text-muted)]">
-                    {q.travelDate} · {isRTL ? 'مستخدمة' : 'used'} {q.used} ·{' '}
+                    {g.from === g.to ? g.from : `${g.from} → ${g.to}`} ·{' '}
+                    {isRTL ? 'مستخدمة' : 'used'} {g.used} ·{' '}
                     {isRTL ? 'الحد' : 'cap'}{' '}
-                    {q.maxSeats == null ? '∞' : q.maxSeats}
+                    {g.maxSeats == null ? '∞' : g.maxSeats}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => removeQuota(q)}
+                  onClick={() => removeQuota(g)}
                   className="rounded-lg px-2.5 py-1.5 text-[12px] font-extrabold text-rose-600 hover:bg-rose-50"
                 >
                   {isRTL ? 'حذف' : 'Remove'}
@@ -361,7 +418,7 @@ export default function EditCompanyPage() {
           </div>
         )}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <V2Field label={isRTL ? 'المسار' : 'Route'}>
             <V2Select
               value={newQuota.routeKey}
@@ -390,6 +447,20 @@ export default function EditCompanyPage() {
               onChange={(e) => setNewQuota({ ...newQuota, travelDate: e.target.value })}
               dir="ltr"
             />
+          </V2Field>
+          <V2Field label={isRTL ? 'حتى تاريخ' : 'To date'}>
+            <V2Input
+              type="date"
+              value={newQuota.dateTo}
+              onChange={(e) => setNewQuota({ ...newQuota, dateTo: e.target.value })}
+              placeholder={isRTL ? 'يوم واحد' : 'Single day'}
+              dir="ltr"
+            />
+            <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+              {isRTL
+                ? 'اتركه فارغاً ليوم واحد. المدى يُحفظ كصف لكل يوم.'
+                : 'Leave it empty for a single day. A range is stored as one row per day.'}
+            </p>
           </V2Field>
           <V2Field label={isRTL ? 'حد المقاعد' : 'Seat cap'}>
             <V2Input

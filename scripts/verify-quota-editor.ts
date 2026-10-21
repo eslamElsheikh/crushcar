@@ -11,6 +11,7 @@
  */
 import { PrismaClient } from '@prisma/client'
 import { assertTestDatabase } from './lib/test-db-guard'
+import { routeKeyOfStops, travelDateOf } from '../src/lib/route-key'
 
 // This script writes to the database and deletes rows. It must never run against
 // production, so the guard refuses to start unless this is a test database.
@@ -46,6 +47,13 @@ async function api(
   let json: any = {}
   try { json = JSON.parse(text) } catch { json = { raw: text } }
   return { status: res.status, json }
+}
+
+/** The day a number of days after another. */
+function addDays(day: string, days: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 async function main() {
@@ -220,7 +228,139 @@ async function main() {
   const list2 = await api(`/api/admin/companies/${company.id}/route-quotas`, { token })
   check('the quota is gone', list2.json?.quotas?.length === 0, `count=${list2.json?.quotas?.length}`)
 
+  console.log('the route list does not depend only on the company\'s own buses')
+  // The production shape: a company with bookings on routes, and buses that
+  // are not associated with any company. A list built from the company's own
+  // buses is empty, so there would be no route to give an allowance on.
+  const booked = await prisma.company.create({
+    data: {
+      name: `Booked Co ${SUFFIX}`, subdomain: `booked-${SUFFIX}`, isActive: true,
+      creditLimit: 0, walletBalance: 100000, paymentMode: 'BOTH', outstandingBalance: 0,
+      billingCycle: 'MONTHLY', autoPayEnabled: false, maxSeatsPerBooking: null,
+    },
+  })
+  const orphanBus = await prisma.bus.create({
+    data: { name: `Orphan Bus ${SUFFIX}`, type: 'COACH_BUS', seatCount: 0, companyId: null },
+  })
+  const orphanLayout = await prisma.busLayout.create({ data: { busId: orphanBus.id, rows: 1, cols: 1, aisleAfter: 0 } })
+  await prisma.seat.create({ data: { layoutId: orphanLayout.id, label: 'S1-1', row: 1, col: 1, type: 'NORMAL', price: 100 } })
+
+  // The trips these bookings are on leave two days from now, so their travel
+  // date is that day, not the one the first trip uses.
+  const bookedDeparture = new Date(Date.now() + 2 * 86400000)
+  bookedDeparture.setUTCHours(9, 0, 0, 0)
+  const bookedTravelDate = travelDateOf(bookedDeparture)!
+  const bookedRoute = [stationA.id, stationB.id]
+  const bookedRouteKey = `${stationA.id}|${stationB.id}`
+  const bookedTrip = await prisma.trip.create({
+    data: {
+      busId: orphanBus.id, origin: 'A', destination: 'B',
+      departure: bookedDeparture, arrival: new Date(bookedDeparture.getTime() + 6 * 3600000),
+      price: 100, status: 'SCHEDULED', bookingMode: 'SEAT',
+      routeKey: bookedRouteKey, travelDate: bookedTravelDate,
+      tripStops: { create: bookedRoute.map((s, i) => ({ stationId: s, stopOrder: i + 1, priceFromOrigin: i * 50 })) },
+    },
+  })
+  await prisma.companyBooking.create({
+    data: {
+      reference: `booked-${SUFFIX}`,
+      companyId: booked.id, tripId: bookedTrip.id, seatLabel: 'S1-1',
+      status: 'PENDING', total: 100, fromStopOrder: 1, toStopOrder: 1,
+    },
+  })
+
+  const bookedList = await api(`/api/admin/companies/${booked.id}/route-quotas`, { token })
+  check('the routes the company has booked on are offered',
+    (bookedList.json?.routes || []).some((r: any) => r.routeKey === bookedRouteKey),
+    JSON.stringify((bookedList.json?.routes || []).map((r: any) => r.routeKey)).slice(0, 140))
+  check('and it has no buses of its own',
+    (await prisma.bus.count({ where: { companyId: booked.id } })) === 0)
+
+  console.log('the list keeps the routes apart')
+  // The reverse of the booked route, and a route with the same endpoints but
+  // a different intermediate stop. Neither may be merged into the first.
+  const stationC = await prisma.station.upsert({
+    where: { name_city: { name: `Quota C ${SUFFIX}`, city: 'quota' } },
+    create: { name: `Quota C ${SUFFIX}`, city: 'quota' },
+    update: {},
+  })
+  const reverseTrip = await prisma.trip.create({
+    data: {
+      busId: orphanBus.id, origin: 'B', destination: 'A',
+      departure: bookedDeparture, arrival: new Date(bookedDeparture.getTime() + 6 * 3600000),
+      price: 100, status: 'SCHEDULED', bookingMode: 'SEAT',
+      routeKey: `${stationB.id}|${stationA.id}`, travelDate: bookedTravelDate,
+      tripStops: { create: [{ stationId: stationB.id, stopOrder: 1, priceFromOrigin: 0 }, { stationId: stationA.id, stopOrder: 2, priceFromOrigin: 50 }] },
+    },
+  })
+  const otherStopsTrip = await prisma.trip.create({
+    data: {
+      busId: orphanBus.id, origin: 'A', destination: 'B',
+      departure: bookedDeparture, arrival: new Date(bookedDeparture.getTime() + 6 * 3600000),
+      price: 100, status: 'SCHEDULED', bookingMode: 'SEAT',
+      routeKey: `${stationA.id}|${stationC.id}|${stationB.id}`, travelDate: bookedTravelDate,
+      tripStops: { create: [{ stationId: stationA.id, stopOrder: 1, priceFromOrigin: 0 }, { stationId: stationC.id, stopOrder: 2, priceFromOrigin: 25 }, { stationId: stationB.id, stopOrder: 3, priceFromOrigin: 50 }] },
+    },
+  })
+  await prisma.companyBooking.create({
+    data: {
+      reference: `booked-2-${SUFFIX}`,
+      companyId: booked.id, tripId: reverseTrip.id, seatLabel: 'S1-1',
+      status: 'PENDING', total: 100, fromStopOrder: 1, toStopOrder: 1,
+    },
+  })
+  await prisma.companyBooking.create({
+    data: {
+      reference: `booked-3-${SUFFIX}`,
+      companyId: booked.id, tripId: otherStopsTrip.id, seatLabel: 'S1-1',
+      status: 'PENDING', total: 100, fromStopOrder: 1, toStopOrder: 1,
+    },
+  })
+
+  const distinctList = await api(`/api/admin/companies/${booked.id}/route-quotas`, { token })
+  const keys = (distinctList.json?.routes || []).map((r: any) => r.routeKey)
+  check('the reverse direction is a separate route', keys.includes(`${stationB.id}|${stationA.id}`),
+    JSON.stringify(keys).slice(0, 200))
+  check('a route with different intermediate stops is separate',
+    keys.includes(`${stationA.id}|${stationC.id}|${stationB.id}`),
+    JSON.stringify(keys).slice(0, 200))
+  check('and the three of them are three entries, not one',
+    new Set(keys).size === keys.length && keys.length >= 3,
+    JSON.stringify(keys).slice(0, 200))
+
+  console.log('a date range is written as one row per day')
+  const range = await api(`/api/admin/companies/${booked.id}/route-quotas`, {
+    method: 'PUT',
+    token,
+    body: { routeKey: bookedRouteKey, travelDate: bookedTravelDate, dateTo: addDays(bookedTravelDate, 4), maxSeats: 8 },
+  })
+  check('a range is accepted', range.status === 200, `status=${range.status}`)
+  check('and it writes one row per day', (range.json?.written || []).length === 5,
+    `wrote ${(range.json?.written || []).length}`)
+
+  const rangeList = await api(`/api/admin/companies/${booked.id}/route-quotas`, { token })
+  const rangeRows = (rangeList.json?.quotas || []).filter((q: any) => q.routeKey === bookedRouteKey)
+  check('the rows are all there', rangeRows.length === 5, `rows=${rangeRows.length}`)
+
+  const rangeRemoved = await api(
+    `/api/admin/companies/${booked.id}/route-quotas?routeKey=${encodeURIComponent(bookedRouteKey)}&travelDate=${bookedTravelDate}&dateTo=${addDays(bookedTravelDate, 4)}`,
+    { method: 'DELETE', token },
+  )
+  check('the range can be removed', rangeRemoved.status === 200, `status=${rangeRemoved.status}`)
+  const afterRemove = await api(`/api/admin/companies/${booked.id}/route-quotas`, { token })
+  check('and every day of it is gone',
+    (afterRemove.json?.quotas || []).filter((q: any) => q.routeKey === bookedRouteKey).length === 0,
+    `rows=${(afterRemove.json?.quotas || []).filter((q: any) => q.routeKey === bookedRouteKey).length}`)
+
   // ── Clean up ─────────────────────────────────────────────────────────
+  await prisma.companyBooking.deleteMany({ where: { companyId: booked.id } })
+  await prisma.companyRouteQuota.deleteMany({ where: { companyId: booked.id } })
+  await prisma.companyTripQuota.deleteMany({ where: { companyId: booked.id } })
+  await prisma.trip.deleteMany({ where: { id: { in: [bookedTrip.id, reverseTrip.id, otherStopsTrip.id] } } })
+  await prisma.seat.deleteMany({ where: { layoutId: orphanLayout.id } })
+  await prisma.busLayout.delete({ where: { id: orphanLayout.id } })
+  await prisma.bus.delete({ where: { id: orphanBus.id } })
+  await prisma.company.delete({ where: { id: booked.id } })
   // A user still pointing at the company would make the company delete fail,
   // so the user is released first.
   await prisma.user.updateMany({ where: { companyId: company.id }, data: { companyId: null } })
