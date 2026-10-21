@@ -58,6 +58,30 @@ export function travelDateOf(departure: Date | string | null | undefined): strin
   return businessDay(d)
 }
 
+/**
+ * A composite key for a route and a day.
+ *
+ * The route key is itself a '|'-joined list of station ids, so joining the
+ * route and the day with the same character makes a key that cannot be split
+ * apart again: "a|b|c" + "2026-01-01" and "a|b" + "c|2026-01-01" would be
+ * the same string. The separator here is one that cannot appear in a station
+ * id or in a date, so the two halves are always recoverable.
+ */
+export const ROUTE_DAY_SEPARATOR = '::'
+
+export function routeDayKey(routeKey: string, travelDate: string): string {
+  return `${routeKey}${ROUTE_DAY_SEPARATOR}${travelDate}`
+}
+
+export function parseRouteDayKey(composite: string): { routeKey: string; travelDate: string } {
+  const at = composite.lastIndexOf(ROUTE_DAY_SEPARATOR)
+  if (at < 0) return { routeKey: composite, travelDate: '' }
+  return {
+    routeKey: composite.slice(0, at),
+    travelDate: composite.slice(at + ROUTE_DAY_SEPARATOR.length),
+  }
+}
+
 /** The route and the day, as the quota table keys them. */
 export interface RouteDayKey {
   routeKey: string | null

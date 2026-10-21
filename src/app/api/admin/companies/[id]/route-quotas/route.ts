@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { SEAT_HOLDING_STATUSES } from '@/lib/booking-limits'
-import { resolveRouteIdentity } from '@/lib/route-key'
+import { resolveRouteIdentity, routeDayKey } from '@/lib/route-key'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     for (const t of trips) {
       const identity = resolveRouteIdentity(t)
       if (identity.problem) continue
-      bucketByTrip.set(t.id, `${identity.routeKey}|${identity.travelDate}`)
+      bucketByTrip.set(t.id, routeDayKey(identity.routeKey, identity.travelDate))
     }
 
     const held = await prisma.companyBooking.groupBy({
@@ -143,7 +143,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         routeKey: q.routeKey,
         travelDate: q.travelDate,
         maxSeats: q.maxSeats,
-        used: usedByRouteDay.get(`${q.routeKey}|${q.travelDate}`) ?? 0,
+        used: usedByRouteDay.get(routeDayKey(q.routeKey, q.travelDate)) ?? 0,
         routeName: q.routeKey
           .split('|')
           .map((id) => stationName.get(id) || id)

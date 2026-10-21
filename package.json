@@ -28,6 +28,7 @@
     "check:refund-race": "tsx scripts/verify-refund-race.ts",
     "check:guard": "tsx scripts/verify-test-db-guard.ts",
     "check:quota-editor": "tsx scripts/verify-quota-editor.ts",
+    "check:backfill": "tsx scripts/verify-backfill-rehearsal.ts",
     "clean:test-data": "tsx scripts/cleanup-test-data.ts",
     "check:races": "tsx scripts/verify-booking-races.ts",
     "check:wallet": "tsx scripts/verify-platform-wallet.ts",
