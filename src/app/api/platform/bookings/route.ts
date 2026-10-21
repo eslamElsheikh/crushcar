@@ -7,6 +7,7 @@ import { lockRow } from '@/lib/row-lock'
 import { segmentPrice } from '@/lib/segment-price'
 import { parseCollectAmount } from '@/lib/validations'
 import { chargePlatform, toPiastres, fromPiastres } from '@/lib/platform-wallet'
+import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 
 export const dynamic = 'force-dynamic'
 
@@ -204,7 +205,7 @@ export async function POST(req: NextRequest) {
         balance: fromPiastres(movement.balanceAfterPiastres),
         requiresPayment: false,
       })
-    }))
+    }, BOOKING_ISOLATION))
   } catch (err: any) {
     const message = String(err?.message || '')
     if (message.startsWith('SEAT_CONFLICT')) {

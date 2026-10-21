@@ -22,6 +22,7 @@ import { assertTestDatabase } from './lib/test-db-guard'
 // production, so the guard refuses to start unless this is a test database.
 assertTestDatabase()
 import { resolveBookingLimits } from '../src/lib/company-quota'
+import { BOOKING_ISOLATION } from '../src/lib/transaction-isolation'
 import { chargeCompanyWalletOnly, splitCharge } from '../src/lib/company-charge'
 import { effectiveMaxSeatsPerBooking, MAX_SEATS_PER_BOOKING } from '../src/lib/booking-limits'
 import { routeKeyOfStops, travelDateOf } from '../src/lib/route-key'
@@ -64,6 +65,14 @@ async function makeTrip(
   to: string,
   stationIds: string[],
   dayOffset: number,
+  /**
+   * A legacy trip: one that existed before the route-key columns were added,
+   * so the stored key and travel date are still null even though it has
+   * perfectly good stops. The application has to place it in the right
+   * bucket from its stops, because a trip with a null key that nobody counts
+   * is a trip that sits outside every daily allowance.
+   */
+  legacy = false,
 ) {
   const departure = new Date(Date.now() + (dayOffset + 1) * 86400000)
   departure.setUTCHours(9, 0, 0, 0)
@@ -77,8 +86,8 @@ async function makeTrip(
       price: 100,
       bookingMode: 'SEAT',
       status: 'SCHEDULED',
-      routeKey: routeKeyOfStops(stationIds.map((stationId, i) => ({ stationId, stopOrder: i + 1 }))),
-      travelDate: travelDateOf(departure),
+      routeKey: legacy ? null : routeKeyOfStops(stationIds.map((stationId, i) => ({ stationId, stopOrder: i + 1 }))),
+      travelDate: legacy ? null : travelDateOf(departure),
       tripStops: {
         create: stationIds.map((stationId, i) => ({ stationId, stopOrder: i + 1, priceFromOrigin: i * 50 })),
       },
@@ -141,7 +150,7 @@ async function book(
       })
     }
     return { ok: true as const, created: free.length, limits }
-  })
+  }, BOOKING_ISOLATION)
 }
 
 async function main() {
@@ -273,6 +282,77 @@ async function main() {
   const freed = await book(company.id, tripA3.id, busC.labels.slice(1, 2))
   check('the seat a cancelled booking gave back is available again', freed.ok, JSON.stringify(freed.limits))
 
+  console.log('legacy trips, whose stored route key is still null')
+  // Two buses on the same route and the same day, both of them legacy: their
+  // stored route key and travel date are null, and only their stops say what
+  // route they are on.
+  const legacyA = await makeTrip(busA.bus.id, 'المنصورة', 'شرم الشيخ', route, 2, true)
+  const legacyB = await makeTrip(busB.bus.id, 'المنصورة', 'شرم الشيخ', route, 2, true)
+  // And a legacy trip in the other direction, and one on another day, so the
+  // test proves the buckets are still kept apart.
+  const legacyRev = await makeTrip(busC.bus.id, 'شرم الشيخ', 'المنصورة', routeRev, 2, true)
+  const legacyOtherDay = await makeTrip(busA.bus.id, 'المنصورة', 'شرم الشيخ', route, 3, true)
+
+  check('the legacy trips really do have no stored key',
+    legacyA.routeKey === null && legacyA.travelDate === null)
+  check('they still have stops, so their route can be derived',
+    legacyA.tripStops.length === route.length)
+
+  const legacyKey = routeKeyOfStops(route.map((stationId, i) => ({ stationId, stopOrder: i + 1 })))
+  const legacyDate = travelDateOf(legacyA.departure)
+  await prisma.companyRouteQuota.upsert({
+    where: {
+      companyId_routeKey_travelDate: {
+        companyId: company.id, routeKey: legacyKey!, travelDate: legacyDate!,
+      },
+    },
+    create: { companyId: company.id, routeKey: legacyKey!, travelDate: legacyDate!, maxSeats: 4 },
+    update: { maxSeats: 4 },
+  })
+
+  const legacyFirst = await book(company.id, legacyA.id, busA.labels.slice(60, 64))
+  check('a legacy trip can be booked under the daily allowance', legacyFirst.ok, JSON.stringify(legacyFirst.limits))
+  check('the legacy trip was counted against the daily allowance',
+    legacyFirst.ok && legacyFirst.limits.routeUsed === 0,
+    JSON.stringify(legacyFirst.limits))
+
+  let legacySecondRefused = false
+  try {
+    await book(company.id, legacyB.id, busB.labels.slice(0, 1))
+  } catch (e: any) {
+    legacySecondRefused = e?.code === 'TRIP_QUOTA_EXCEEDED'
+  }
+  check('the next legacy trip on the same route and day is refused by the daily allowance',
+    legacySecondRefused)
+
+  const legacyRevBooking = await book(company.id, legacyRev.id, busC.labels.slice(0, 2))
+  check('a legacy trip in the other direction has its own allowance', legacyRevBooking.ok,
+    JSON.stringify(legacyRevBooking.limits))
+  const legacyOtherDayBooking = await book(company.id, legacyOtherDay.id, busA.labels.slice(0, 2))
+  check('a legacy trip on another day has its own allowance', legacyOtherDayBooking.ok,
+    JSON.stringify(legacyOtherDayBooking.limits))
+
+  console.log('a trip with no stops at all is refused, not quietly exempt')
+  const noStops = await prisma.trip.create({
+    data: {
+      busId: busA.bus.id,
+      origin: 'المنصورة', destination: 'شرم الشيخ',
+      departure: new Date(Date.now() + 5 * 86400000),
+      arrival: new Date(Date.now() + 5 * 86400000 + 6 * 3600000),
+      price: 100, bookingMode: 'SEAT', status: 'SCHEDULED',
+    },
+  })
+  let noStopsRefused = false
+  try {
+    await book(company.id, noStops.id, busA.labels.slice(10, 11))
+  } catch (e: any) {
+    noStopsRefused = e?.code === 'UNRESOLVED_ROUTE'
+  }
+  check('a trip with no stops is refused instead of escaping the daily allowance', noStopsRefused)
+  check('and nothing was booked on it',
+    (await prisma.companyBooking.count({ where: { companyId: company.id, tripId: noStops.id } })) === 0)
+
+
   console.log('the wallet-only charge')
   const before = await prisma.company.findUniqueOrThrow({ where: { id: company.id } })
   const charge = await prisma.$transaction((tx) =>
@@ -350,7 +430,7 @@ async function main() {
   await prisma.companyBooking.deleteMany({ where: { companyId: { in: [company.id, otherCompany.id] } } })
   await prisma.companyRouteQuota.deleteMany({ where: { companyId: { in: [company.id, otherCompany.id] } } })
   await prisma.companyTripQuota.deleteMany({ where: { companyId: { in: [company.id, otherCompany.id] } } })
-  await prisma.trip.deleteMany({ where: { id: { in: [tripA1.id, tripA2.id, tripA3.id, tripRev.id, tripOtherRoute.id, tripOtherDay.id, tripOtherCo.id] } } })
+  await prisma.trip.deleteMany({ where: { id: { in: [tripA1.id, tripA2.id, tripA3.id, tripRev.id, tripOtherRoute.id, tripOtherDay.id, tripOtherCo.id, legacyA.id, legacyB.id, legacyRev.id, legacyOtherDay.id, noStops.id] } } })
   await prisma.busLayout.deleteMany({ where: { busId: { in: [busA.bus.id, busB.bus.id, busC.bus.id, busOther.bus.id] } } })
   await prisma.bus.deleteMany({ where: { id: { in: [busA.bus.id, busB.bus.id, busC.bus.id, busOther.bus.id] } } })
   await prisma.station.deleteMany({ where: { id: { in: Object.values(st) }, tripStops: { none: {} } } })

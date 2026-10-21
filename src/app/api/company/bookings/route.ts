@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { parseCollectAmount } from '@/lib/validations'
+import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 import { companyBookingExpiryHours } from '@/lib/booking-expiry'
 import { companyPaymentDeadline } from '@/lib/payments'
 import { chargeCompany, splitCharge } from '@/lib/company-charge'
@@ -296,11 +297,25 @@ export async function POST(req: NextRequest) {
         creditLimit: company.creditLimit,
         outstandingBalance: company.outstandingBalance,
       })
-    }))
+    }, BOOKING_ISOLATION))
   } catch (err: any) {
     console.error(err)
     // The limit errors carry a code and their own numbers, so the message is
     // not parsed for them.
+    if (err?.code === 'UNRESOLVED_ROUTE') {
+      return NextResponse.json(
+        {
+          error: 'UNRESOLVED_ROUTE',
+          message:
+            err.problem === 'NO_STOPS'
+              ? 'هذه الرحلة بلا محطات، فلا يمكن تحديد مسارها ولا تطبيق الحصة اليومية عليها. أضف محطات الرحلة أو احذفها.'
+              : 'مفتاح المسار المخزَّن لهذه الرحلة لا يطابق محطاتها، فلا يمكن تطبيق الحصة اليومية عليها. أعد اشتقاق مفاتيح المسارات.',
+          problem: err.problem,
+          tripId: err.tripId,
+        },
+        { status: 409 }
+      )
+    }
     if (err?.code === 'SEAT_CAP_EXCEEDED') {
       return NextResponse.json(
         { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${err.max} مقاعد` },
@@ -311,7 +326,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'TRIP_QUOTA_EXCEEDED',
-          message: `الحصة المتاحة على هذه الرحلة ${err.remaining} مقاعد`,
+          message:
+            err.kind === 'ROUTE'
+              ? `الحصة اليومية المشتركة لهذا المسار في هذا اليوم ${err.remaining} مقعد`
+              : `الحصة المتاحة على هذه الرحلة ${err.remaining} مقاعد`,
         },
         { status: 413 },
       )

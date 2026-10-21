@@ -144,11 +144,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Update trip in transaction: replace TripStops
     const trip = await prisma.$transaction(async (tx) => {
-      // Delete existing TripStops
-      await tx.tripStop.deleteMany({ where: { tripId: id } })
+      const updateData: any = { ...tripData }
+      if (updateData.departure) updateData.departure = new Date(updateData.departure)
+      if (updateData.arrival) updateData.arrival = new Date(updateData.arrival)
+      if (updateData.stopsJson && Array.isArray(updateData.stopsJson)) updateData.stopsJson = JSON.stringify(updateData.stopsJson)
 
-      // Create new TripStops
-      if (stops && Array.isArray(stops) && stops.length > 0) {
+      // The stops are replaced only when new ones are supplied.
+      //
+      // They used to be replaced on every edit, which meant a request that
+      // changed something else about the trip — a price, a status — wiped
+      // its stops as well. A trip with no stops has no route identity, and a
+      // trip with no route identity sits outside every daily allowance, so
+      // that edit quietly moved the trip out of the company's quota. The
+      // route key is re-derived from the stops that were just written, and
+      // only then: a key derived before the edit would be stale.
+      const stopsSupplied = Array.isArray(stops) && stops.length > 0
+      if (stopsSupplied) {
+        await tx.tripStop.deleteMany({ where: { tripId: id } })
         await tx.tripStop.createMany({
           data: stops.map((s: any) => ({
             tripId: id,
@@ -159,20 +171,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             departureTime: s.departureTime ? new Date(s.departureTime) : null,
           })),
         })
+        updateData.routeKey = routeKeyOfStops(stops as any)
       }
 
-      // Set origin/destination/price from stops if available
-      const updateData: any = { ...tripData }
-      if (updateData.departure) updateData.departure = new Date(updateData.departure)
-      if (updateData.arrival) updateData.arrival = new Date(updateData.arrival)
-      if (updateData.stopsJson && Array.isArray(updateData.stopsJson)) updateData.stopsJson = JSON.stringify(updateData.stopsJson)
-
-      // The route identity and the travel date are re-derived from the stop
-      // list that was just written. The stops are replaced wholesale on every
-      // edit, so a key derived before the edit would be stale, and origin and
-      // destination are a display snapshot that the edit page does not even
-      // send.
-      updateData.routeKey = routeKeyOfStops(stops as any)
+      // The travel date always follows the departure, whatever else changed:
+      // it is the day the trip runs, and the quota bucket is keyed on it.
       updateData.travelDate = travelDateOf(updateData.departure ?? existing.departure)
 
       return tx.trip.update({

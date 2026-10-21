@@ -74,6 +74,81 @@ export function routeDayKeyOfTrip(
 }
 
 /**
+ * Why a trip cannot be placed in a route bucket.
+ *
+ * NO_STOPS — the trip has no stops, so there is no route to speak of. There
+ * is no reliable key, and a trip that cannot be identified must not be
+ * allowed to sit outside every quota.
+ *
+ * STORED_MISMATCH — the stored key and the key derived from the stops
+ * disagree. Two definitions of the same thing is the exact thing this module
+ * exists to prevent, so the trip is treated as unidentifiable rather than
+ * being filed under whichever one happens to be there.
+ */
+export type RouteIdentityProblem = 'NO_STOPS' | 'STORED_MISMATCH'
+
+/** A trip, as far as its route identity is concerned. */
+export interface TripIdentityInput {
+  /** The key stored on the row, if the row has one. */
+  routeKey?: string | null
+  /** The travel date stored on the row, if the row has one. */
+  travelDate?: string | null
+  tripStops?: { stationId: string; stopOrder: number }[]
+  departure?: Date | string | null
+}
+
+/** The route bucket a trip belongs to. */
+export interface ResolvedRouteIdentity {
+  /** The bucket key. Never null: a trip that cannot be identified is refused. */
+  routeKey: string
+  /** The bucket day. Never null. */
+  travelDate: string
+  /** Set when the trip cannot be placed in a bucket. */
+  problem: RouteIdentityProblem | null
+}
+
+/**
+ * The one definition of a trip's route identity.
+ *
+ * The key is derived from the trip's own stops, because that is the ground
+ * truth: TripStop.stationId is a real foreign key to Station.id, and
+ * stopOrder gives the order. The stored column is compared against it, never
+ * preferred over it, so the key used to look up a quota and the key used to
+ * count the seats already held can never be two different things.
+ *
+ * The travel date is the same: derived from the departure, in Cairo time.
+ *
+ * A trip with no stops has no route identity at all, and a trip whose stored
+ * key disagrees with its own stops is in a state nobody can interpret. Both
+ * are reported as problems rather than quietly filed under no bucket, because
+ * a trip outside every bucket is a trip outside every daily allowance.
+ */
+export function resolveRouteIdentity(trip: TripIdentityInput): ResolvedRouteIdentity {
+  const derivedRouteKey = routeKeyOfStops(trip.tripStops)
+  const derivedTravelDate = travelDateOf(trip.departure)
+
+  if (!derivedRouteKey || !derivedTravelDate) {
+    return {
+      routeKey: derivedRouteKey ?? '',
+      travelDate: derivedTravelDate ?? '',
+      problem: 'NO_STOPS',
+    }
+  }
+
+  const storedRouteKey = trip.routeKey ?? null
+  const storedTravelDate = trip.travelDate ?? null
+
+  if (storedRouteKey && storedRouteKey !== derivedRouteKey) {
+    return { routeKey: derivedRouteKey, travelDate: derivedTravelDate, problem: 'STORED_MISMATCH' }
+  }
+  if (storedTravelDate && storedTravelDate !== derivedTravelDate) {
+    return { routeKey: derivedRouteKey, travelDate: derivedTravelDate, problem: 'STORED_MISMATCH' }
+  }
+
+  return { routeKey: derivedRouteKey, travelDate: derivedTravelDate, problem: null }
+}
+
+/**
  * Whether two trips share a route on the same day.
  *
  * Used to decide whether two trips draw from the same daily allowance. Both

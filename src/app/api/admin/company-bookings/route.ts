@@ -8,6 +8,7 @@ import { resolveBookingLimits } from '@/lib/company-quota'
 import { chargeCompanyWalletOnly, splitCharge } from '@/lib/company-charge'
 import { parseCollectAmount } from '@/lib/validations'
 import { companyPaymentDeadline } from '@/lib/payments'
+import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 
 export const dynamic = 'force-dynamic'
 
@@ -291,9 +292,23 @@ export async function POST(req: NextRequest) {
         },
         requiresPayment: false,
       })
-    }))
+    }, BOOKING_ISOLATION))
   } catch (err: any) {
     const code = err?.code
+    if (code === 'UNRESOLVED_ROUTE') {
+      return NextResponse.json(
+        {
+          error: 'UNRESOLVED_ROUTE',
+          message:
+            err.problem === 'NO_STOPS'
+              ? 'هذه الرحلة بلا محطات، فلا يمكن تحديد مسارها ولا تطبيق الحصة اليومية عليها. أضف محطات الرحلة أو احذفها.'
+              : 'مفتاح المسار المخزَّن لهذه الرحلة لا يطابق محطاتها، فلا يمكن تطبيق الحصة اليومية عليها. أعد اشتقاق مفاتيح المسارات.',
+          problem: err.problem,
+          tripId: err.tripId,
+        },
+        { status: 409 }
+      )
+    }
     if (code === 'SEAT_CAP_EXCEEDED') {
       return NextResponse.json(
         { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${err.max} مقاعد` },
@@ -304,7 +319,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'TRIP_QUOTA_EXCEEDED',
-          message: `الحصة المتاحة على هذه الرحلة ${err.remaining} مقاعد`,
+          message:
+            err.kind === 'ROUTE'
+              ? `الحصة اليومية المشتركة لهذا المسار في هذا اليوم ${err.remaining} مقعد`
+              : `الحصة المتاحة على هذه الرحلة ${err.remaining} مقاعد`,
         },
         { status: 413 },
       )

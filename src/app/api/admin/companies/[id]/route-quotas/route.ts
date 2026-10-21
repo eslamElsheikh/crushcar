@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { SEAT_HOLDING_STATUSES } from '@/lib/booking-limits'
+import { resolveRouteIdentity } from '@/lib/route-key'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,26 +51,41 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
     // The seats the company already holds on each route and day, counted
     // across every bus serving that route.
+    //
+    // The bucket is worked out from each trip's own stops, the same way the
+    // booking path works it out, so the number shown here is the number the
+    // booking is checked against. A legacy trip, whose stored key is still
+    // null, is counted under the key derived from its stops rather than
+    // dropped.
+    const trips = await prisma.trip.findMany({
+      select: {
+        id: true,
+        routeKey: true,
+        travelDate: true,
+        departure: true,
+        tripStops: { select: { stationId: true, stopOrder: true } },
+      },
+    })
+    const bucketByTrip = new Map<string, string>()
+    for (const t of trips) {
+      const identity = resolveRouteIdentity(t)
+      if (identity.problem) continue
+      bucketByTrip.set(t.id, `${identity.routeKey}|${identity.travelDate}`)
+    }
+
     const held = await prisma.companyBooking.groupBy({
       by: ['tripId'],
       where: {
         companyId,
         status: { in: [...SEAT_HOLDING_STATUSES] },
-        trip: { routeKey: { not: null }, travelDate: { not: null } },
       },
       _count: { _all: true },
     })
 
-    const trips = await prisma.trip.findMany({
-      where: { routeKey: { not: null }, travelDate: { not: null } },
-      select: { id: true, routeKey: true, travelDate: true },
-    })
-    const tripById = new Map(trips.map((t) => [t.id, t]))
     const usedByRouteDay = new Map<string, number>()
     for (const h of held) {
-      const trip = tripById.get(h.tripId)
-      if (!trip?.routeKey || !trip?.travelDate) continue
-      const key = `${trip.routeKey}|${trip.travelDate}`
+      const key = bucketByTrip.get(h.tripId)
+      if (!key) continue
       usedByRouteDay.set(key, (usedByRouteDay.get(key) ?? 0) + h._count._all)
     }
 
@@ -88,25 +104,35 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     // The routes this company could be given an allowance on: the routes its
     // own buses run. The earliest day each route runs is offered as the date
     // to start from, so the admin does not have to know the calendar.
+    //
+    // The route is worked out from the trip's own stops, the same way the
+    // booking path works it out — so the key the admin picks is the key the
+    // booking will be counted against. A legacy trip, whose stored key is
+    // still null, is included the same way, so its route can be given an
+    // allowance before the backfill has run.
     const companyTrips = await prisma.trip.findMany({
-      where: {
-        bus: { companyId },
-        routeKey: { not: null },
-        travelDate: { not: null },
+      where: { bus: { companyId } },
+      select: {
+        routeKey: true,
+        travelDate: true,
+        origin: true,
+        destination: true,
+        departure: true,
+        tripStops: { select: { stationId: true, stopOrder: true } },
       },
-      select: { routeKey: true, travelDate: true, origin: true, destination: true },
       orderBy: { departure: 'asc' },
     })
     const routeByKey = new Map<string, { routeKey: string; travelDate: string; label: string }>()
     for (const t of companyTrips) {
-      if (!t.routeKey || !t.travelDate) continue
-      const existing = routeByKey.get(t.routeKey)
-      if (!existing || t.travelDate < existing.travelDate) {
-        routeByKey.set(t.routeKey, {
-          routeKey: t.routeKey,
-          travelDate: t.travelDate,
+      const identity = resolveRouteIdentity(t)
+      if (identity.problem) continue
+      const existing = routeByKey.get(identity.routeKey)
+      if (!existing || identity.travelDate < existing.travelDate) {
+        routeByKey.set(identity.routeKey, {
+          routeKey: identity.routeKey,
+          travelDate: identity.travelDate,
           label: `${t.origin} → ${t.destination}`,
-        });
+        })
       }
     }
 

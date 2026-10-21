@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           ...updated,
           refundProcessedAt: updated?.refundProcessedAt?.toISOString() || null,
         })
-      })
+      }, BOOKING_ISOLATION)
     }
 
     // Customer booking

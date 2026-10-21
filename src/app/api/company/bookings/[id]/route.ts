@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { calculateRefund } from '@/lib/cancellation-policy'
 import { chargeCompany } from '@/lib/company-charge'
+import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -139,7 +140,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             walletBalance: (company?.walletBalance ?? 0) - paidFromWallet,
             outstandingBalance: (company?.outstandingBalance ?? 0) + paidOnCredit,
           })
-        })
+        }, BOOKING_ISOLATION)
       } catch (err: any) {
         if (err?.message === 'BOOKING_NOT_PENDING') {
           return NextResponse.json(
