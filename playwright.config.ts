@@ -40,6 +40,27 @@ export default defineConfig({
         hasTouch: true,
       },
     },
+    // The narrow widths are the ones a phone in portrait actually is. They
+    // used to be untested, which is how a page that only overflowed below
+    // 390px stayed invisible.
+    {
+      name: 'Chromium mobile 360x800',
+      use: {
+        ...devices['Pixel 5'],
+        viewport: { width: 360, height: 800 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'Chromium mobile 320x568',
+      use: {
+        ...devices['Pixel 5'],
+        viewport: { width: 320, height: 568 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
     {
       name: 'WebKit iPhone 13',
       use: {
@@ -50,10 +71,35 @@ export default defineConfig({
       },
     },
     {
+      name: 'WebKit mobile 360x800',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 360, height: 800 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: 'WebKit mobile 320x568',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 320, height: 568 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
       name: 'tablet 768',
       use: {
         ...devices['iPad Mini'],
         viewport: { width: 768, height: 1024 },
+      },
+    },
+    {
+      name: 'WebKit desktop 1280',
+      use: {
+        ...devices['Desktop Safari'],
+        viewport: { width: 1280, height: 800 },
       },
     },
   ],

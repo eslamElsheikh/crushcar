@@ -2,7 +2,12 @@ import { Page, expect } from '@playwright/test';
 
 export interface HealthCheckOptions {
   allowFailedUrls?: string[];
-  checkHorizontalScroll?: boolean;
+  /**
+   * Opt out of the horizontal-overflow assertion. Nothing passes this today;
+   * it exists so a page that genuinely needs sideways scrolling (a design
+   * decision) can say so out loud instead of silently never being checked.
+   */
+  skipHorizontalScrollCheck?: boolean;
 }
 
 export async function assertPageHealth(
@@ -89,13 +94,19 @@ export async function assertPageHealth(
     }
     expect(deadLinks, `Dead internal links on ${url}`).toEqual([]);
 
-    // Check horizontal scroll if enabled or on mobile
-    const isMobile = (page.viewportSize()?.width || 1280) <= 450;
-    if (isMobile || options.checkHorizontalScroll) {
-      const hasHorizontalScroll = await page.evaluate(() => {
-        return document.documentElement.scrollWidth > document.documentElement.clientWidth + 2;
-      });
-      expect(hasHorizontalScroll, `Horizontal scroll detected on ${url} at ${page.viewportSize()?.width}px`).toBeFalsy();
+    // The page itself must never scroll sideways — at any width, not only on
+    // phones. Scrolling inside a table or a seat map is fine; that lives on
+    // its own container, so it never moves documentElement.scrollWidth.
+    if (!options.skipHorizontalScrollCheck) {
+      const overflow = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(
+        overflow.scrollWidth,
+        `Page overflows horizontally on ${url} at ${page.viewportSize()?.width}px ` +
+          `(scrollWidth ${overflow.scrollWidth} > clientWidth ${overflow.clientWidth})`
+      ).toBeLessThanOrEqual(overflow.clientWidth + 2);
     }
 
     // Check RTL direction
