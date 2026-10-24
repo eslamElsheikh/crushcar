@@ -116,3 +116,24 @@ A lightweight, non-mutating smoke test suite safe to run against production or s
 # Point to live URL (defaults to http://127.0.0.1:3002 if unset)
 BASE_URL="https://safrotravel.com" npx playwright test e2e/smoke-prod.spec.ts --project="Chromium desktop 1280"
 ```
+
+### Browser builds
+
+The committed suite pins `@playwright/test` 1.63.0, which expects chromium build
+1217. Some developer machines only have a newer build (1243) installed, so
+`chromium.launch()` fails with "Executable doesn't exist". Do not change the
+committed dependency or pin to work around it; instead run the suite through a
+local, uncommitted override that points the chromium projects at the build
+already on disk:
+
+```bash
+npx playwright test --config=.scratch/playwright.local.config.ts <spec>
+```
+
+The override lives in `.scratch/` (gitignored) and is never committed. WebKit
+and Firefox are used as installed. If even the installed build is incompatible,
+report which checks could not run rather than silently disabling them.
+
+The horizontal-overflow assertion in `e2e/helpers/page-health.ts` now runs at
+every viewport width, not only below 450px. A page that legitimately needs
+sideways scrolling must opt out with `skipHorizontalScrollCheck`.
