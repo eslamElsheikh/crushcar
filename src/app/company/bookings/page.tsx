@@ -103,7 +103,7 @@ export default function CompanyBookingsPage() {
                     <V2StatusBadge tone={bookingStatusTone(b.status)}>
                       {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
-                    <span className="font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
+                    <span className="min-w-0 max-w-full break-all font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
                       {(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                     </span>
@@ -130,19 +130,19 @@ export default function CompanyBookingsPage() {
               ))}
             </div>
             {pages > 1 && (
-              <div className="mt-5 flex items-center justify-center gap-2">
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}
                   aria-label="Previous page"
-                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
+                  className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
                 >
                   <ChevronLeft className="size-5 v2-flip-rtl" />
                 </button>
-                <span className="text-[14px] font-bold tabular-nums text-[#0B1B33]">{page} / {pages}</span>
+                <span className="min-w-0 max-w-full break-all text-[14px] font-bold tabular-nums text-[#0B1B33]">{page} / {pages}</span>
                 <button
                   onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages}
                   aria-label="Next page"
-                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
+                  className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
                 >
                   <ChevronRight className="size-5 v2-flip-rtl" />
                 </button>

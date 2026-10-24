@@ -165,11 +165,11 @@ export default function CompanyBookingDetail() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/company/bookings" className="inline-flex items-center gap-2 text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition text-sm">
           <ArrowLeft size={16} className="v2-flip-rtl" /> {isRTL ? 'عودة' : 'Back to bookings'}
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/company/bookings/${booking.id}/print`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-[#1D5BD8] text-sm hover:bg-slate-50 transition"
@@ -183,9 +183,12 @@ export default function CompanyBookingDetail() {
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="v2-card p-5 md:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0B1B33]">{booking.reference}</h1>
+        {/* The reference is the page heading. It is ASCII and bounded in
+            practice, but it still has to wrap rather than widen the card
+            on a 320px screen, so both halves of the row may wrap. */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold text-[#0B1B33] break-all">{booking.reference}</h1>
             <p className="text-[var(--sp-text-muted)] text-sm mt-1">
               {booking.bookingType === 'FOR_CLIENT' ? t('company.forClient') : t('company.forEmployee')}
             </p>
@@ -198,17 +201,17 @@ export default function CompanyBookingDetail() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-[#0B1B33]">
-              <MapPin size={18} className="text-[#1D5BD8]" />
-              <div>
+              <MapPin size={18} className="shrink-0 text-[#1D5BD8]" />
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'من' : 'From'}</p>
-                <p>{booking.actualOrigin || booking.trip?.origin}</p>
+                <p className="break-words">{booking.actualOrigin || booking.trip?.origin}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-[#0B1B33]">
-              <MapPin size={18} className="text-red-600" />
-              <div>
+              <MapPin size={18} className="shrink-0 text-red-600" />
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'إلى' : 'To'}</p>
-                <p>{booking.actualDestination || booking.trip?.destination}</p>
+                <p className="break-words">{booking.actualDestination || booking.trip?.destination}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-[#0B1B33]">
@@ -273,10 +276,10 @@ export default function CompanyBookingDetail() {
             ) : (
               <>
                 <div className="flex items-center gap-3 text-[#0B1B33]">
-                  <User size={18} className="text-emerald-600" />
-                  <div>
+                  <User size={18} className="shrink-0 text-emerald-600" />
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'المسافر' : 'Passenger'}</p>
-                    <p>{booking.passengerName || '-'}</p>
+                    <p className="break-words">{booking.passengerName || '-'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-[#0B1B33]">
@@ -458,7 +461,7 @@ export default function CompanyBookingDetail() {
               </div>
               <div className="flex items-center gap-2 text-[#0B1B33]">
                 <User size={16} className="text-emerald-600" />
-                <p className="text-sm">{booking.pairedBooking.passengerName}</p>
+                <p className="text-sm break-words">{booking.pairedBooking.passengerName}</p>
               </div>
             </div>
           </div>

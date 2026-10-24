@@ -258,9 +258,9 @@ export default function AdminBookings() {
               </span>
             );
             const cells = [
-              <span key="r" className="font-mono text-[12.5px] tabular-nums" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</span>,
+              <span key="r" className="break-all font-mono text-[12.5px] tabular-nums" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</span>,
               <span key="c">
-                <span className="block font-bold">{b.passengerName}</span>
+                <span className="block font-bold break-words">{b.passengerName}</span>
                 <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>
                 {/* A platform-funded booking is money the platform spent, not a
                     customer's payment, so it is marked rather than left to be
@@ -369,12 +369,12 @@ export default function AdminBookings() {
           renderMobile={(b) => (
             <div>
               <div className="flex items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-[#0B1B33]">
+                <p className="min-w-0 flex-1 break-words text-[15px] font-extrabold text-[#0B1B33]">
                   {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                 </p>
                 <V2StatusBadge tone={bookingStatusTone(b.status)}>{bookingStatusLabel(t, b.status)}</V2StatusBadge>
               </div>
-              <p className="mt-1 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
+              <p className="mt-1 break-all font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</p>
               <p className="mt-1 text-[14px] font-extrabold tabular-nums">{Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}</p>
               {b.fundingSource === 'PLATFORM' && (
                 <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#1D5BD8] border border-blue-200">

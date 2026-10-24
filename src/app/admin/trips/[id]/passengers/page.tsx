@@ -118,7 +118,7 @@ export default function TripPassengersPage() {
             const shownStatus = b.status !== 'BOARDED' && done ? 'BOARDED' : b.status;
             const cells = [
               <span key="n">
-                <span className="block font-bold">{b.passengerName}</span>
+                <span className="block font-bold break-words">{b.passengerName}</span>
                 {b.isCompany && <span className="block text-[12px] font-normal text-[var(--sp-text-muted)]">B2B</span>}
               </span>,
               <span key="s" className="font-bold tabular-nums">{b.seatLabel}</span>,

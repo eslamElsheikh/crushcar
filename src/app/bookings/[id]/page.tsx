@@ -213,12 +213,12 @@ export default function BookingDetailPage() {
 
               <button
                 onClick={() => copyRef(booking.reference)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 hover:bg-slate-200 px-3 py-1 font-mono text-xs font-bold text-[#0B1B33] transition"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 hover:bg-slate-200 px-3 py-1 font-mono text-xs font-bold text-[#0B1B33] transition"
                 dir="ltr"
                 title={isRTL ? 'انقر لنسخ رقم الحجز' : 'Click to copy reference'}
               >
-                {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                <span>{booking.reference}</span>
+                {copied ? <Check size={13} className="shrink-0 text-emerald-600" /> : <Copy size={13} className="shrink-0" />}
+                <span className="min-w-0 break-all">{booking.reference}</span>
                 {copied && <span className="text-[10px] text-emerald-600 font-bold ms-1">{isRTL ? 'تم النسخ' : 'Copied'}</span>}
               </button>
 
@@ -229,11 +229,14 @@ export default function BookingDetailPage() {
               )}
             </div>
 
-            <h1 className="text-2xl font-extrabold text-[#0B1B33] md:text-3xl flex items-center gap-2">
-              <MapPin size={22} className="text-[#1D5BD8] shrink-0" />
-              <span>{origin}</span>
-              <span className="text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
-              <span>{destination}</span>
+            {/* The route heading is one line on desktop, but a long station
+                or company name must be allowed to wrap on a narrow screen
+                instead of pushing the whole page sideways. */}
+            <h1 className="text-2xl font-extrabold text-[#0B1B33] md:text-3xl flex flex-wrap items-center gap-x-2 gap-y-1">
+              <MapPin size={22} className="shrink-0 text-[#1D5BD8]" />
+              <span className="min-w-0 break-words">{origin}</span>
+              <span className="shrink-0 text-slate-400 mx-1">{isRTL ? '←' : '→'}</span>
+              <span className="min-w-0 break-words">{destination}</span>
             </h1>
 
             <p className="mt-2 text-xs text-[var(--sp-text-muted)] flex flex-wrap items-center gap-3 font-medium">
@@ -247,9 +250,9 @@ export default function BookingDetailPage() {
                 {formatTime(departureDate)}
               </span>
               <span className="text-slate-300">•</span>
-              <span className="flex items-center gap-1">
-                <Bus size={13} className="text-[#1D5BD8]" />
-                {busName} {companyName ? `(${companyName})` : ''}
+              <span className="flex min-w-0 items-center gap-1">
+                <Bus size={13} className="shrink-0 text-[#1D5BD8]" />
+                <span className="min-w-0 break-words">{busName} {companyName ? `(${companyName})` : ''}</span>
               </span>
             </p>
           </div>
@@ -351,7 +354,7 @@ export default function BookingDetailPage() {
                   <span className="text-[11px] font-bold text-[var(--sp-text-muted)] block mb-1">
                     {isRTL ? 'اسم المسافر' : 'Passenger Name'}
                   </span>
-                  <span className="text-sm font-extrabold text-[#0B1B33]">
+                  <span className="block text-sm font-extrabold text-[#0B1B33] break-words">
                     {booking.passengerName || booking.user.name}
                   </span>
                 </div>
@@ -494,7 +497,7 @@ export default function BookingDetailPage() {
                     className="w-36 h-36 mx-auto object-contain"
                   />
                 </div>
-                <p className="font-mono text-xs font-bold text-[var(--sp-text-muted)] mt-2 tracking-wider">
+                <p className="font-mono text-xs font-bold text-[var(--sp-text-muted)] mt-2 break-all tracking-wider">
                   {booking.reference}
                 </p>
               </div>

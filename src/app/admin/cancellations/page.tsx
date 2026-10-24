@@ -120,11 +120,11 @@ export default function CancellationsPage() {
                   {(tiers[k] || []).map((b: any) => (
                     <div key={b.id} className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-extrabold text-[#0B1B33]">
+                        <p className="break-words text-[14.5px] font-extrabold text-[#0B1B33]">
                           {b.passengerName} · <span className="tabular-nums">{b.seatLabel}</span>
                           {source === 'company' && b.company ? ` · ${b.company.name || ''}` : ''}
                         </p>
-                        <p className="mt-0.5 font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
+                        <p className="mt-0.5 break-all font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>
                           {b.reference}
                         </p>
                         <p className="mt-0.5 text-[13px] font-bold tabular-nums text-emerald-700">

@@ -260,7 +260,7 @@ export default function AdminSupervisorPage() {
                               key={booking.id}
                               className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 transition hover:bg-slate-50/50"
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
                                 <div
                                   className={cn(
                                     'size-2.5 rounded-full shrink-0',
@@ -271,9 +271,9 @@ export default function AdminSupervisorPage() {
                                       : 'bg-amber-500 ring-4 ring-amber-100'
                                   )}
                                 />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-[#0B1B33]">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="min-w-0 break-words text-sm font-bold text-[#0B1B33]">
                                       {booking.passengerName}
                                     </span>
                                     <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-700">
@@ -285,7 +285,7 @@ export default function AdminSupervisorPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-xs font-mono font-medium text-slate-400 mt-0.5">
+                                  <p className="mt-0.5 break-all font-mono text-xs font-medium text-slate-400">
                                     {booking.reference}
                                   </p>
                                 </div>

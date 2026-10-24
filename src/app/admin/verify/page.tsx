@@ -129,9 +129,9 @@ export default function VerifyPage() {
             <V2StatusBadge tone={bookingStatusTone(effectiveStatus)}>
               {bookingStatusLabel(t, effectiveStatus)}
             </V2StatusBadge>
-            <span className="ms-auto font-mono text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{booking.reference}</span>
+            <span className="ms-auto max-w-full break-all font-mono text-[12.5px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{booking.reference}</span>
           </div>
-          <p className="mt-3.5 text-[20px] font-extrabold text-[#0B1B33]">{booking.passengerName}</p>
+          <p className="mt-3.5 break-words text-[20px] font-extrabold text-[#0B1B33]">{booking.passengerName}</p>
           <p className="mt-1 text-[14px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{booking.passengerPhone}</p>
           <p className="mt-2 text-[15px] font-bold text-[#0B1B33]">
             {routeLabel(booking.actualOrigin || booking.trip?.origin, booking.actualDestination || booking.trip?.destination, isRTL)}

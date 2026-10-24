@@ -229,12 +229,14 @@ export default function MyBookingsPage() {
                     </V2StatusBadge>
                     <button
                       onClick={() => copyRef(b.reference)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 font-mono text-[12px] tabular-nums text-[#0B1B33] hover:bg-slate-200"
+                      className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 font-mono text-[12px] tabular-nums text-[#0B1B33] hover:bg-slate-200"
                       dir="ltr"
                       aria-label="Copy booking reference"
                     >
                       {copied === b.reference ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
-                      {copied === b.reference ? t('v2.copied') : b.reference}
+                      <span className="min-w-0 break-all">
+                        {copied === b.reference ? t('v2.copied') : b.reference}
+                      </span>
                     </button>
                     <span className="ms-auto text-[15px] font-extrabold tabular-nums text-[#0B1B33]">
                       {b.total.toLocaleString(locale)} {t('common.currency')}
@@ -250,7 +252,7 @@ export default function MyBookingsPage() {
                     {new Date(b.actualDeparture || b.trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                     {' · '}{isRTL ? 'مقعد' : 'Seat'} {b.seatLabel} · {b.trip.bus?.name}
                   </p>
-                  <p className="mt-1 text-[13px] text-[var(--sp-text-muted)]">{b.passengerName}</p>
+                  <p className="mt-1 break-words text-[13px] text-[var(--sp-text-muted)]">{b.passengerName}</p>
 
                   <div className="mt-4 flex flex-wrap gap-2.5 border-t border-slate-100 pt-4">
                     <Link href={`/bookings/${b.id}`} className="v2-btn-ghost px-5 py-2.5 text-[14px]">

@@ -168,21 +168,21 @@ export function V2Pagination({
 }) {
   if (pages <= 1) return null;
   return (
-    <div className="mt-5 flex items-center justify-center gap-2">
+    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
       <button
         onClick={() => onPage(Math.max(1, page - 1))}
         disabled={page <= 1}
         aria-label="Previous page"
-        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
+        className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
       >
         <ChevronLeft className="size-5 v2-flip-rtl" />
       </button>
-      <span className="text-[14px] font-bold tabular-nums text-[#0B1B33]">{page} / {pages}</span>
+      <span className="min-w-0 max-w-full break-all text-[14px] font-bold tabular-nums text-[#0B1B33]">{page} / {pages}</span>
       <button
         onClick={() => onPage(Math.min(pages, page + 1))}
         disabled={page >= pages}
         aria-label="Next page"
-        className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
+        className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-[var(--sp-card)] text-[#0B1B33] disabled:opacity-40"
       >
         <ChevronRight className="size-5 v2-flip-rtl" />
       </button>
@@ -214,12 +214,17 @@ export function V2Modal({
             exit={{ opacity: 0, y: 24 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={cn(
+              // The panel already scrolls vertically; its width must also be
+              // clamped to the overlay's padding box so a wide child (a long
+              // reference, a table) scrolls inside the panel instead of
+              // widening it on a phone. Content is never clipped — only
+              // scrolled — because the panel itself is the scroll container.
               'relative max-h-[90dvh] w-full overflow-y-auto rounded-2xl bg-[var(--sp-card)] p-6',
-              wide ? 'max-w-[720px]' : 'max-w-[520px]'
+              wide ? 'max-w-[min(720px,100%)]' : 'max-w-[min(520px,100%)]'
             )}
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[18px] font-extrabold text-[#0B1B33]">{title}</p>
+              <p className="min-w-0 flex-1 break-words text-[18px] font-extrabold text-[#0B1B33]">{title}</p>
               <button onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100">
                 <X className="size-5" />
               </button>
