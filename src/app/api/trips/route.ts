@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { searchTripsByDate, SearchInputError } from '@/lib/trip-search'
+import { toPublicTrip } from '@/lib/public-trip'
 import { routeKeyOfStops, travelDateOf } from '@/lib/route-key'
 import { auth } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   try {
+    // A signed-out visitor may browse trips. They are read under the public
+    // policy — the same trips a CUSTOMER would see — and answered with an
+    // allowlisted payload that counts bookings instead of returning them.
+    // Every mutation and booking path below stays signed-in.
     const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = session?.user ?? null
+    const isVisitor = !user
 
     const { searchParams } = new URL(req.url)
     const fromStationId = searchParams.get('fromStationId')
@@ -17,7 +23,9 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get('date')
     const returnDate = searchParams.get('returnDate')
     const busId = searchParams.get('busId')
-    const rawStatus = searchParams.get('status')
+    // The admin view knobs are ignored for a visitor: `status=ALL` must not
+    // turn a public browse into a history dump of completed trips.
+    const rawStatus = isVisitor ? null : searchParams.get('status')
     // "ALL" is the admin's unfiltered tab: no status constraint at all.
     const status = rawStatus && rawStatus.toUpperCase() !== 'ALL' ? rawStatus : undefined
     const rawBookingMode = searchParams.get('bookingMode')
@@ -25,10 +33,20 @@ export async function GET(req: NextRequest) {
     const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
     const skip = (page - 1) * take
 
-    const include: any = {
+    const OCCUPYING = { status: { in: ['PENDING', 'PAID', 'BOARDED'] } }
+    // A visitor's rows carry no booking data at all: only the seat label the
+    // server-side count is built from, so no passenger, buyer, or payment
+    // field is ever fetched on this path, let alone serialized.
+    const visitorInclude: any = {
+      bus: { include: { layout: { include: { seats: true } } } },
+      bookings: { where: OCCUPYING, select: { seatLabel: true } },
+      companyBookings: { where: OCCUPYING, select: { seatLabel: true } },
+      tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' as const } },
+    }
+    const include: any = isVisitor ? visitorInclude : {
       bus: { include: { layout: { include: { seats: true } }, stations: { orderBy: { order: 'asc' as const } } } },
-      bookings: { where: { status: { in: ['PENDING', 'PAID', 'BOARDED'] } } },
-      companyBookings: { where: { status: { in: ['PENDING', 'PAID', 'BOARDED'] } } },
+      bookings: { where: OCCUPYING },
+      companyBookings: { where: OCCUPYING },
       tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' as const } },
     }
 
@@ -50,9 +68,19 @@ export async function GET(req: NextRequest) {
           returnDate: returnDate || null,
           page,
           take,
-          role: session.user.role,
-          companyId: session.user.companyId ?? null,
+          role: user?.role ?? 'CUSTOMER',
+          companyId: user?.companyId ?? null,
         })
+        // The visitor's copy drops the seat rows the search fetched and keeps
+        // only the count; the seat map gets its occupancy from the detail
+        // endpoint, which serves positions and nothing else.
+        if (isVisitor) {
+          return NextResponse.json({
+            ...result,
+            data: result.data.map(toPublicTrip),
+            returnTrips: result.returnTrips.map(toPublicTrip),
+          })
+        }
         return NextResponse.json(result)
       } catch (err) {
         // A past date or a return before the outbound is the caller's mistake,
@@ -67,15 +95,15 @@ export async function GET(req: NextRequest) {
     // General search: fromStationId only, toStationId only, both without date, or none
     const where: Record<string, unknown> = {}
 
-    if (!allTrips && session?.user?.role === 'COMPANY_ADMIN' && session.user.companyId) {
-      where.bus = { OR: [{ companyId: session.user.companyId }, { companyId: null }] }
+    if (!allTrips && user?.role === 'COMPANY_ADMIN' && user.companyId) {
+      where.bus = { OR: [{ companyId: user.companyId }, { companyId: null }] }
     }
 
     // Charter trips (bookingMode = BUS) are whole-bus reservations sold to
     // companies, so they must never reach a customer booking list, and a trip a
     // company has already taken is no longer available to anyone else. Admins
     // see everything and filter by type instead.
-    const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN'
     if (isSuperAdmin) {
       if (rawBookingMode && rawBookingMode.toUpperCase() !== 'ALL') {
         where.bookingMode = rawBookingMode
@@ -143,7 +171,9 @@ export async function GET(req: NextRequest) {
       prisma.trip.count({ where }),
     ])
 
-    queryTrips = dbTrips.map(t => ({ ...t, stops: t.tripStops }))
+    queryTrips = isVisitor
+      ? dbTrips.map(toPublicTrip)
+      : dbTrips.map(t => ({ ...t, stops: t.tripStops }))
     queryTotal = dbTotal
 
     let returnTrips: any[] = []
@@ -158,7 +188,7 @@ export async function GET(req: NextRequest) {
           destination: { contains: origin },
           departure: { gte: returnStart, lt: returnEnd },
           status: 'SCHEDULED',
-          ...(session?.user?.role === 'SUPER_ADMIN'
+          ...(isSuperAdmin
             ? {}
             : { bookingMode: { not: 'BUS' }, reservedByCompanyId: null }),
         },
@@ -166,6 +196,7 @@ export async function GET(req: NextRequest) {
         orderBy: { departure: 'asc' },
         take: 20,
       })
+      if (isVisitor) returnTrips = returnTrips.map(toPublicTrip)
     }
 
     return NextResponse.json({

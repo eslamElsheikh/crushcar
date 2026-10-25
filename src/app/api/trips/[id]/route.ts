@@ -3,12 +3,19 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { autoExpireUnpaidBookings, autoExpireUnpaidCompanyBookings } from '@/lib/booking-expiry'
 import { isBookableByCustomer, isBookableByAnyRole } from '@/lib/booking-rules'
+import { isPublicTripVisible, toPublicTripDetail } from '@/lib/public-trip'
 import { routeKeyOfStops, travelDateOf } from '@/lib/route-key'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // A signed-out visitor may read a public trip: SCHEDULED, upcoming, not a
+    // charter and not reserved for a company. Anything else answers 404 — the
+    // same as a trip a customer may not book — so a visitor cannot probe for
+    // trips the platform hides. Booking and every mutation stay signed-in.
     const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = session?.user ?? null
+    const isVisitor = !user
+    const role = user?.role ?? 'CUSTOMER'
 
     // No cron is guaranteed to be running on the host, so releasing timed-out
     // seats also happens here. This is the path the booking screen polls, so a
@@ -26,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // The fleet belongs to the operator: only SUPER_ADMIN manages it. Every
     // customer and company screen gets its seat map from the trip below, not
     // from /api/buses, so nothing here needs the raw fleet endpoints.
-    const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
+    const isSuperAdmin = role === 'SUPER_ADMIN'
 
     // Seat occupancy is all a customer or a company booking screen reads. The
     // wider payload includes the passenger name, phone and hotel of everyone
@@ -56,7 +63,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })
     if (!trip) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    if (!isSuperAdmin) {
+    if (isVisitor) {
+      // The public policy in one place: SCHEDULED, ahead of the customer
+      // cutoff, no charter, no company reservation. A trip outside it is
+      // indistinguishable from one that does not exist.
+      if (!isPublicTripVisible(trip, new Date())) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+    } else if (!isSuperAdmin) {
       // A charter trip is whole-bus business between the operator and one
       // company. Fetching it by id exposed the full-bus price and the id of the
       // company holding it, which the search deliberately hides.
@@ -66,7 +80,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       // Keep this in step with the search and the booking route, so a customer
       // cannot reach a seat map for a trip they are no longer allowed to book.
       // Companies keep the looser rule and may still book up to departure.
-      const open = session.user.role === 'CUSTOMER'
+      const open = role === 'CUSTOMER'
         ? isBookableByCustomer(trip.departure, new Date())
         : isBookableByAnyRole(trip.departure, new Date());
       if (!open) {
@@ -78,8 +92,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Only the company that owns the allowance is told about it, so one
     // company cannot see another's.
     let companyQuota: { maxSeats: number | null; used: number; remaining: number | null } | null = null
-    const companyId = session.user.companyId
-    if (companyId && session.user.role !== 'SUPER_ADMIN') {
+    const companyId = user?.companyId
+    if (companyId && role !== 'SUPER_ADMIN') {
       const quota = await prisma.companyTripQuota.findUnique({
         where: { companyId_tripId: { companyId, tripId: id } },
       })
@@ -94,6 +108,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    if (isVisitor) {
+      // The allowlisted copy: occupancy survives as seat positions so the
+      // seat map works, but the response carries no booking rows, no
+      // reservedByCompanyId, no charter price, and no seat holds.
+      return NextResponse.json({ ...toPublicTripDetail(trip), companyQuota })
+    }
     return NextResponse.json({ ...trip, stops: trip.tripStops, companyQuota })
   } catch (err) {
     console.error(err)

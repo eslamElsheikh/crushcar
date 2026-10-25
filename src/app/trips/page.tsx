@@ -33,7 +33,9 @@ interface Trip {
   departure: string; arrival: string; price: number; calculatedPrice?: number;
   boardingTime?: string; status: string;
   bus: { name: string; type: string; layout?: { seats: unknown[] } };
-  bookings: unknown[]; companyBookings?: unknown[];
+  // Signed-in responses still carry the seat rows; a visitor's response only
+  // carries the server-computed count.
+  bookings?: unknown[]; companyBookings?: unknown[]; bookedSeats?: number;
   tripStops?: TripStop[]; stops?: TripStop[];
 }
 
@@ -41,7 +43,11 @@ type SortKey = 'recommended' | 'price' | 'departure' | 'seats';
 
 function seatsOf(t: Trip): { total: number; booked: number; left: number } {
   const total = t.bus?.layout?.seats?.length || 0;
-  const booked = (t.bookings?.length || 0) + (t.companyBookings?.length || 0);
+  // The count is computed by the server; the row arrays are only the fallback
+  // for signed-in responses that predate it.
+  const booked = typeof t.bookedSeats === 'number'
+    ? t.bookedSeats
+    : (t.bookings?.length || 0) + (t.companyBookings?.length || 0);
   return { total, booked, left: total - booked };
 }
 
@@ -163,7 +169,6 @@ function TripsContent() {
   const [returnTrips, setReturnTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [unauthorized, setUnauthorized] = useState(false);
   // Server-side validation messages (past date, return before outbound)
   const [searchError, setSearchError] = useState('');
 
@@ -241,14 +246,8 @@ function TripsContent() {
       if (roundTrip && returnDate) q.set('returnDate', returnDate);
       q.set('all', 'true');
       const res = await fetch(`/api/trips?${q}`);
-      if (res.status === 401) {
-        // Existing backend rule: search requires a signed-in user. UI-only handling.
-        setUnauthorized(true);
-        setTrips([]);
-        setReturnTrips([]);
-        return;
-      }
-      setUnauthorized(false);
+      // No login wall: search is public now, so any failure — 400 validation,
+      // 500 — is shown as itself instead of being turned into a login card.
       // A failed request is not an empty result. Reading json.data out of a 500
       // body is what made a server error look like "لا توجد رحلات مطابقة" to
       // every customer, so the status is checked before the body is trusted.
@@ -511,13 +510,6 @@ function TripsContent() {
               <V2TripCardSkeleton />
               <V2TripCardSkeleton />
             </div>
-          ) : unauthorized ? (
-            <V2EmptyState
-              title={t('v2.loginToSearch')}
-              desc={t('v2.loginToSearchDesc')}
-              actionLabel={t('v2.login')}
-              onAction={() => { window.location.href = '/login'; }}
-            />
           ) : searchError ? (
             // A validation message from the server (past date, return before
             // outbound) reads as its own state, so it is never mixed up with
