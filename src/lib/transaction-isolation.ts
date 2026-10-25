@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { dbDialect } from './prisma'
 
 /**
  * The isolation level the booking and money transactions run at.
@@ -21,7 +22,19 @@ import { Prisma } from '@prisma/client'
  *
  * This is not a performance trade: the rows that matter are the ones already
  * locked, so the extra reads are of rows nobody else is changing.
+ *
+ * SQLite has no READ COMMITTED — its transactions serialise by design — and
+ * the local client generated from prisma/schema.prisma rejects the value the
+ * moment this module is imported, which took every route below down with a
+ * module-load error before it could answer even an unauthenticated request.
+ * Local therefore omits the option; the MariaDB client behind
+ * prisma/schema.mysql.prisma keeps READ COMMITTED exactly as before. This is
+ * the same dbDialect() split the raw-SQL booking-reference counter follows.
  */
-export const BOOKING_ISOLATION = {
-  isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-} as const
+type IsolationLevel =
+  (typeof Prisma.TransactionIsolationLevel)[keyof typeof Prisma.TransactionIsolationLevel]
+
+export const BOOKING_ISOLATION: { isolationLevel?: IsolationLevel } =
+  dbDialect() === 'mysql'
+    ? { isolationLevel: (Prisma.TransactionIsolationLevel as any).ReadCommitted }
+    : {}
