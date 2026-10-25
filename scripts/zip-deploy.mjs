@@ -33,6 +33,11 @@ function dosDate(d) {
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (e.name === 'safrotravel' && e.isSymbolicLink()) continue; // npm worktree link -> project root
+    // Never ship env files. .next/standalone/.env holds the LOCAL dev
+    // DATABASE_URL, and extracting server.zip overwrites production's working
+    // .env with it (that is exactly what happened on 2026-10-25; repair-env.php
+    // had to restore it). Production owns its env files — this zip must not.
+    if (/^\.env(\.|$)/.test(e.name)) continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p, out);
     else if (e.isFile()) out.push(p);

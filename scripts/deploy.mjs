@@ -154,6 +154,15 @@ if (!checkOnly) {
     } else {
       fail('static.zip does not carry the current build id', 'run: npm run build');
     }
+    // An env file in a deploy zip overwrites production's credentials on
+    // extraction (2026-10-25: the standalone .env shipped the local sqlite
+    // DATABASE_URL over the live mysql one). Refuse to package it at all.
+    const envFiles = [...server, ...stat].filter((n) => /(^|\/)\.env(\.|$|\/)/.test(n));
+    if (envFiles.length) {
+      fail(`zips contain env files: ${envFiles.join(', ')}`, 'zip-deploy.mjs walk() must skip ^\\.env files');
+    } else {
+      ok('no .env files packaged');
+    }
   }
 
   // sharp ships prebuilt binaries as optional platform dependencies, so a build

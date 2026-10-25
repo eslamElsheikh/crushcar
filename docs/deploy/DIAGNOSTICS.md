@@ -12,7 +12,7 @@ actually doing when it broke.
 
 ## ⚠ They are not committed, and must not be
 
-All nine contain the same hardcoded production deploy key, and
+All eleven contain the same hardcoded production deploy key, and
 `deploy-fix.php` — which can rewrite the deployed code and the `.env` files —
 is **still live in production `public_html`**. Committing these files would
 put a working production credential into the repository history, where it
@@ -35,9 +35,26 @@ accepts today.
 | `verify-ref.php` | End-to-end proof that the deployed build can mint a booking reference. Runs the exact raw SQL from `src/lib/booking-reference.ts`. |
 | `verify-static.php` | Will the browser be able to load this build's chunks after the Node.js restart? A stale or partial static tree is the ChunkLoadError cause. |
 | `verify-static2.php` | The same static-asset check, second implementation, used to cross-check the first. |
+| `apply-migrations.php` | Applies a pending migration's `migration.sql` to production without SSH. It is uploaded next to the `.sql` file it should run; without `&go=1` it only previews what is missing, with `&go=1` it executes statement by statement and reports duplicate-object errors as SKIP. **This one writes.** It applied migrations 2 and 3 on 2026-10-25. |
+| `diag-schema.php` | Which pending-migration tables, columns and indexes exist? The `INFORMATION_SCHEMA` companion to `db-diag.php`, written for the same deploy. |
 
 Every one of them is a **read-only diagnostic**, except where the name says
 otherwise. They print what they find and change nothing.
+
+## Two traps found on PHP 8.4 (2026-10-25)
+
+- `verify-static.php` and `verify-static2.php` declared `const STATIC` — `static` is a
+  reserved word, so PHP 8.4 raises `ParseError: unexpected token "static"` before any
+  code runs, including the key check: both returned an **empty 500** to every request,
+  keyed or not. The constant is now `STATIC_DIR`. A diagnostic that 500s with an empty
+  body is a parse error until proven otherwise — load it from a wrapper that
+  `catch (Throwable)` and registers `register_shutdown_function` with
+  `error_get_last()` to see the real message.
+- `app-build-manifest.json` entries already start with `static/`, and `verify-static.php`
+  joins them onto `…/_next/static`, doubling that segment. Its
+  `missing from public_html static` count is therefore inflated — fetch such a
+  "missing" chunk over HTTP (`/_next/<entry>`) before believing it. On 2026-10-25 all
+  195 entries delivered 200.
 
 
 ## How they were used
@@ -47,8 +64,10 @@ That is why they are PHP: production runs PHP under cPanel, and the app
 itself is Next.js, so a PHP script is the one thing that can be dropped in and
 run without touching the running application or its Node process.
 
-The other eight were confirmed absent from production `public_html`. Only
-`deploy-fix.php` remains there.
+The other ten were confirmed absent from production `public_html`. Only
+`deploy-fix.php` remains there — every one of them has been re-uploaded for a
+deploy, run over HTTP, and deleted again (FTP-confirmed), most recently for the
+2026-10-25 release.
 
 ## Running them again
 
