@@ -38,6 +38,9 @@ export default function AdminTrips() {
   const [buses, setBuses] = useState<any[]>([]);
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // A failed load must be visible: swallowing it silently is what turned a 500
+  // into a confident-looking "no trips" empty state.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -91,8 +94,13 @@ export default function AdminTrips() {
         setTrips(data.data || []);
         setPages(data.pagination?.pages || 1);
         setTotal(data.pagination?.total || 0);
+        setLoadError(null);
+      } else {
+        setLoadError(`HTTP ${res.status}`);
       }
-    } catch { /* keep list */ } finally { setLoading(false); }
+    } catch {
+      setLoadError('network');
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -317,6 +325,23 @@ export default function AdminTrips() {
           <option value="BUS">{t('trips.charterTrips')}</option>
         </V2Select>
       </div>
+
+      {loadError && !loading && (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-600"
+        >
+          <span>
+            {t('trips.loadFailed')}
+            {loadError !== 'network' && (
+              <span className="font-normal"> ({loadError})</span>
+            )}
+          </span>
+          <V2Button variant="ghost" onClick={() => loadTrips(page, filter, modeFilter)}>
+            {t('v2.retry')}
+          </V2Button>
+        </div>
+      )}
 
       <div className="mt-4">
         <V2Table

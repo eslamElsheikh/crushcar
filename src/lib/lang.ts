@@ -95,6 +95,10 @@ const translations: Record<string, Record<Language, string>> = {
   'trips.addTrip': { ar: 'إضافة رحلة', en: 'Add Trip' },
   'trips.bulkCreate': { ar: 'إنشاء متعدد', en: 'Bulk Create' },
   'trips.noTrips': { ar: 'لا توجد رحلات', en: 'No trips yet' },
+  'trips.loadFailed': {
+    ar: 'تعذّر تحميل قائمة الرحلات — لم يتم تغيير أي بيانات',
+    en: 'Could not load the trips list — no data was changed',
+  },
   'trips.createFirst': { ar: 'أنشئ رحلتك الأولى', en: 'Create your first trip' },
   'trips.origin': { ar: 'النقطة الأصلية', en: 'Origin' },
   'trips.destination': { ar: 'الوجهة', en: 'Destination' },
