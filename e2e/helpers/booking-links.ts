@@ -44,7 +44,11 @@ export async function resolveFirstBookingHref(
     await page.waitForTimeout(1000);
   }
 
-  const read = async () => (await hrefsOn(page)).find((h) => pattern.test(h));
+  // "new" is the compose-a-booking link (`/bookings/new`), not a booking
+  // detail — its segment satisfies the callers' `[^/]+` pattern, and matching
+  // it turned the health check into a guaranteed 404 on the ticket API.
+  const read = async () =>
+    (await hrefsOn(page)).find((h) => pattern.test(h) && !h.endsWith('/new'));
   let found = await read();
 
   const tabCount = await tabs.count();

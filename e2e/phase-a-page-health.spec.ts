@@ -32,9 +32,9 @@ test.describe('Phase A: Page Health - Anonymous Role', () => {
 
   for (const url of publicPages) {
     test(`health check for anonymous on ${url}`, async ({ page }) => {
-      await assertPageHealth(page, url, {
-        allowFailedUrls: url === '/trips' ? ['/api/trips'] : undefined,
-      });
+      // No allowance list anymore: trip search is public, so /trips must load
+      // without any failing request — a 401 on /api/trips is a regression.
+      await assertPageHealth(page, url);
     });
   }
 
@@ -95,7 +95,10 @@ test.describe('Phase A: Page Health - Customer Role', () => {
   // even though they are where a long reference or a route heading would
   // widen the page.
   test('health check for customer on the first booking detail and ticket', async ({ page }) => {
-    const detail = await resolveFirstBookingHref(page, '/bookings', /^\/bookings\/[^/]+$/, ['big-bk-5']);
+    // The first id exists only in the --big fixture; listed first is the one
+    // the standard seed carries, so the fallback resolves to a booking whose
+    // ticket endpoint actually has something to serve.
+    const detail = await resolveFirstBookingHref(page, '/bookings', /^\/bookings\/[^/]+$/, ['bk-refund-tier-test', 'big-bk-5']);
     await assertPageHealth(page, detail);
     await assertPageHealth(page, `${detail}/print`);
   });

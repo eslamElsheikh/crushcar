@@ -37,8 +37,9 @@ export async function assertPageHealth(
     const status = res.status();
     const reqUrl = res.url();
     if (status >= 400 && !options.allowFailedUrls?.some((u) => reqUrl.includes(u))) {
-      // Ignore 401/403 if it's an expected session check or unauthenticated trips query
-      if ((status === 401 || status === 403) && (reqUrl.includes('/api/auth/session') || reqUrl.includes('/api/trips'))) {
+      // The session probe legitimately401s/403s when nobody is signed in. Trip
+      // reads are public now, so a 401/403 on /api/trips is a real failure.
+      if ((status === 401 || status === 403) && reqUrl.includes('/api/auth/session')) {
         return;
       }
       failedRequests.push(`${status} ${res.request().method()} ${reqUrl}`);
