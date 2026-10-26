@@ -219,6 +219,11 @@ async function main() {
   check("frame-ancestors is 'none'", dirs['frame-ancestors'] === "'none'", dirs['frame-ancestors'])
   check("script-src is nonce-based", /'nonce-[^']+'/.test(dirs['script-src'] ?? ''), dirs['script-src'])
   check("script-src has no unsafe-inline", !(dirs['script-src'] ?? '').includes("'unsafe-inline'"))
+  check(
+    'script-src has no unsafe-eval (production)',
+    !(dirs['script-src'] ?? '').includes("'unsafe-eval'"),
+    dirs['script-src']
+  )
   check('nosniff', headers['x-content-type-options'] === 'nosniff')
   check('X-Frame-Options DENY', headers['x-frame-options'] === 'DENY')
   check('Referrer-Policy', headers['referrer-policy'] === 'strict-origin-when-cross-origin')

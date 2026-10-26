@@ -58,7 +58,8 @@
     "deploy:sharp": "node scripts/vendor-sharp-linux.mjs",
     "deploy:package": "node scripts/deploy.mjs",
     "deploy:check": "node scripts/deploy.mjs --check",
-    "deploy:seed": "node scripts/seed-production.mjs"
+    "deploy:seed": "node scripts/seed-production.mjs",
+    "check:seat-geometry": "tsx scripts/verify-seat-geometry.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

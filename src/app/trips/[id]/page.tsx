@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatDate, formatTime } from '@/lib/utils';
+import { hasAisleGap } from '@/lib/seat-geometry';
 import { useLangStore } from '@/lib/lang';
 import { parseCollectAmount, splitCollectAmount } from '@/lib/validations';
 import { getTurnstileToken } from '@/lib/turnstileClient';
@@ -1099,7 +1100,7 @@ function TripDetailPageContent() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 sm:p-8 shadow-sm"
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 sm:p-8 shadow-sm min-w-0"
           >
             {/* Header & Legend */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-slate-100">
@@ -1139,85 +1140,90 @@ function TripDetailPageContent() {
               </div>
             </div>
 
-            {/* Column numbers header */}
-            <div className="flex flex-col items-center gap-1.5 mb-3">
-              <div className="flex gap-2 items-center">
-                <div className="w-8" />
-                {(() => {
-                  const aislePos = layout?.aisleAfter ?? 2;
+            {/* Seat map scroller. The column header lives INSIDE the scroller
+                so numbers stay glued to their columns, and `min-w-max` makes
+                the inner column take its natural width — on narrow screens the
+                CARD scrolls horizontally instead of the whole page clipping. */}
+            <div className="overflow-x-auto pb-4" data-testid="seat-map-scroller">
+              <div className="flex min-w-max flex-col items-center gap-1.5 sm:gap-2 mx-auto">
+                {/* Column numbers header */}
+                <div className="mb-1.5 flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-8" />
+                  {(() => {
+                    const aislePos = layout?.aisleAfter ?? 2;
+                    const rowSeatCount = (() => {
+                      if (layout?.colsPerRow) {
+                        try {
+                          const parsed = JSON.parse(layout.colsPerRow);
+                          return parsed[ROWS[0]] || 4;
+                        } catch { return 4; }
+                      }
+                      return layout?.cols || 4;
+                    })();
+                    const rows = layout?.rows || 10;
+                    return Array.from({ length: rowSeatCount }, (_, colIdx) => {
+                      const col = colIdx + 1;
+                      const isAisle = hasAisleGap({ col, aisleAfter: aislePos, rowSeatCount, rowIdx: 0, rows });
+                      return (
+                        <div key={colIdx} className={cn('flex gap-1.5 sm:gap-2', isAisle && 'ms-5 sm:ms-8')}>
+                          <div className="w-9 sm:w-11 text-center text-xs text-slate-400 font-bold">{col}</div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
+                  const rowLetter = ROWS[rowIdx];
                   const rowSeatCount = (() => {
                     if (layout?.colsPerRow) {
                       try {
                         const parsed = JSON.parse(layout.colsPerRow);
-                        return parsed[ROWS[0]] || 4;
+                        return parsed[rowLetter] || 4;
                       } catch { return 4; }
                     }
                     return layout?.cols || 4;
                   })();
-                  return Array.from({ length: rowSeatCount }, (_, colIdx) => {
-                    const col = colIdx + 1;
-                    const isAisle = col === aislePos + 1 && rowSeatCount > 3;
-                    return (
-                      <div key={colIdx} className={cn('flex gap-2', isAisle ? 'ml-8' : '')}>
-                        <div className="w-11 text-center text-xs text-slate-400 font-bold">{col}</div>
-                      </div>
-                    );
-                  });
-                })()}
+                  const aislePos = layout?.aisleAfter ?? 2;
+                  const rows = layout?.rows || 10;
+                  return (
+                    <motion.div
+                      key={rowIdx}
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.05 + rowIdx * 0.02 }}
+                      className="flex gap-1.5 sm:gap-2 items-center"
+                    >
+                      <div className="w-8 flex items-center justify-center text-xs text-slate-400 font-extrabold">{rowLetter}</div>
+
+                      {Array.from({ length: rowSeatCount }, (_, colIdx) => {
+                        const col = colIdx + 1;
+                        const seat = getSeatAt(rowIdx, col);
+                        const isAisle = hasAisleGap({ col, aisleAfter: aislePos, rowSeatCount, rowIdx, rows });
+                        const isSelected = selectedSeats.includes(seat?.label || '');
+                        const isReserved = seat && reservedSeats.has(seat.label);
+
+                        return (
+                          <div key={colIdx} className={cn('flex gap-1.5 sm:gap-2', isAisle && 'ms-5 sm:ms-8')}>
+                            {seat ? (
+                              <SeatButton
+                                seat={seat}
+                                isSelected={isSelected}
+                                isReserved={isReserved}
+                                onToggle={toggleSeat}
+                                tripPrice={segmentPrice || trip?.price || 0}
+                                t={t}
+                              />
+                            ) : (
+                              <div className="w-9 h-9 sm:w-11 sm:h-11" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </motion.div>
+                  );
+                })}
               </div>
-            </div>
-
-            {/* Seat Grid */}
-            <div className="flex flex-col items-center gap-2 overflow-x-auto pb-4">
-              {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
-                const rowLetter = ROWS[rowIdx];
-                const rowSeatCount = (() => {
-                  if (layout?.colsPerRow) {
-                    try {
-                      const parsed = JSON.parse(layout.colsPerRow);
-                      return parsed[rowLetter] || 4;
-                    } catch { return 4; }
-                  }
-                  return layout?.cols || 4;
-                })();
-                const aislePos = layout?.aisleAfter ?? 2;
-                return (
-                  <motion.div
-                    key={rowIdx}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 + rowIdx * 0.02 }}
-                    className="flex gap-2 items-center"
-                  >
-                    <div className="w-8 flex items-center justify-center text-xs text-slate-400 font-extrabold">{rowLetter}</div>
-
-                    {Array.from({ length: rowSeatCount }, (_, colIdx) => {
-                      const col = colIdx + 1;
-                      const seat = getSeatAt(rowIdx, col);
-                      const isAisle = col === aislePos + 1 && rowSeatCount > 3;
-                      const isSelected = selectedSeats.includes(seat?.label || '');
-                      const isReserved = seat && reservedSeats.has(seat.label);
-
-                      return (
-                        <div key={colIdx} className={cn('flex gap-2', isAisle ? 'ml-8' : '')}>
-                          {seat ? (
-                            <SeatButton
-                              seat={seat}
-                              isSelected={isSelected}
-                              isReserved={isReserved}
-                              onToggle={toggleSeat}
-                              tripPrice={segmentPrice || trip?.price || 0}
-                              t={t}
-                            />
-                          ) : (
-                            <div className="w-11 h-11" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </motion.div>
-                );
-              })}
             </div>
 
             {/* Aisle label footer */}
@@ -1628,62 +1634,65 @@ function TripDetailPageContent() {
 
             <div className="grid lg:grid-cols-[1fr,360px] gap-6 items-start">
               {/* Return seat map */}
-              <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 sm:p-8 shadow-sm">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-                  <div>
-                    <h3 className="text-lg font-extrabold text-[#0B1B33]">{t('seat.select')}</h3>
-                    <p className="text-xs text-[var(--sp-text-muted)] mt-0.5">{returnTrip.bus?.name} · {returnLayout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0} seats</p>
+                <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 sm:p-8 shadow-sm min-w-0">
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-lg font-extrabold text-[#0B1B33]">{t('seat.select')}</h3>
+                      <p className="text-xs text-[var(--sp-text-muted)] mt-0.5">{returnTrip.bus?.name} · {returnLayout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0} seats</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--sp-inset)] border border-slate-200 text-[var(--sp-text-muted)] text-xs font-bold">
+                      <Bus size={15} className="text-[#1D5BD8]" />
+                      <span>{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto pb-4">
+                    <div className="flex min-w-max flex-col items-center gap-1.5 sm:gap-2 mx-auto">
+                      {Array.from({ length: returnLayout?.rows || 10 }, (_, rowIdx) => {
+                        const rowLetter = ROWS[rowIdx];
+                        const rowSeatCount = (() => {
+                          if (returnLayout?.colsPerRow) {
+                            try { return JSON.parse(returnLayout.colsPerRow)[rowLetter] || 4; } catch { return 4; }
+                          }
+                          return returnLayout?.cols || 4;
+                        })();
+                        const aislePos = returnLayout?.aisleAfter ?? 2;
+                        const rows = returnLayout?.rows || 10;
+                        return (
+                          <div key={rowIdx} className="flex gap-1.5 sm:gap-2 items-center">
+                            <div className="w-8 flex items-center justify-center text-xs text-slate-400 font-extrabold">{rowLetter}</div>
+                            {Array.from({ length: rowSeatCount }, (_, colIdx) => {
+                              const col = colIdx + 1;
+                              const seat = getSeatAt(rowIdx, col, returnLayout?.seats);
+                              const isAisle = hasAisleGap({ col, aisleAfter: aislePos, rowSeatCount, rowIdx, rows });
+                              const isSelected = returnSelectedSeats.includes(seat?.label || '');
+                              const isReserved = seat && returnReservedSeats.has(seat.label);
+                              return (
+                                <div key={colIdx} className={cn('flex gap-1.5 sm:gap-2', isAisle && 'ms-5 sm:ms-8')}>
+                                  {seat ? (
+                                    <SeatButton
+                                      seat={seat}
+                                      isSelected={isSelected}
+                                      isReserved={isReserved}
+                                      onToggle={toggleReturnSeat}
+                                      tripPrice={returnTrip?.price || 0}
+                                      t={t}
+                                    />
+                                  ) : (
+                                    <div className="w-9 h-9 sm:w-11 sm:h-11" />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-center mb-6">
-                  <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--sp-inset)] border border-slate-200 text-[var(--sp-text-muted)] text-xs font-bold">
-                    <Bus size={15} className="text-[#1D5BD8]" />
-                    <span>{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center gap-2 overflow-x-auto pb-4">
-                  {Array.from({ length: returnLayout?.rows || 10 }, (_, rowIdx) => {
-                    const rowLetter = ROWS[rowIdx];
-                    const rowSeatCount = (() => {
-                      if (returnLayout?.colsPerRow) {
-                        try { return JSON.parse(returnLayout.colsPerRow)[rowLetter] || 4; } catch { return 4; }
-                      }
-                      return returnLayout?.cols || 4;
-                    })();
-                    const aislePos = returnLayout?.aisleAfter ?? 2;
-                    return (
-                      <div key={rowIdx} className="flex gap-2 items-center">
-                        <div className="w-8 flex items-center justify-center text-xs text-slate-400 font-extrabold">{rowLetter}</div>
-                        {Array.from({ length: rowSeatCount }, (_, colIdx) => {
-                          const col = colIdx + 1;
-                          const seat = getSeatAt(rowIdx, col, returnLayout?.seats);
-                          const isAisle = col === aislePos + 1 && rowSeatCount > 3;
-                          const isSelected = returnSelectedSeats.includes(seat?.label || '');
-                          const isReserved = seat && returnReservedSeats.has(seat.label);
-                          return (
-                            <div key={colIdx} className={cn('flex gap-2', isAisle ? 'ml-8' : '')}>
-                              {seat ? (
-                                <SeatButton
-                                  seat={seat}
-                                  isSelected={isSelected}
-                                  isReserved={isReserved}
-                                  onToggle={toggleReturnSeat}
-                                  tripPrice={returnTrip?.price || 0}
-                                  t={t}
-                                />
-                              ) : (
-                                <div className="w-11 h-11" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Return trip summary sidebar */}
               <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-6 shadow-sm sticky top-24">
@@ -1783,7 +1792,7 @@ function SeatButton({ seat, isSelected, isReserved, onToggle, tripPrice, t }: an
           : `${seat.label}${isVip ? ' (VIP)' : ''} — ${unitPrice.toLocaleString()} ${t('common.currency')}`
       }
       className={cn(
-        'relative size-11 rounded-xl flex flex-col items-center justify-center text-xs font-extrabold transition-all duration-200 select-none',
+        'relative size-9 sm:size-11 rounded-xl flex flex-col items-center justify-center text-xs font-extrabold transition-all duration-200 select-none',
         isToilet
           ? 'bg-purple-50 border border-purple-200 text-purple-700 cursor-not-allowed opacity-90'
           : isReserved

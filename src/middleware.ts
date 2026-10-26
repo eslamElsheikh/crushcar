@@ -41,7 +41,14 @@ function buildCsp(nonce: string, isDev: boolean): string {
     // The scripts Next emits are nonce'd; 'strict-dynamic' then lets those
     // load the chunk graph without an origin allow-list, and it makes
     // 'self'/'unsafe-inline' in script-src inert for older parsers.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    //
+    // Development adds 'unsafe-eval' because Next's own React Refresh
+    // runtime evaluates its hot-reload payloads with `new Function` — without
+    // it every client component throws on load under `next dev`. Production
+    // builds ship no React Refresh, so the strict policy is what runs there.
+    isDev
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     // React sets style attributes and Next injects its stylesheet this way;
     // a nonce on every style tag is not reachable from App Router.
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,

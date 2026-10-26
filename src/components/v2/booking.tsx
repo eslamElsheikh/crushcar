@@ -2,6 +2,7 @@
 
 import { Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { hasAisleGap } from '@/lib/seat-geometry';
 
 /* Shared V2 booking building blocks — pure UI over existing booking APIs. */
 
@@ -103,18 +104,22 @@ export function V2SeatMap({
         <span className="text-[12px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
       </div>
 
-      <div className="grid gap-2 overflow-x-auto pb-2" role="group" aria-label={isRTL ? 'خريطة المقاعد' : 'Seat map'}>
+      {/* min-w-max keeps rows at natural width so this scrolls horizontally on
+          narrow screens instead of the whole page overflowing. */}
+      <div className="overflow-x-auto pb-2" role="group" aria-label={isRTL ? 'خريطة المقاعد' : 'Seat map'}>
+        <div className="flex min-w-max flex-col gap-2 mx-auto w-max">
         {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
           const rowLetter = ROWS[rowIdx];
           const count = rowSeatCount(layout, rowLetter);
+          const rows = layout?.rows || 10;
           return (
-            <div key={rowIdx} className="flex min-w-fit items-center justify-center gap-2">
+            <div key={rowIdx} className="flex min-w-fit items-center justify-center gap-1.5 sm:gap-2">
               <span className="w-6 shrink-0 text-center text-[12px] font-bold tabular-nums text-[#9AA8BD]">{rowLetter}</span>
               {Array.from({ length: count }, (_, colIdx) => {
                 const col = colIdx + 1;
                 const seat = layout?.seats?.find((s) => s.row === rowIdx && s.col === col);
-                const isAisle = col === aislePos + 1 && count > 3;
-                if (!seat) return <span key={colIdx} className={cn('size-11 shrink-0', isAisle && 'ms-6')} />;
+                const isAisle = hasAisleGap({ col, aisleAfter: aislePos, rowSeatCount: count, rowIdx, rows });
+                if (!seat) return <span key={colIdx} className={cn('size-9 sm:size-11 shrink-0', isAisle && 'ms-5 sm:ms-6')} />;
                 const isSel = selected.includes(seat.label);
                 const isRes = reserved.has(seat.label);
                 const disabled = seat.type === 'DISABLED';
@@ -129,8 +134,8 @@ export function V2SeatMap({
                     aria-pressed={isSel}
                     title={`${seat.label} · EGP ${basePrice + (seat.price || 0)}`}
                     className={cn(
-                      'grid size-11 shrink-0 place-items-center rounded-xl border-2 transition',
-                      isAisle && 'ms-6',
+                      'grid size-9 sm:size-11 shrink-0 place-items-center rounded-xl border-2 transition',
+                      isAisle && 'ms-5 sm:ms-6',
                       isRes && 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300',
                       disabled && 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-200',
                       !isRes && !disabled && !isSel && 'border-[var(--sp-seat-line)] bg-[var(--sp-seat-bg)] text-[var(--sp-text-muted)] hover:border-[#1D5BD8]/50',
@@ -147,6 +152,7 @@ export function V2SeatMap({
             </div>
           );
         })}
+        </div>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[var(--sp-text-muted)]">

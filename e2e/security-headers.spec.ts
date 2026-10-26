@@ -72,7 +72,25 @@ test.describe('Security headers (item 4)', () => {
     expect(dirs['script-src'], 'script-src must be nonce-based, not inline').not.toContain(
       "'unsafe-inline'"
     );
-    expect(csp, 'no eval anywhere in the policy').not.toContain("'unsafe-eval'");
+    // `unsafe-eval` is banned in the shipped policy. The middleware adds it to
+    // script-src in development ONLY, because Next's React Refresh runtime
+    // evaluates hot-reload payloads with `new Function` — under `next dev` the
+    // strict policy would break every client component. Production, which is
+    // what this guard protects, is asserted eval-free by
+    // `npm run check:prod-boot` (which boots the real standalone build).
+    //
+    // The dev signal is `connect-src` admitting ws:/wss: — set from that same
+    // isDev flag, and an independent token from the unsafe-eval being tested,
+    // so a production server cannot excuse itself with it.
+    const isNextDev = (dirs['connect-src'] ?? '').includes('ws:');
+    if (isNextDev) {
+      // Development: still must not widen anything else.
+      expect(dirs['script-src'], 'dev CSP keeps its nonce').toMatch(/'nonce-[^']+'/);
+      expect(dirs['script-src'], 'dev CSP keeps strict-dynamic').toContain("'strict-dynamic'");
+      expect(dirs['script-src'], 'dev CSP keeps no unsafe-inline').not.toContain("'unsafe-inline'");
+    } else {
+      expect(csp, 'no eval anywhere in the production policy').not.toContain("'unsafe-eval'");
+    }
     expect(dirs['form-action']).toContain("'self'");
     expect(dirs['base-uri']).toContain("'self'");
 

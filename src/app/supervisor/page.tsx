@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn, formatDate, formatTime } from '@/lib/utils';
+import { hasAisleGap } from '@/lib/seat-geometry';
 import { toast } from 'sonner';
 import { signOut } from 'next-auth/react';
 import { V2Logo } from '@/components/v2/Logo';
@@ -401,7 +402,7 @@ export default function SupervisorStationPage() {
             {/* Layout & Detail Container */}
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Bus Seat Map Visualizer */}
-              <div className="flex-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex-1 min-w-0 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 {/* Front of Bus indicator */}
                 <div className="mb-6 flex justify-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-5 py-2 text-xs font-black text-slate-600 shadow-inner">
@@ -410,80 +411,86 @@ export default function SupervisorStationPage() {
                   </div>
                 </div>
 
-                {/* Column Headers */}
-                <div className="mb-3 flex justify-center gap-2.5 pl-8">
-                  {Array.from({ length: layout?.cols || 4 }, (_, i) => (
-                    <div key={i} className="size-11 text-center text-xs font-extrabold text-slate-400 flex items-center justify-center">
-                      {i + 1}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Rows & Seats */}
-                <div className="flex flex-col items-center gap-2">
-                  {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
-                    const rowLetter = ROWS[rowIdx] || `R${rowIdx + 1}`;
-                    const rowSeatCount = getRowSeatCount(rowLetter);
-                    const aislePos = layout?.aisleAfter ?? 2;
-
-                    return (
-                      <div key={rowIdx} className="flex items-center gap-2.5">
-                        <div className="w-6 text-center text-xs font-black text-slate-400">
-                          {rowLetter}
+                {/* Seat map scroller: header + rows share one horizontal scroller so
+                    the column numbers stay aligned and narrow screens scroll the map
+                    instead of the page. */}
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex min-w-max flex-col items-center gap-2 mx-auto">
+                    {/* Column Headers */}
+                    <div className="mb-3 flex items-center gap-2 sm:gap-2.5 ps-8">
+                      {Array.from({ length: layout?.cols || 4 }, (_, i) => (
+                        <div key={i} className="size-10 sm:size-12 text-center text-xs font-extrabold text-slate-400 flex items-center justify-center">
+                          {i + 1}
                         </div>
-                        {Array.from({ length: rowSeatCount }, (_, colIdx) => {
-                          const col = colIdx + 1;
-                          const seat = getSeatAt(rowIdx, col);
-                          const isAisle = col === aislePos + 1 && rowSeatCount > 3;
-                          const booking = seat ? bookedMap.get(seat.label) : null;
-                          const isBoarded = booking?.boarded || booking?.status === 'BOARDED';
-                          const isSelected = selectedSeat?.id === seat?.id;
-                          const isToilet = seat?.type === 'TOILET';
+                      ))}
+                    </div>
 
-                          return (
-                            <div
-                              key={colIdx}
-                              className={cn('flex gap-2.5', isAisle && (isRTL ? 'mr-8' : 'ml-8'))}
-                            >
-                              {seat ? (
-                                <button
-                                  type="button"
-                                  onClick={() => !isToilet && setSelectedSeat(seat)}
-                                  className={cn(
-                                    'relative size-12 rounded-xl flex flex-col items-center justify-center text-xs font-black transition-all shadow-sm',
-                                    isToilet
-                                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                                      : isBoarded
-                                      ? 'bg-emerald-500 text-white shadow-emerald-200'
-                                      : booking
-                                      ? 'bg-[#0066FF] text-white shadow-blue-200'
-                                      : seat.type === 'VIP'
-                                      ? 'border-2 border-amber-400 bg-amber-50 text-amber-800'
-                                      : 'border border-slate-200 bg-white text-slate-700 hover:border-[#0066FF]',
-                                    isSelected && 'ring-4 ring-emerald-400 ring-offset-2'
-                                  )}
-                                >
-                                  <span>{isToilet ? '🚻' : seat.label}</span>
-                                  {booking && !isToilet && (
-                                    <span className="truncate max-w-[40px] text-[8px] font-bold opacity-90">
-                                      {(booking.passengerName || booking.user?.name || '').split(' ')[0]}
-                                    </span>
-                                  )}
-                                  {isBoarded && (
-                                    <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-white text-emerald-600 flex items-center justify-center shadow">
-                                      <CheckCircle2 className="size-3" />
-                                    </span>
-                                  )}
-                                </button>
-                              ) : (
-                                <div className="size-12" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
+                    {/* Rows & Seats */}
+                    {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
+                      const rowLetter = ROWS[rowIdx] || `R${rowIdx + 1}`;
+                      const rowSeatCount = getRowSeatCount(rowLetter);
+                      const aislePos = layout?.aisleAfter ?? 2;
+                      const rows = layout?.rows || 10;
+
+                      return (
+                        <div key={rowIdx} className="flex items-center gap-2 sm:gap-2.5">
+                          <div className="w-6 text-center text-xs font-black text-slate-400">
+                            {rowLetter}
+                          </div>
+                          {Array.from({ length: rowSeatCount }, (_, colIdx) => {
+                            const col = colIdx + 1;
+                            const seat = getSeatAt(rowIdx, col);
+                            const isAisle = hasAisleGap({ col, aisleAfter: aislePos, rowSeatCount, rowIdx, rows });
+                            const booking = seat ? bookedMap.get(seat.label) : null;
+                            const isBoarded = booking?.boarded || booking?.status === 'BOARDED';
+                            const isSelected = selectedSeat?.id === seat?.id;
+                            const isToilet = seat?.type === 'TOILET';
+
+                            return (
+                              <div
+                                key={colIdx}
+                                className={cn('flex gap-2 sm:gap-2.5', isAisle && 'ms-6 sm:ms-8')}
+                              >
+                                {seat ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => !isToilet && setSelectedSeat(seat)}
+                                    className={cn(
+                                      'relative size-10 sm:size-12 rounded-xl flex flex-col items-center justify-center text-xs font-black transition-all shadow-sm',
+                                      isToilet
+                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                                        : isBoarded
+                                        ? 'bg-emerald-500 text-white shadow-emerald-200'
+                                        : booking
+                                        ? 'bg-[#0066FF] text-white shadow-blue-200'
+                                        : seat.type === 'VIP'
+                                        ? 'border-2 border-amber-400 bg-amber-50 text-amber-800'
+                                        : 'border border-slate-200 bg-white text-slate-700 hover:border-[#0066FF]',
+                                      isSelected && 'ring-4 ring-emerald-400 ring-offset-2'
+                                    )}
+                                  >
+                                    <span>{isToilet ? '🚻' : seat.label}</span>
+                                    {booking && !isToilet && (
+                                      <span className="truncate max-w-[40px] text-[8px] font-bold opacity-90">
+                                        {(booking.passengerName || booking.user?.name || '').split(' ')[0]}
+                                      </span>
+                                    )}
+                                    {isBoarded && (
+                                      <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-white text-emerald-600 flex items-center justify-center shadow">
+                                        <CheckCircle2 className="size-3" />
+                                      </span>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div className="size-10 sm:size-12" />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Legend */}

@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { ArrowRight, Armchair, Bus, Loader2, CheckCircle2, User, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { hasAisleGap } from '@/lib/seat-geometry';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Modal } from '@/components/v2/admin';
 import { V2Skeleton, V2StatusBadge } from '@/components/v2/ui';
@@ -111,18 +112,22 @@ export default function TripSeatsPage() {
             <Bus className="size-5 text-[#1D5BD8]" aria-hidden="true" />
             <span className="text-[12px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'مقدمة الباص' : 'FRONT OF BUS'}</span>
           </div>
-          <div className="grid gap-2 overflow-x-auto pb-2">
+          {/* min-w-max keeps rows at natural width so this scrolls horizontally
+              on narrow screens instead of the page overflowing. */}
+          <div className="overflow-x-auto pb-2">
+            <div className="flex min-w-max flex-col gap-2 mx-auto w-max">
             {Array.from({ length: layout?.rows || 10 }, (_, rowIdx) => {
               const letter = ROWS[rowIdx];
               const count = rowCount(letter);
+              const rows = layout?.rows || 10;
               return (
-                <div key={rowIdx} className="flex min-w-fit items-center justify-center gap-2">
+                <div key={rowIdx} className="flex min-w-fit items-center justify-center gap-1.5 sm:gap-2">
                   <span className="w-6 shrink-0 text-center text-[12px] font-bold tabular-nums text-[#9AA8BD]">{letter}</span>
                   {Array.from({ length: count }, (_, colIdx) => {
                     const col = colIdx + 1;
                     const seat = layout?.seats?.find((s: any) => s.row === rowIdx && s.col === col);
-                    const isAisle = col === aislePos + 1 && count > 3;
-                    if (!seat) return <span key={colIdx} className={cn('size-12 shrink-0', isAisle && 'ms-6')} />;
+                    const isAisle = hasAisleGap({ col, aisleAfter: aislePos, rowSeatCount: count, rowIdx, rows });
+                    if (!seat) return <span key={colIdx} className={cn('size-10 sm:size-12 shrink-0', isAisle && 'ms-5 sm:ms-6')} />;
                     const b = booked.get(seat.label);
                     const boarded = b && (b.boarded || b.status === 'BOARDED');
                     return (
@@ -132,8 +137,8 @@ export default function TripSeatsPage() {
                         onClick={() => setInspectSeat({ seat, booking: b })}
                         title={b ? `${seat.label} · ${b.passengerName || ''}` : `${seat.label} · ${isRTL ? 'فارغ' : 'Empty'}`}
                         className={cn(
-                          'grid size-12 shrink-0 place-items-center rounded-xl border-2 transition',
-                          isAisle && 'ms-6',
+                          'grid size-10 sm:size-12 shrink-0 place-items-center rounded-xl border-2 transition',
+                          isAisle && 'ms-5 sm:ms-6',
                           !b && 'border-slate-200 bg-[var(--sp-card)] text-slate-300 hover:border-slate-300 hover:bg-slate-50',
                           b && !boarded && 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:shadow-sm',
                           b && boarded && 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400'
@@ -151,6 +156,7 @@ export default function TripSeatsPage() {
                 </div>
               );
             })}
+            </div>
           </div>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-[var(--sp-text-muted)]">
             <span className="flex items-center gap-1.5"><span className="size-4 rounded-md border-2 border-slate-200 bg-[var(--sp-card)]" /> {isRTL ? 'فارغ' : 'Empty'}</span>

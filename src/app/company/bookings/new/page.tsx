@@ -261,7 +261,7 @@ export default function CompanyNewBookingPage() {
               );
             })}
           </div>
-          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 lg:sticky lg:top-6 min-w-0">
             {!trip || loadingTrip ? (
               <div className="grid gap-3" role="status">
                 <V2Skeleton className="h-6 w-2/3" />
