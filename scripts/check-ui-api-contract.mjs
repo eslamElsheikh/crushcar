@@ -115,7 +115,7 @@ export function extractCallsWithTS(filePath, isV1 = false) {
 
           // Extract response fields read by UI
           const responseFields = new Set();
-          let parent = node.parent;
+          const parent = node.parent;
           
           // Case 1: const res = await fetch(...)
           if (parent && ts.isAwaitExpression(parent)) {
@@ -189,7 +189,7 @@ export function extractCallsWithTS(filePath, isV1 = false) {
     visitRes(block);
   }
 
-  function findDataUsages(block, dataVar, fields, sf) {
+  function findDataUsages(block, dataVar, fields) {
     function visitData(n) {
       if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === dataVar) {
         fields.add(n.name.text);
@@ -397,7 +397,7 @@ export async function runContractCheck() {
   }
 
   // Reverse Diff against V1
-  let v1Calls = [];
+  const v1Calls = [];
   if (fs.existsSync(v1Dir)) {
     const v1UiFiles = getSourceFiles(path.join(v1Dir, 'src')).filter(f => !f.includes('src/app/api') && !f.includes('src\\app\\api'));
     for (const f of v1UiFiles) {

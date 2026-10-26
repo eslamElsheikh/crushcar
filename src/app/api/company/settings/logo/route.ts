@@ -11,6 +11,28 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 
+/** Magic-byte check: does `buf` start with the signature `type` claims? */
+function sniffIsImage(buf: Buffer, type: string): boolean {
+  if (type === 'image/png') {
+    return (
+      buf.length > 8 &&
+      buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 &&
+      buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a
+    );
+  }
+  if (type === 'image/jpeg') {
+    return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  }
+  if (type === 'image/webp') {
+    return (
+      buf.length > 12 &&
+      buf.toString('ascii', 0, 4) === 'RIFF' &&
+      buf.toString('ascii', 8, 12) === 'WEBP'
+    );
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -38,6 +60,14 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+
+    // `file.type` is whatever the client wrote in the multipart body, so it
+    // proves nothing on its own. The extension is derived from it — which
+    // decides the Content-Type this file is later served with — so the bytes
+    // have to agree before anything is written to disk.
+    if (!sniffIsImage(buffer, file.type)) {
+      return NextResponse.json({ error: 'File content does not match its type' }, { status: 400 });
+    }
 
     const ext = file.type === 'image/png' ? '.png' : file.type === 'image/webp' ? '.webp' : '.jpg';
     const filename = `${session.user.companyId}-${randomUUID()}${ext}`;

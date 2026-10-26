@@ -50,9 +50,13 @@ export async function GET(req: NextRequest) {
       tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' as const } },
     }
 
-    // Build query based on filters
-    let queryTrips: any[]
-    let queryTotal: number
+    // Build query based on filters.
+    // Declared with their fallback values rather than bare: `const x: T` is a
+    // TypeScript error and a later single assignment still reads as `let` to
+    // prefer-const, which would flag it. Both branches that never reach the
+    // query below return early, so these defaults are never served.
+    let queryTrips: any[] = []
+    let queryTotal: number = 0
 
     const allTrips = searchParams.get('all') === 'true'
 

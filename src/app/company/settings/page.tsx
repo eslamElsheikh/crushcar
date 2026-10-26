@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Image as ImageIcon, Upload, Loader2, Check, AlertCircle, Building2, Ticket } from 'lucide-react';
+import { Settings, Image as ImageIcon, Upload, Loader2, Check, Building2, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { cn, localizeUploadError } from '@/lib/utils';
 import { V2Button } from '@/components/v2/Button';
 
 export default function CompanySettingsPage() {
-  const t = useLangStore((s) => s.t);
+  const _t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
 

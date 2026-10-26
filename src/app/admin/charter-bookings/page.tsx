@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bus, MapPin, Clock, CheckCircle2, XCircle, Building2, AlertTriangle, Check, X, Loader2 } from 'lucide-react';
+import { Bus, MapPin, Clock, Building2, AlertTriangle, Check, X, Loader2 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { V2StatusBadge, V2EmptyState, V2Skeleton } from '@/components/v2/ui';
-import { V2Button } from '@/components/v2/Button';
+import '@/components/v2/Button'
 
 interface CharterBooking {
   id: string;

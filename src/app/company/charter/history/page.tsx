@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Bus, MapPin, Clock, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowRight, Bus, MapPin, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -45,7 +45,7 @@ const toneFor = (s: string): 'green' | 'amber' | 'red' | 'blue' | 'slate' => {
 };
 
 export default function CharterHistoryPage() {
-  const router = useRouter();
+  const _router = useRouter();
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';

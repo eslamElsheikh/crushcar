@@ -8,8 +8,24 @@ import { segmentPrice } from '@/lib/segment-price'
 import { UnknownSeatError, assertSeatBookable } from '@/lib/seat-availability'
 import { lockRow } from '@/lib/row-lock'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
+import { applyRateLimitHeaders, checkRateLimit } from '@/lib/rateLimitHttp'
+import { requireTurnstile } from '@/lib/turnstile'
+
+// Reference lookup is anonymous-ish and cheap to point at: a script that gets
+// to guess passenger names and booking references at full speed is a scraping
+// tool, not a user. Generous for a human paging through a list.
+const LOOKUP_MAX = 240
+const LOOKUP_WINDOW_MS = 60_000
 
 export async function GET(req: NextRequest) {
+  const rl = checkRateLimit(req, 'booking-lookup', LOOKUP_MAX, LOOKUP_WINDOW_MS)
+  if (rl.blocked) return rl.blocked
+  // The lookup itself lives one level down so the limiter's budget headers can
+  // be stamped onto every response it produces, whichever branch produced it.
+  return applyRateLimitHeaders(await lookupBookings(req), rl.headers)
+}
+
+async function lookupBookings(req: NextRequest): Promise<NextResponse> {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -127,6 +143,21 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Checkout writes a row, debits a seat and takes money, so it is the
+  // endpoint worth a ceiling. Generous for a family booking a block of seats,
+  // unreachable for a script spraying bookings.
+  const rl = checkRateLimit(req, 'booking-checkout', 100, 600_000)
+  if (rl.blocked) return rl.blocked
+  // Charged after the limiter so a flood does not cost a Cloudflare round trip
+  // per request; a no-op until TURNSTILE_* is configured.
+  const captcha = await requireTurnstile(req)
+  if (captcha) return captcha
+  // Same shape as GET above: the budget headers ride on every response the
+  // checkout produces, whichever branch produces it.
+  return applyRateLimitHeaders(await createBooking(req), rl.headers)
+}
+
+async function createBooking(req: NextRequest): Promise<NextResponse> {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

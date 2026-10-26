@@ -3,7 +3,7 @@
 import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, Loader2, ArrowRight, User, Wallet, Sparkles, CheckSquare, Square } from 'lucide-react';
+import { Search, Loader2, ArrowRight, User, Wallet, Sparkles, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';

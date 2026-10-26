@@ -5,10 +5,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  Route, Bus, MapPin, CheckCircle2, Clock, ArrowLeft, Search, Loader2, Armchair, RefreshCw,
-  LogOut, Shield, ChevronRight, User,
+  Bus, CheckCircle2, Clock, ArrowLeft, Search, Loader2, Armchair, RefreshCw,
+  LogOut, 
 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn, formatDate, formatTime } from '@/lib/utils';

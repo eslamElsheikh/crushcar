@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, CheckCircle, Loader2 } from 'lucide-react'
+import { Printer, ArrowLeft, Bus, MapPin, User, Phone, CheckCircle, Loader2 } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
 import { bookingStatusLabel, ticketStatusPill } from '@/lib/booking-status'

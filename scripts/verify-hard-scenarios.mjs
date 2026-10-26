@@ -171,7 +171,7 @@ async function runScenariosOnInstance(config) {
     }),
   });
 
-  const dataA = await resA.json();
+  await resA.json();
   const dbBookingsA = await prisma.companyBooking.findMany({
     where: { tripId: tripA.id, companyId: company.id }
   });
@@ -240,7 +240,7 @@ async function runScenariosOnInstance(config) {
     headers: reqHeaders(companyToken),
     body: JSON.stringify({ status: 'PAID' }),
   });
-  const dataB_pay = await resB_pay.json();
+  await resB_pay.json();
 
   const dbCompanyB = await prisma.company.findUnique({ where: { id: company.id } });
   const dbBookingB = await prisma.companyBooking.findUnique({ where: { id: bookingIdB } });
@@ -380,7 +380,7 @@ async function runScenariosOnInstance(config) {
       toStationId: stB.id,
     }),
   });
-  const dataD_cust = await resD_cust.json();
+  await resD_cust.json();
 
   // Company attempts full trip booking for ALL seats [VIP-1, VIP-2, STD-1, STD-2]
   const resD_comp = await fetch(`${config.baseUrl}/api/company/bookings`, {
@@ -486,7 +486,7 @@ async function runScenariosOnInstance(config) {
     headers: reqHeaders(superToken),
     body: JSON.stringify({ type: 'company' }),
   });
-  const dataE_process = await resE_process.json();
+  await resE_process.json();
 
   const dbBookingE = await prisma.companyBooking.findUnique({ where: { id: bookingE.id } });
   const dbCompanyE = await prisma.company.findUnique({ where: { id: company.id } });

@@ -22,7 +22,7 @@ export function useTripStopsFromBus(
   busPrice: number,
   onStops: (stops: StopDraft[]) => void
 ) {
-  const t = useLangStore((s) => s.t);
+  const _t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
 

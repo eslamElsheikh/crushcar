@@ -15,7 +15,7 @@
  * Generate it first with: npm run check:parity:gen
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable @typescript-eslint/no-require-imports */
 let PrismaClientCtor: any;
 try {
   ({ PrismaClient: PrismaClientCtor } = require('./.generated/index.js'));

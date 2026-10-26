@@ -28,7 +28,9 @@ export function V2Field({
   );
 }
 
-export interface V2InputProps extends InputHTMLAttributes<HTMLInputElement> {}
+// A type alias, not an empty interface: `interface X extends Y {}` declares
+// nothing that `Y` does not already, which is exactly what a type alias says.
+export type V2InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 export const V2Input = forwardRef<HTMLInputElement, V2InputProps>(
   ({ className, type = 'text', ...rest }, ref) => (
@@ -37,7 +39,7 @@ export const V2Input = forwardRef<HTMLInputElement, V2InputProps>(
 );
 V2Input.displayName = 'V2Input';
 
-export interface V2SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {}
+export type V2SelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 
 export const V2Select = forwardRef<HTMLSelectElement, V2SelectProps>(
   ({ className, children, ...rest }, ref) => (

@@ -8,7 +8,7 @@ import { resolveBookingLimits } from '@/lib/company-quota'
 import { chargeCompanyWithCreditTopUp, splitCharge } from '@/lib/company-charge'
 import { audit } from '@/lib/audit'
 import { parseCollectAmount } from '@/lib/validations'
-import { companyPaymentDeadline } from '@/lib/payments'
+import '@/lib/payments'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 import { assertSeatsBookable } from '@/lib/seat-availability'
 

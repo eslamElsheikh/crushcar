@@ -8,14 +8,27 @@ import {
   rangeStart,
   tripCompanyScope,
 } from '@/lib/analytics'
+import { applyRateLimitHeaders, checkRateLimit } from '@/lib/rateLimitHttp'
+import { requireTurnstile } from '@/lib/turnstile'
 
 const RANGE_DAYS: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90 }
 
 export async function GET(req: NextRequest) {
+  // "Tracking" in the abuse sense: the dashboard's range picker re-hits this
+  // on every click, so the ceiling is set well above any real analyst and
+  // still far below a scraper walking ranges.
+  const rl = checkRateLimit(req, 'tracking-analytics', 150, 60_000)
+  if (rl.blocked) return rl.blocked
+  const captcha = await requireTurnstile(req)
+  if (captcha) return captcha
   try {
     const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!session?.user) {
+      return applyRateLimitHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), rl.headers)
+    }
+    if (session.user.role === 'CUSTOMER') {
+      return applyRateLimitHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }), rl.headers)
+    }
 
     const { searchParams } = new URL(req.url)
     const range = searchParams.get('range') || '30d'
@@ -66,7 +79,7 @@ export async function GET(req: NextRequest) {
 
     const [customerPending, companyPending] = cancellations
 
-    return NextResponse.json({
+    const payload = {
       range,
       since: startDate.toISOString(),
       totalBookings: totals.bookings.total,
@@ -109,9 +122,14 @@ export async function GET(req: NextRequest) {
       ]
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
         .slice(0, 8),
-    })
+    }
+
+    return applyRateLimitHeaders(NextResponse.json(payload), rl.headers)
   } catch (err) {
     console.error('[analytics]', err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return applyRateLimitHeaders(
+      NextResponse.json({ error: 'Server error' }, { status: 500 }),
+      rl.headers
+    )
   }
 }

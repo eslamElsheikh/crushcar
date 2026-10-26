@@ -262,7 +262,7 @@ async function main() {
   const arish = byName('العريش')
   const tanta = byName('طنطا')
   const suez = byName('السويس')
-  const oct6 = byName('6 أكتوبر')
+  const _oct6 = byName('6 أكتوبر')
   const asyut = byName('أسيوط')
   const qena = byName('قنا')
   const sohag = byName('سوهاج')
@@ -708,9 +708,9 @@ async function main() {
     return prisma.companyCustomer.create({ data: { id: DEMO.companyCustomer(opts.key), ...data } })
   }
 
-  const cc1 = await upsertCompanyCustomer({ key: 'cc-1', companyId: cairoExpress.id, name: 'Acme Corp', email: 'travel@acme.com', phone: '01000000001', notes: 'Monthly corporate contract' })
-  const cc2 = await upsertCompanyCustomer({ key: 'cc-2', companyId: cairoExpress.id, name: 'TechStart Ltd', email: 'hr@techstart.com', phone: '01000000002' })
-  const cc3 = await upsertCompanyCustomer({ key: 'cc-3', companyId: monsters.id, name: 'Monster Client A', email: 'a@monster.com', phone: '01000000003' })
+  const _cc1 = await upsertCompanyCustomer({ key: 'cc-1', companyId: cairoExpress.id, name: 'Acme Corp', email: 'travel@acme.com', phone: '01000000001', notes: 'Monthly corporate contract' })
+  const _cc2 = await upsertCompanyCustomer({ key: 'cc-2', companyId: cairoExpress.id, name: 'TechStart Ltd', email: 'hr@techstart.com', phone: '01000000002' })
+  const _cc3 = await upsertCompanyCustomer({ key: 'cc-3', companyId: monsters.id, name: 'Monster Client A', email: 'a@monster.com', phone: '01000000003' })
 
   console.log('✅ Company customers seeded')
 

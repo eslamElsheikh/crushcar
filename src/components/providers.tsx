@@ -5,10 +5,7 @@ import { Toaster } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useLangStore } from '@/lib/lang'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Globe, ChevronDown } from 'lucide-react'
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import '@/lib/utils'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -43,8 +40,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 
 function LangProvider({ children }: { children: React.ReactNode }) {
-  const { lang, setLang } = useLangStore()
-  const [showLang, setShowLang] = useState(false)
+  const { lang, setLang: _setLang } = useLangStore()
+  const [_showLang, _setShowLang] = useState(false)
 
   return (
     <>

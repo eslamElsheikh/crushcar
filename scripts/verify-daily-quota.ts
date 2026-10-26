@@ -187,7 +187,7 @@ async function main() {
   const tripNextDay = await makeTrip(busA.bus.id, route, 1)
 
   const day = travelDateOf(tripA1.departure)!
-  const nextDay = travelDateOf(tripNextDay.departure)!
+  const _nextDay = travelDateOf(tripNextDay.departure)!
 
   console.log('the cap aggregates across trips, routes and buses')
   await prisma.company.update({ where: { id: company.id }, data: { maxDailySeats: 20 } })

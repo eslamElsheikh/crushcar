@@ -263,8 +263,8 @@ export async function chargeCompanyWithCreditTopUp(
   const outstanding = company.outstandingBalance
   const creditAllowed = company.paymentMode !== 'PREPAID'
 
-  let paidFromWallet = Math.min(Math.max(0, wallet), total)
-  let remaining = total - paidFromWallet
+  const paidFromWallet = Math.min(Math.max(0, wallet), total)
+  const remaining = total - paidFromWallet
   let paidOnCredit = 0
   let creditLimitIncrease = 0
   let newCreditLimit = creditLimit

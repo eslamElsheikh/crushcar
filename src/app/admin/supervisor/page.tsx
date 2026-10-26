@@ -5,11 +5,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Route, CheckCircle2, XCircle, Search, Loader2, RefreshCw, Bus, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, Search, Loader2, RefreshCw, Bus } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { V2StatusBadge, V2EmptyState } from '@/components/v2/ui';
+import { V2EmptyState } from '@/components/v2/ui';
 
 interface BookingBrief {
   id: string;

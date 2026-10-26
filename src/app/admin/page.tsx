@@ -1,9 +1,10 @@
 'use client';
 
 import { routeLabel } from '@/lib/route-label';
+import { getTurnstileToken } from '@/lib/turnstileClient';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Wallet, Bus, TrendingUp, Clock, ArrowRight, Building2, User, CreditCard } from 'lucide-react';
+import { Ticket, Wallet, Bus, TrendingUp, Clock, ArrowRight, Building2, CreditCard } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
@@ -59,7 +60,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/analytics?range=${range}`, { credentials: 'include' })
+    // Same anonymous-counter treatment as the homepage: token first, request
+    // second, and a no-op when no site key is configured.
+    getTurnstileToken('tracking-analytics')
+      .then((token) =>
+        fetch(`/api/analytics?range=${range}`, {
+          credentials: 'include',
+          ...(token ? { headers: { 'x-turnstile-token': token } } : {}),
+        })
+      )
       .then((r) => r.json())
       .then((res) => {
         if (res?.chartData) {

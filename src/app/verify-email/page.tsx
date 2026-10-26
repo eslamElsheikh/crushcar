@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Loader2, CheckCircle2, XCircle, MailCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { V2AuthShell } from '@/components/v2/AuthShell';
 import { V2Button } from '@/components/v2/Button';
@@ -12,12 +12,12 @@ import { V2Button } from '@/components/v2/Button';
 type VerifyState = 'loading' | 'success' | 'error';
 
 function VerifyEmailContent() {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const [state, setState] = useState<VerifyState>('loading');
   const [message, setMessage] = useState('');
-  const [resending, setResending] = useState(false);
-  const [resent, setResent] = useState(false);
+  const [_resending, _setResending] = useState(false);
+  const [_resent, _setResent] = useState(false);
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
@@ -117,7 +117,7 @@ function VerifyEmailContent() {
 }
 
 export default function VerifyEmailPage() {
-  const t = useLangStore((s) => s.t);
+  const _t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
 

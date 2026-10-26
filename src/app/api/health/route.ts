@@ -8,6 +8,10 @@ export async function GET() {
     await prisma.$queryRaw`SELECT 1`;
     return NextResponse.json({ status: 'healthy', database: 'connected', timestamp: new Date().toISOString() });
   } catch (err) {
-    return NextResponse.json({ status: 'unhealthy', error: String(err) }, { status: 500 });
+    // A failed probe's message can name the database file, the host or the
+    // connection string. The log keeps all of it; the response says only that
+    // the database is unreachable.
+    console.error('[health] database probe failed:', err instanceof Error ? err.message : err);
+    return NextResponse.json({ status: 'unhealthy', database: 'unreachable' }, { status: 500 });
   }
 }

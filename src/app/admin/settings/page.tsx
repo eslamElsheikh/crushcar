@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Clock, Loader2, Check, Settings2, Sparkles, Building2, UserCheck } from 'lucide-react';
+import { Clock, Loader2, Check, Settings2, Building2, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';

@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { escapeCsvCell } from '@/lib/csv';
 
 export const dynamic = 'force-dynamic';
-
-function escapeCsv(val: any): string {
-  if (val == null) return '';
-  const str = String(val);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -110,10 +102,14 @@ export async function GET(req: NextRequest) {
 
     // Prepend UTF-8 BOM so Excel opens Arabic correctly
     const bom = '\uFEFF';
+    // Names, hotels and free-text notes are user input: a cell starting with
+    // =, +, - or @ is a formula the moment a spreadsheet parses it, and
+    // quoting does not help, because the quotes are consumed first.
+    // escapeCsvCell neutralises, then quotes — see src/lib/csv.ts.
     const csvContent =
       bom +
-      [headers.map(escapeCsv).join(',')]
-        .concat(rows.map((r) => r.map(escapeCsv).join(',')))
+      [headers.map(escapeCsvCell).join(',')]
+        .concat(rows.map((r) => r.map(escapeCsvCell).join(',')))
         .join('\r\n');
 
     const filename = `safro-bookings-${dateStr}.csv`;

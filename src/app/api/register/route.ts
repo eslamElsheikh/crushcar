@@ -3,8 +3,13 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '@/lib/email';
 import { audit } from '@/lib/audit';
+import { requireTurnstile } from '@/lib/turnstile';
 
 export async function POST(req: NextRequest) {
+  // Sign-up is where a bot farm gets its accounts, so it is checked before
+  // anything touches the database. A no-op until TURNSTILE_* is configured.
+  const captcha = await requireTurnstile(req);
+  if (captcha) return captcha;
   try {
     const { email, password, name, phone } = await req.json();
 

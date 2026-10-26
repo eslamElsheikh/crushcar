@@ -21,10 +21,10 @@ export function V2SiteFooter() {
           </Link>
           <p className="mt-4 max-w-[260px] text-pretty text-[14.5px] leading-relaxed text-white/60">{t('v2.footerTag')}</p>
           <div className="mt-5 flex gap-4 text-white/70">
-            <a aria-label="LinkedIn" href="/" className="hover:text-white"><Linkedin className="size-5" /></a>
-            <a aria-label="X" href="/" className="hover:text-white"><Twitter className="size-5" /></a>
-            <a aria-label="Instagram" href="/" className="hover:text-white"><Instagram className="size-5" /></a>
-            <a aria-label="YouTube" href="/" className="hover:text-white"><Youtube className="size-5" /></a>
+            <Link aria-label="LinkedIn" href="/" className="hover:text-white"><Linkedin className="size-5" /></Link>
+            <Link aria-label="X" href="/" className="hover:text-white"><Twitter className="size-5" /></Link>
+            <Link aria-label="Instagram" href="/" className="hover:text-white"><Instagram className="size-5" /></Link>
+            <Link aria-label="YouTube" href="/" className="hover:text-white"><Youtube className="size-5" /></Link>
           </div>
         </div>
         <nav aria-label={t('v2.quickLinks')}>

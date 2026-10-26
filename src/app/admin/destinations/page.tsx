@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Loader2, ArrowUp, ArrowDown, Eye, EyeOff, ImagePlus, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, localizeUploadError } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';

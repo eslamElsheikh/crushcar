@@ -10,6 +10,7 @@ import { useLangStore } from '@/lib/lang';
 import { V2AuthShell } from '@/components/v2/AuthShell';
 import { V2Field, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
+import { Turnstile } from '@/components/Turnstile';
 
 /* V2 login — same credentials flow + role redirects as V1, new interface. */
 
@@ -28,6 +29,9 @@ function LoginForm() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Empty until the widget reports in. Without a site key the widget never
+  // renders, this stays '', and the server treats '' as "captcha not in use".
+  const [turnstileToken, setTurnstileToken] = useState('');
   const t = useLangStore((s) => s.t);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -35,7 +39,20 @@ function LoginForm() {
     setLoading(true);
     setError('');
 
-    const res = await signIn('credentials', { email, password, redirect: false });
+    // The server would refuse this anyway; saying so here spares the caller a
+    // generic "invalid credentials" that would be a lie about the reason.
+    if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken) {
+      setLoading(false);
+      setError('أكمل التحقق الأمني أولاً • Complete the security check first');
+      return;
+    }
+
+    const res = await signIn('credentials', {
+      email,
+      password,
+      turnstileToken,
+      redirect: false,
+    });
     setLoading(false);
 
     if (res?.error) {
@@ -101,6 +118,8 @@ function LoginForm() {
             </button>
           </span>
         </V2Field>
+
+        <Turnstile action="login" onVerify={setTurnstileToken} />
 
         {error && (
           <motion.p

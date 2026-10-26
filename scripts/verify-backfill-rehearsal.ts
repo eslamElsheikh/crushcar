@@ -115,7 +115,7 @@ async function main() {
       for (const b of list) {
         if (a === b) continue
         const [af, at] = a.split(' → ')
-        const [bf, bt] = b.split(' → ')
+        const [_bf, bt] = b.split(' → ')
         if (af === bt && at === af) mixedDirection++
       }
     }

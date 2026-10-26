@@ -15,7 +15,7 @@
  *   2. A company booking is paid while somebody cancels it. The money must
  *      not be spent on a booking that is no longer pending.
  */
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -29,7 +29,7 @@ function check(name: string, ok: boolean, detail = '') {
   }
 }
 
-const COMPANIES = ['race-company-a', 'race-company-b']
+const _COMPANIES = ['race-company-a', 'race-company-b']
 const SUFFIX = Date.now().toString(36)
 
 async function seed() {

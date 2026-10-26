@@ -4,7 +4,7 @@ import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, Armchair, Bus, Loader2, CheckCircle2, Clock, User, Building2, Hash, DollarSign } from 'lucide-react';
+import { ArrowRight, Armchair, Bus, Loader2, CheckCircle2, User, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';

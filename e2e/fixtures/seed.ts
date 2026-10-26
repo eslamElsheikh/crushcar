@@ -147,7 +147,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     const adminPw = await bcrypt.hash('admin123', 10)
     const userPw = await bcrypt.hash('user123', 10)
 
-    const superAdmin = await prisma.user.create({
+    const _superAdmin = await prisma.user.create({
       data: {
         id: 'user-superadmin',
         email: 'superadmin@safrotravel.com',
@@ -170,7 +170,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    const companyAdminCairo = await prisma.user.create({
+    const _companyAdminCairo = await prisma.user.create({
       data: {
         id: 'user-company-admin',
         email: 'admin@cairoexpress.com',
@@ -182,7 +182,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    const companyAdminZero = await prisma.user.create({
+    const _companyAdminZero = await prisma.user.create({
       data: {
         id: 'user-company-zero',
         email: 'admin@zerocredit.com',
@@ -194,7 +194,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    const companyAdminNoBus = await prisma.user.create({
+    const _companyAdminNoBus = await prisma.user.create({
       data: {
         id: 'user-company-nobus',
         email: 'admin@nobus.com',
@@ -206,7 +206,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    const companyAdminPending = await prisma.user.create({
+    const _companyAdminPending = await prisma.user.create({
       data: {
         id: 'user-company-pending',
         email: 'admin@pendingco.com',
@@ -218,7 +218,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    const disabledUser = await prisma.user.create({
+    const _disabledUser = await prisma.user.create({
       data: {
         id: 'user-disabled',
         email: 'disabled@example.com',
@@ -369,7 +369,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     }
 
     // 1. Trip with Tiered Seat Prices
-    const tripTiered = await prisma.trip.create({
+    const _tripTiered = await prisma.trip.create({
       data: {
         id: 'trip-tiered-prices',
         busId: vipBus.id,
@@ -429,7 +429,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     })
 
     // 3. Past Trip
-    const tripPast = await prisma.trip.create({
+    const _tripPast = await prisma.trip.create({
       data: {
         id: 'trip-past',
         busId: coachBus.id,
@@ -533,7 +533,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     })
 
     // 6. Round-trip pair A to B and B to A on future dates
-    const tripRoundOutbound = await prisma.trip.create({
+    const _tripRoundOutbound = await prisma.trip.create({
       data: {
         id: 'trip-round-outbound',
         busId: coachBus.id,
@@ -553,7 +553,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    const tripRoundReturn = await prisma.trip.create({
+    const _tripRoundReturn = await prisma.trip.create({
       data: {
         id: 'trip-round-return',
         busId: coachBus.id,
@@ -656,7 +656,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     }
 
     // ── 8. Create Company Customers, Deposit Request ───────
-    const compCustomer1 = await prisma.companyCustomer.create({
+    const _compCustomer1 = await prisma.companyCustomer.create({
       data: {
         id: 'comp-cust-1',
         companyId: cairoExpress.id,
@@ -665,7 +665,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
         email: 'nile@company.com',
       },
     })
-    const pendingDeposit = await prisma.depositRequest.create({
+    const _pendingDeposit = await prisma.depositRequest.create({
       data: {
         id: 'dep-e2e-1',
         companyId: cairoExpress.id,
@@ -675,7 +675,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     })
 
     // Create a company booking for cancellation flow
-    const compBooking = await prisma.companyBooking.create({
+    const _compBooking = await prisma.companyBooking.create({
       data: {
         id: 'cb-e2e-cancel-test',
         reference: 'CB-CANCEL-TEST',

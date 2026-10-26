@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginAs, loginViaUI, USERS } from './helpers/auth';
+import { loginAs, loginViaUI } from './helpers/auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient({

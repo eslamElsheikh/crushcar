@@ -89,6 +89,7 @@ function main() {
   try {
     // The guard has to throw, not merely return false, or a script that
     // forgets to check the return value would carry on regardless.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- loading the module under test *is* the point of this probe.
     const { assertTestDatabase } = require('./lib/test-db-guard')
     assertTestDatabase(production)
   } catch (err) {

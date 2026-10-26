@@ -5,16 +5,16 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight, Bus, MapPin, Clock, Calendar, User, Phone,
-  QrCode, CheckCircle2, XCircle, AlertCircle, Loader2, Printer, Copy, Check,
-  CreditCard, Armchair, Building2, FileText, ShieldCheck
+  ArrowRight, Bus, MapPin, Clock, Calendar, User, 
+  CheckCircle2, AlertCircle, Printer, Copy, Check,
+  Armchair
 } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';
 import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
-import { V2Button } from '@/components/v2/Button';
+import '@/components/v2/Button'
 import { V2StatusBadge, V2Skeleton } from '@/components/v2/ui';
 
 interface BookingData {
@@ -160,7 +160,7 @@ export default function BookingDetailPage() {
     );
   }
 
-  const isPaid = booking.status === 'PAID';
+  const _isPaid = booking.status === 'PAID';
   const isCancelled = booking.status === 'CANCELLED';
   const origin = booking.actualOrigin || booking.trip.origin;
   const destination = booking.actualDestination || booking.trip.destination;

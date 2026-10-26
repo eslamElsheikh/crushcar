@@ -1,6 +1,6 @@
 'use client';
 
-import { Armchair, Bus } from 'lucide-react';
+import { Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /* Shared V2 booking building blocks — pure UI over existing booking APIs. */

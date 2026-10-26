@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { companyName, adminName, email, phone, password, notes } = await req.json()
+    const { companyName, adminName, email, phone, password, notes: _notes } = await req.json()
 
     if (!companyName || !adminName || !email || !password) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       })
 
       const hashed = await bcrypt.hash(password, 12)
-      const user = await tx.user.create({
+      const _user = await tx.user.create({
         data: {
           email,
           password: hashed,

@@ -1,5 +1,4 @@
 import { spawn } from 'child_process'
-import path from 'path'
 
 const dbUrl = process.env.DATABASE_URL || 'file:../.scratch/e2e.db'
 if (dbUrl.includes('dev.db')) {

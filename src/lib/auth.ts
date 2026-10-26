@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { evaluateTurnstile } from '@/lib/turnstile'
 
 /** How stale a session may get before isActive is re-read from the database. */
 const ACTIVE_RECHECK_MS = 5 * 60 * 1000
@@ -12,9 +13,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        // Not a field the form shows: the page hands the Turnstile token to
+        // signIn() and next-auth posts it with the rest of the credentials.
+        // Verified here rather than in middleware because middleware runs
+        // before the body is parsed and would never see it.
+        turnstileToken: { label: 'Captcha', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
+
+        // Checked first: a caller that cannot pass the captcha never reaches
+        // the database, and the answer it gets is the same `null` a wrong
+        // password produces, so there is nothing to probe with.
+        const captcha = await evaluateTurnstile(
+          (credentials.turnstileToken as string | undefined)?.trim() || '',
+          undefined
+        )
+        if (!captcha.ok) {
+          console.warn('[auth] login refused by turnstile:', captcha.reason)
+          return null
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
@@ -50,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user: _user }) {
       return true
     },
     async redirect({ url, baseUrl }) {

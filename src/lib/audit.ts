@@ -2,21 +2,21 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { Prisma } from '@prisma/client'
 
-const ACTIONS = [
+const _ACTIONS = [
   'CREATE', 'UPDATE', 'DELETE', 'CANCEL', 'APPROVE', 'REJECT',
   'PAY', 'REFUND', 'LOGIN', 'BLOCK', 'UNBLOCK', 'BOARD',
   'WALLET_CREDIT', 'ADJUST',
 ] as const
 
-const ENTITIES = [
+const _ENTITIES = [
   'Booking', 'CompanyBooking', 'Company', 'User', 'Bus', 'Trip',
   'Station', 'Wallet', 'CreditLimit', 'Setting', 'Faq',
   'DepositRequest', 'TripRequest', 'CompanyCustomer',
   'BusLayout', 'SeatBlock', 'CharterBooking',
 ] as const
 
-type AuditAction = (typeof ACTIONS)[number]
-type AuditEntity = (typeof ENTITIES)[number]
+type AuditAction = (typeof _ACTIONS)[number]
+type AuditEntity = (typeof _ENTITIES)[number]
 
 /**
  * Writes an audit row.

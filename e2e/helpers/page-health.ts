@@ -16,7 +16,7 @@ export async function assertPageHealth(
   options: HealthCheckOptions = {}
 ) {
   const consoleErrors: string[] = [];
-  const consoleWarnings: string[] = [];
+  const _consoleWarnings: string[] = [];
   const failedRequests: string[] = [];
 
   const consoleListener = (msg: any) => {

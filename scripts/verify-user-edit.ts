@@ -89,7 +89,7 @@ function check(label: string, actual: unknown, expected: unknown) {
 const ROOT = { id: 'root', role: 'SUPER_ADMIN', companyId: null } as Actor;
 const ROOT2 = { id: 'root2', role: 'SUPER_ADMIN', companyId: null } as Actor;
 const CO = { id: 'co', role: 'COMPANY_ADMIN', companyId: 'c1' } as Actor;
-const OTHER_CO = { id: 'co2', role: 'COMPANY_ADMIN', companyId: 'c2' } as Actor;
+const _OTHER_CO = { id: 'co2', role: 'COMPANY_ADMIN', companyId: 'c2' } as Actor;
 const CUSTOMER = { id: 'cu', role: 'CUSTOMER', companyId: null } as Actor;
 
 const customer: Target = { id: 'u1', role: 'CUSTOMER', companyId: null, isActive: true };

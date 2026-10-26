@@ -7,8 +7,8 @@ import { ArrowRight, Bus, MapPin, Clock, Users, Send, Loader2, CheckCircle2, Shi
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
-import { V2StatusBadge, V2Skeleton } from '@/components/v2/ui';
+import '@/lib/utils'
+import { V2Skeleton } from '@/components/v2/ui';
 import { routeLabel, stopListLabel } from '@/lib/route-label';
 
 interface TripDetail {
@@ -25,7 +25,7 @@ interface TripDetail {
 
 export default function CharterTripDetailPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = use(params);
-  const router = useRouter();
+  const _router = useRouter();
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';

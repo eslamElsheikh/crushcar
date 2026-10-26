@@ -53,7 +53,7 @@ const defaultFaqs = [
   },
 ]
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user || session.user.role === 'CUSTOMER') {

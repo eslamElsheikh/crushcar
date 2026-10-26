@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Search, MapPin, Clock, ArrowRight, Bus, Repeat, ArrowLeftRight, ArrowUpDown,
+  Search, MapPin, Clock, Bus, Repeat, ArrowLeftRight, ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';

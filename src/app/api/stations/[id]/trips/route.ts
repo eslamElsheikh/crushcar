@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const fromStop = allStops.find(s => s.stopOrder === ts.stopOrder)
       const toStop = allStops[allStops.length - 1]
 
-      let destination = trip.destination
+      const destination = trip.destination
       let price = trip.price
 
       if (fromStop && toStop && fromStop.stopOrder < toStop.stopOrder) {

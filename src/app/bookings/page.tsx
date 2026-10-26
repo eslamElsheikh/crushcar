@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
-import { V2Button } from '@/components/v2/Button';
+import '@/components/v2/Button'
 import { V2StatusBadge, V2EmptyState, V2Skeleton } from '@/components/v2/ui';
 import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 

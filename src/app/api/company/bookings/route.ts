@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
       // ── How many seats this booking may cover ─────────────────────────
       // The rules live in one place, shared with the path where a super admin
       // books on a company's behalf, so the two cannot drift apart.
-      const limits = await resolveBookingLimits(tx, {
+      const _limits = await resolveBookingLimits(tx, {
         company,
         tripId,
         trip,

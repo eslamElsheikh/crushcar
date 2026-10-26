@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // smaller allowance. It is refused here rather than stored.
       const parsed = creditLimitValueSchema.safeParse(creditLimit)
       if (!parsed.success) {
-        return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+        return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
       }
       updateData.creditLimit = parsed.data
     }

@@ -19,8 +19,15 @@ const nextConfig: NextConfig = {
   // This worktree lives under D:\saas\desing\d 2 (which has its own lockfile);
   // pin tracing here or standalone output lands in the wrong tree.
   outputFileTracingRoot: path.join(__dirname),
+  // Browser source maps are off in production by default; stated outright so
+  // it is a decision rather than an inherited default. They are the map from
+  // minified bundle back to the TypeScript that produced it.
+  productionBrowserSourceMaps: false,
   experimental: {},
   async headers() {
+    // Everything here is identical for every request, so it lives in config.
+    // Content-Security-Policy is absent on purpose: its nonce is minted per
+    // request in src/middleware.ts, where it can still mean something.
     return [
       {
         source: '/:path*',
@@ -30,8 +37,11 @@ const nextConfig: NextConfig = {
             value: 'nosniff',
           },
           {
+            // DENY, not SAMEORIGIN, to match `frame-ancestors 'none'` in the
+            // CSP. The two disagreeing is how a policy check passes while an
+            // older browser, which reads only this header, still frames it.
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            value: 'DENY',
           },
           {
             key: 'Referrer-Policy',
@@ -39,15 +49,22 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value:
+              'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
           },
           {
-            key: 'Content-Security-Policy-Report-Only',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'self';",
+            // Isolates this page's browsing context group, so a window we
+            // open cannot reach back through window.opener.
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-origin',
           },
         ],
       },
-    ];
+    ]
   },
 }
 

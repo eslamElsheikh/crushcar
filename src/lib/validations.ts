@@ -193,6 +193,6 @@ export const creditLimitSchema = z.object({
  * lower than the exposure. It is refused rather than stored.
  */
 export const creditLimitValueSchema = z
-  .number({ invalid_type_error: 'الحد الائتماني يجب أن يكون رقماً' })
+  .number({ error: 'الحد الائتماني يجب أن يكون رقماً' })
   .finite('الحد الائتماني يجب أن يكون رقماً')
   .min(0, 'الحد الائتماني يجب أن يكون 0 أو أكثر');

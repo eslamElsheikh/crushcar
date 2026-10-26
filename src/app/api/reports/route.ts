@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { neutralizeCsvCell } from '@/lib/csv'
 import {
   BUSINESS_TZ,
   CUSTOMER_FUNDED,
@@ -187,7 +188,17 @@ export async function GET(req: NextRequest) {
           r.occupancy,
         ]),
       ]
-      const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+      // Every cell is neutralised before it is quoted: the quotes are consumed
+      // by the parser, so an =… inside them is still a formula afterwards.
+      // Origin and destination are admin-entered text, which is enough to make
+      // this the same problem as a passenger name — see src/lib/csv.ts.
+      const csv = rows
+        .map((row) =>
+          row
+            .map((cell) => `"${neutralizeCsvCell(cell).replace(/"/g, '""')}"`)
+            .join(',')
+        )
+        .join('\n')
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',

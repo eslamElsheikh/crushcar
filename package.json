@@ -7,7 +7,7 @@
     "dev:verify": "node scripts/dev-verify.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
@@ -30,6 +30,12 @@
     "check:revenue": "tsx scripts/verify-revenue-classification.ts",
     "check:refund-race": "tsx scripts/verify-refund-race.ts",
     "check:guard": "tsx scripts/verify-test-db-guard.ts",
+    "check:env-guard": "tsx scripts/verify-env-guard.ts",
+    "check:rate-limit": "tsx scripts/verify-rate-limit.ts",
+    "check:csv": "tsx scripts/verify-csv.ts",
+    "check:turnstile": "tsx scripts/verify-turnstile.ts",
+    "check:uploads": "tsx scripts/verify-uploads.ts",
+    "check:prod-boot": "node scripts/verify-prod-boot.mjs",
     "check:quota-editor": "tsx scripts/verify-quota-editor.ts",
     "check:charter-isolation": "tsx scripts/verify-charter-isolation.ts",
     "check:backfill": "tsx scripts/verify-backfill-rehearsal.ts",
@@ -72,9 +78,9 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^11.11.0",
     "lucide-react": "^0.460.0",
-    "next": "^15.5.18",
-    "next-auth": "^5.0.0-beta.25",
-    "nodemailer": "^7.0.13",
+    "next": "^15.5.28",
+    "next-auth": "^5.0.0-beta.32",
+    "nodemailer": "^10.2.1",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -82,8 +88,11 @@
     "sharp": "^0.35.5",
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.5.5",
-    "zod": "^3.23.8",
+    "zod": "^4.6.7",
     "zustand": "^5.0.1"
+  },
+  "overrides": {
+    "postcss": "^8.5.31"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -100,7 +109,7 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
     "tailwindcss-animate": "^1.0.7",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.0"
   }
 }

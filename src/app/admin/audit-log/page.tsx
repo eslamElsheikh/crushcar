@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { ScrollText, Search, Clock, User, ShieldCheck } from 'lucide-react';
+import { ScrollText, Search } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
-import { cn } from '@/lib/utils';
+import '@/lib/utils'
 import { V2StatusBadge, V2EmptyState, V2Skeleton } from '@/components/v2/ui';
 
 interface AuditEntry {
@@ -39,7 +38,7 @@ const toneForAction = (a: string): 'green' | 'amber' | 'red' | 'blue' | 'slate' 
 };
 
 export default function AdminAuditLog() {
-  const t = useLangStore((s) => s.t);
+  const _t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
   const locale = isRTL ? 'ar-EG' : 'en-US';

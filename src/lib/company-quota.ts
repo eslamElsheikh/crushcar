@@ -5,7 +5,6 @@ import {
   effectiveDailyCap,
   effectiveMaxSeatsPerBooking,
   effectiveTripQuota,
-  fitsQuota,
   type CompanyLimitFields,
 } from './booking-limits'
 import { resolveRouteIdentity } from './route-key'

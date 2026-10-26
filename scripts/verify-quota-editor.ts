@@ -11,7 +11,7 @@
  */
 import { PrismaClient } from '@prisma/client'
 import { assertTestDatabase } from './lib/test-db-guard'
-import { routeKeyOfStops, travelDateOf } from '../src/lib/route-key'
+import { travelDateOf } from '../src/lib/route-key'
 
 // This script writes to the database and deletes rows. It must never run against
 // production, so the guard refuses to start unless this is a test database.

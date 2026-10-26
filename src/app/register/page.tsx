@@ -9,6 +9,7 @@ import { useLangStore } from '@/lib/lang';
 import { V2AuthShell } from '@/components/v2/AuthShell';
 import { V2Field, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
+import { Turnstile } from '@/components/Turnstile';
 
 /* V2 register — same POST /api/register flow as V1, new interface. */
 
@@ -19,6 +20,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [regEnabled, setRegEnabled] = useState(true);
   const [error, setError] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
@@ -38,9 +40,20 @@ export default function RegisterPage() {
     setError('');
 
     try {
+      if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !turnstileToken) {
+        setLoading(false);
+        setError('أكمل التحقق الأمني أولاً • Complete the security check first');
+        return;
+      }
+
       const res = await fetch('/api/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // The server reads the token from this header, not the body, so the
+          // check happens before the body is parsed.
+          ...(turnstileToken ? { 'x-turnstile-token': turnstileToken } : {}),
+        },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -124,6 +137,8 @@ export default function RegisterPage() {
               : 'Notice: Individual registration is currently closed. You may register as a company below.'}
           </div>
         )}
+
+        <Turnstile action="register" onVerify={setTurnstileToken} />
 
         <V2Button type="submit" size="lg" disabled={loading || !regEnabled} className="w-full">
           {loading && <Loader2 className="size-5 animate-spin" />}

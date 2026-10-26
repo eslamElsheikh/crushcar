@@ -145,7 +145,6 @@ async function main() {
   // Test with a seat hold on a different segment
   const midStop = trip.tripStops[Math.floor(trip.tripStops.length / 2)]
   if (midStop && midStop.stopOrder !== fromStop.stopOrder && midStop.stopOrder !== toStop.stopOrder) {
-    const adjFrom = fromStop
     const adjTo = midStop
     // Check that our original hold (from->to) doesn't conflict with adjFrom->adjTo
     // This is correct overlap logic: [1,4] doesn't overlap with [1,2] (it contains it)

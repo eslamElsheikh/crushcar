@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Printer, ArrowLeft, Bus, MapPin, Clock, Calendar, User, Phone, QrCode, CheckCircle, Loader2, Building2, FileText } from 'lucide-react'
+import { Printer, ArrowLeft, Bus, User, Phone, CheckCircle, Loader2, Building2, FileText } from 'lucide-react'
 import { useLangStore } from '@/lib/lang'
 import { cn } from '@/lib/utils'
 import { bookingStatusLabel, ticketStatusPill } from '@/lib/booking-status'
@@ -123,7 +123,7 @@ export default function PrintTicketPage() {
 
   const statusPill = ticketStatusPill(ticket.status)
   const statusText = bookingStatusLabel(t, ticket.status)
-  const isReturnFor = !!ticket.returnForId
+  const _isReturnFor = !!ticket.returnForId
   const isRoundTrip = !!ticket.roundTripGroupId
 
   return (

@@ -32,6 +32,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ fil
       status: 200,
       headers: {
         'Content-Type': MIME[ext] || 'application/octet-stream',
+        // The bytes are typed by the extension above; nosniff stops the
+        // browser from second-guessing that and rendering them as a document.
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Content-Length': String(bytes.length),
       },

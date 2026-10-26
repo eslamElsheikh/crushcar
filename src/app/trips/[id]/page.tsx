@@ -6,13 +6,14 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, ArrowRight, Clock, MapPin, Loader2, Check, Bus, Sparkles, X,
-  User, Repeat, Map, Navigation, Ticket, Phone, Printer, Building2, FileText, Banknote, ShieldCheck, CreditCard, Wallet
+  ArrowRight, Clock, MapPin, Loader2, Check, Bus, Sparkles, X,
+  User, Repeat, Navigation, Ticket, Printer, ShieldCheck, CreditCard, Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatDate, formatTime } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
 import { parseCollectAmount, splitCollectAmount } from '@/lib/validations';
+import { getTurnstileToken } from '@/lib/turnstileClient';
 import { V2SiteHeader } from '@/components/v2/SiteHeader';
 import { V2SiteFooter } from '@/components/v2/SiteFooter';
 import { V2Button } from '@/components/v2/Button';
@@ -775,9 +776,16 @@ function TripDetailPageContent() {
           const targetTripId = isReturn ? returnTripId : tripId;
           if (!targetTripId) continue;
 
+          // A Turnstile token is single-use, so every seat in this loop needs
+          // its own — one token for the checkout would fail on seat two. With
+          // no site key configured this resolves immediately to ''.
+          const turnstileToken = await getTurnstileToken('checkout');
           const res = await fetch('/api/bookings', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(turnstileToken ? { 'x-turnstile-token': turnstileToken } : {}),
+            },
             body: JSON.stringify({
               tripId: targetTripId,
               seatLabel: seat.seatLabel,

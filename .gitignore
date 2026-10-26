@@ -2,9 +2,11 @@ node_modules/
 .next/
 .next-dev/
 *.db
-.env
-.env.local
-.env.production
+# Every .env variant is ignored, not just the three that used to be listed
+# (.env.test, .env.development.local, … all carry the same secrets). The
+# example file stays tracked on purpose — it holds placeholders only.
+.env*
+!.env.example
 *.log
 .DS_Store
 Thumbs.db
@@ -14,6 +16,9 @@ vercel.json
 
 # Runtime uploads (never commit user uploads)
 /data/
+/public/uploads/
+/backups/
+/test-artifacts/
 .scratch/
 tsconfig.tsbuildinfo
 .opencode/

@@ -31,8 +31,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(buses)
   } catch (err: any) {
+    // The message stays in the log: a Prisma failure names the table, the
+    // column and sometimes the file path, none of which belongs to a caller.
     console.error('[buses GET] error:', err?.message || err, 'code:', err?.code)
-    return NextResponse.json({ error: 'Server error', detail: err?.message }, { status: 500 })
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
 
@@ -67,7 +69,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(bus)
   } catch (err: any) {
+    // Logged, never returned — see the GET handler above.
     console.error('[buses POST] error:', err?.message || err, 'code:', err?.code)
-    return NextResponse.json({ error: 'Server error', detail: err?.message }, { status: 500 })
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import QRCode from 'qrcode'
 

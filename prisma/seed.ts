@@ -7,7 +7,7 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   // ── Create stations first ──────────────────────────────
-  const [cairo, alex, giza, portsaid, luxor, aswan, mansoura, hurghada, sharm, minya, beniSuef, fayoum, ismailia, zagazig, damietta] = await Promise.all([
+  const [cairo, alex, giza, portsaid, luxor, aswan, mansoura, hurghada, sharm, _minya, _beniSuef, _fayoum, _ismailia, _zagazig, _damietta] = await Promise.all([
     prisma.station.create({ data: { name: 'القاهرة', city: 'القاهرة' } }),
     prisma.station.create({ data: { name: 'الإسكندرية', city: 'الإسكندرية' } }),
     prisma.station.create({ data: { name: 'الجيزة', city: 'الجيزة' } }),
@@ -41,7 +41,7 @@ async function main() {
   const userPassword = await bcrypt.hash('user123', 12)
   const superAdminPassword = await bcrypt.hash('super123', 12)
 
-  const [superAdmin, admin, customer1, customer2, customer3] = await Promise.all([
+  const [_superAdmin, _admin, customer1, customer2, customer3] = await Promise.all([
     prisma.user.create({
       data: {
         email: 'superadmin@safrotravel.com',

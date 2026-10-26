@@ -39,7 +39,7 @@ export async function runSmokeTests() {
 
   // Helper to record
   function record(action, role, endpoint, method, expected, actual, dbVerified, details = '') {
-    const passed = dbVerified && actual.includes(expected.split(' ')[0]);
+    void (dbVerified && actual.includes(expected.split(' ')[0]));
     results.push({
       action,
       role,
@@ -184,10 +184,9 @@ export async function runSmokeTests() {
   }
 
   // 1.5 Trip Bulk Create (UI loops over POST /api/trips)
-  let bulkTripIds = [];
+  const bulkTripIds = [];
   if (createdBusId) {
     try {
-      let bulkOk = true;
       for (let i = 1; i <= 2; i++) {
         const dep = new Date(Date.now() + 86400000 * (4 + i)).toISOString();
         const arr = new Date(Date.now() + 86400000 * (4 + i) + 10800000).toISOString();
@@ -209,7 +208,6 @@ export async function runSmokeTests() {
         });
         const data = await res.json();
         if (data.id) bulkTripIds.push(data.id);
-        else bulkOk = false;
       }
       const dbTrips = await prisma.trip.findMany({ where: { id: { in: bulkTripIds } } });
       record('trip bulk create', 'SUPER_ADMIN', '/api/trips (x2)', 'POST', '200 OK', `${bulkTripIds.length} created`, dbTrips.length === 2);
@@ -265,7 +263,7 @@ export async function runSmokeTests() {
         headers: reqHeaders(superToken),
         body: JSON.stringify({ tripId: createdTripId, seatLabel: 'A1', fromStationId: stCairo.id, toStationId: stAlex.id }),
       });
-      const data = await res.json();
+      await res.json();
       const dbHold = await prisma.seatHold.findFirst({ where: { tripId: createdTripId, seatLabel: 'A1' } });
       record('seat ops (hold/lock)', 'SUPER_ADMIN', '/api/seats/hold', 'POST', '200 OK', `${res.status}`, !!dbHold);
     } catch (err) {
@@ -343,7 +341,7 @@ export async function runSmokeTests() {
   }
 
   // 1.13 Approve / Reject Company
-  let testCo = await prisma.company.create({
+  const testCo = await prisma.company.create({
     data: { name: 'Approval Test Co', subdomain: `appr${Date.now()}`, isActive: false, creditLimit: 0 }
   });
   try {
@@ -359,7 +357,7 @@ export async function runSmokeTests() {
   }
 
   // Reject company
-  let testCoReject = await prisma.company.create({
+  const testCoReject = await prisma.company.create({
     data: { name: 'Reject Test Co', subdomain: `rej${Date.now()}`, isActive: false, creditLimit: 0 }
   });
   try {
@@ -375,7 +373,7 @@ export async function runSmokeTests() {
   }
 
   // 1.14 Deposit Requests (Super Admin review)
-  let depReq = await prisma.depositRequest.create({
+  const depReq = await prisma.depositRequest.create({
     data: { companyId: company.id, amount: 2500, status: 'PENDING' }
   });
   try {
@@ -391,7 +389,7 @@ export async function runSmokeTests() {
   }
 
   // 1.15 Trip Requests (Super Admin review)
-  let tripReq = await prisma.tripRequest.create({
+  const tripReq = await prisma.tripRequest.create({
     data: {
       companyId: company.id,
       fromStationId: stCairo.id,
@@ -414,7 +412,7 @@ export async function runSmokeTests() {
   }
 
   // 1.16 Cancellation Processing (Super Admin refund processing)
-  let cancelBooking = await prisma.booking.create({
+  const cancelBooking = await prisma.booking.create({
     data: {
       tripId: createdTripId,
       userId: customer.id,
@@ -442,7 +440,6 @@ export async function runSmokeTests() {
   }
 
   // 1.17 Users CRUD
-  let createdUser = null;
   try {
     const testEmail = `user_${Date.now()}@test.com`;
     const res = await fetch(`${BASE_URL}/api/admin/users`, {
@@ -450,8 +447,7 @@ export async function runSmokeTests() {
       headers: reqHeaders(superToken),
       body: JSON.stringify({ name: 'Smoke User', email: testEmail, password: 'Password123!', role: 'CUSTOMER', phone: '01011112222' }),
     });
-    const data = await res.json();
-    createdUser = data.user || data;
+    await res.json();
     const dbUser = await prisma.user.findUnique({ where: { email: testEmail } });
     record('users CRUD (create)', 'SUPER_ADMIN', '/api/admin/users', 'POST', '200 OK', `${res.status}`, !!dbUser);
   } catch (err) {
@@ -501,7 +497,6 @@ export async function runSmokeTests() {
 
   // 1.19 FAQ CRUD and Reorder
   let faq1 = null;
-  let faq2 = null;
   try {
     const res1 = await fetch(`${BASE_URL}/api/faqs`, {
       method: 'POST',
@@ -514,7 +509,7 @@ export async function runSmokeTests() {
       headers: reqHeaders(superToken),
       body: JSON.stringify({ questionAr: 'سؤال 2', questionEn: 'Question 2', answerAr: 'جواب 2', answerEn: 'Answer 2' }),
     });
-    faq2 = await res2.json();
+    await res2.json();
     const dbFaq = await prisma.faq.findUnique({ where: { id: faq1.id } });
     record('FAQ CRUD (create)', 'SUPER_ADMIN', '/api/faqs', 'POST', '200 OK', `${res1.status}`, !!dbFaq);
   } catch (err) {
@@ -659,7 +654,7 @@ export async function runSmokeTests() {
 
   // 2.2 Company New Booking (Full Trip)
   // Create a separate trip for full-trip booking test
-  let charterBus = await prisma.bus.create({
+  const charterBus = await prisma.bus.create({
     data: { name: 'Full Trip Bus', type: 'STANDARD', seatCount: 4 }
   });
   await prisma.busLayout.create({
@@ -676,7 +671,7 @@ export async function runSmokeTests() {
       }
     }
   });
-  let charterTrip = await prisma.trip.create({
+  const charterTrip = await prisma.trip.create({
     data: {
       busId: charterBus.id,
       origin: stCairo.name,
@@ -782,7 +777,7 @@ export async function runSmokeTests() {
       headers: reqHeaders(companyToken),
       body: JSON.stringify({ amount: 5000 }),
     });
-    const data = await res.json();
+    await res.json();
     const dbDep = await prisma.depositRequest.findFirst({ where: { companyId: company.id, amount: 5000 } });
     record('deposit request create', 'COMPANY_ADMIN', '/api/company/deposit-requests', 'POST', '200 OK', `${res.status}`, !!dbDep);
   } catch (err) {
@@ -802,7 +797,7 @@ export async function runSmokeTests() {
         notes: 'Corporate event travel',
       }),
     });
-    const data = await res.json();
+    await res.json();
     const dbReq = await prisma.tripRequest.findFirst({ where: { companyId: company.id, passengerCount: 25 } });
     record('trip request submit', 'COMPANY_ADMIN', '/api/company/trip-requests', 'POST', '200 OK', `${res.status}`, !!dbReq);
   } catch (err) {
@@ -828,7 +823,7 @@ export async function runSmokeTests() {
   // 3.2 One-Way Booking
   let custBookingId = null;
   // Create a trip with available seats for customer
-  let custTrip = await prisma.trip.create({
+  const custTrip = await prisma.trip.create({
     data: {
       busId: charterBus.id,
       origin: stCairo.name,
@@ -867,7 +862,7 @@ export async function runSmokeTests() {
   }
 
   // 3.3 Round-Trip Booking
-  let returnTrip = await prisma.trip.create({
+  const returnTrip = await prisma.trip.create({
     data: {
       busId: charterBus.id,
       origin: stAlex.name,
@@ -885,7 +880,7 @@ export async function runSmokeTests() {
   });
 
   try {
-    const roundGroupId = `RT-${Date.now()}`;
+    void (`RT-${Date.now()}`);
     const resOut = await fetch(`${BASE_URL}/api/bookings`, {
       method: 'POST',
       headers: reqHeaders(customerToken),

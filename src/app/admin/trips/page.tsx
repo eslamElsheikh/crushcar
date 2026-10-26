@@ -190,7 +190,7 @@ export default function AdminTrips() {
     setPage(1);
     loadTrips(1, f, modeFilter);
   }
-  function changePage(p: number) {
+  function _changePage(p: number) {
     setPage(p);
     loadTrips(p, filter, modeFilter);
   }
@@ -221,7 +221,7 @@ export default function AdminTrips() {
         if (bulk.interval === 'weekly') day.setDate(day.getDate() + i * 7);
         else if (bulk.interval === 'weekdays') {
           let added = 0;
-          let d = new Date(base);
+          const d = new Date(base);
           while (added < i + 1) {
             d.setDate(d.getDate() + 1);
             if (d.getDay() !== 0 && d.getDay() !== 6) added++;

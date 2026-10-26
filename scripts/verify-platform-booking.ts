@@ -134,7 +134,7 @@ async function platformBook(
 
 async function main() {
   const { company, trip, admin } = await seed()
-  const { chargePlatform, fundPlatform, refundPlatform, toPiastres, fromPiastres } = await import(
+  const { chargePlatform: _chargePlatform, fundPlatform, refundPlatform, toPiastres, fromPiastres: _fromPiastres } = await import(
     '../src/lib/platform-wallet'
   )
 

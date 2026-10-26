@@ -1,6 +1,7 @@
 'use client';
 
 import { routeLabel } from '@/lib/route-label';
+import { getTurnstileToken } from '@/lib/turnstileClient';
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   MapPin, Users, ArrowLeftRight, Search,
-  Zap, ShieldCheck, Leaf, ArrowRight, Clock, Star, Bus,
+  Zap, ShieldCheck, Leaf, ArrowRight, Clock, Bus,
   TicketCheck, Check, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -82,9 +83,21 @@ export default function V2HomePage() {
       const list: Station[] = d.stations || d || [];
       if (Array.isArray(list)) setStations(list);
     }).catch(() => {});
-    fetch('/api/public/stats').then((r) => r.json()).then((d) => {
-      if (!d.error) setStats(d);
-    }).catch(() => {});
+    // Turnstile first: the counters are anonymous, so with the captcha
+    // configured the token is the only proof a person is asking. Without a
+    // site key this resolves to '' immediately and the request is unchanged.
+    getTurnstileToken('tracking-stats')
+      .then((token) =>
+        fetch(
+          '/api/public/stats',
+          token ? { headers: { 'x-turnstile-token': token } } : undefined
+        )
+      )
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setStats(d);
+      })
+      .catch(() => {});
   }, []);
 
   const [destinations, setDestinations] = useState<Destination[]>([]);
