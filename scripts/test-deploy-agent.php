@@ -207,6 +207,11 @@ if (!empty($rm[1])) {
     check('column list NOT prefixed', str_contains($p, '`id` int') && str_contains($p, '`email` varchar'), $p);
     check('FK constraint renamed', str_contains($p, 'CONSTRAINT `rt_users_ibfk_1`'), $p);
     check('REFERENCES target prefixed', str_contains($p, 'REFERENCES `rt_orders`'), $p);
+    // Prisma names FK constraints `<table>_<col>_fkey` (NOT MySQL's `_ibfk_N`);
+    // these must also be renamed or the scratch restore hits errno 121.
+    $prisma = prefix_dump_tables("CREATE TABLE `Booking` (\n  `tripId` varchar(191),\n  CONSTRAINT `Booking_tripId_fkey` FOREIGN KEY (`tripId`) REFERENCES `Trip` (`id`)\n)", ['Booking', 'Trip']);
+    check('Prisma _fkey constraint renamed', str_contains($prisma, 'CONSTRAINT `rt_Booking_tripId_fkey`'), $prisma);
+    check('Prisma REFERENCES target prefixed', str_contains($prisma, 'REFERENCES `rt_Trip`'), $prisma);
     $insP = prefix_dump_tables("INSERT INTO `users` (`id`,`email`) VALUES\n(1,'a');", $live);
     check('INSERT INTO prefixed', str_contains($insP, 'INSERT INTO `rt_users`'), $insP);
     check('INSERT column list untouched', str_contains($insP, "(`id`,`email`) VALUES"), $insP);

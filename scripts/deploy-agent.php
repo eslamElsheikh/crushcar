@@ -334,9 +334,11 @@ function build_inserts(string $table, array $columns, array $types, array $rows)
 // live tables. KEYWORD-ANCHORED: a table name is only rewritten where it follows
 // a keyword that is ALWAYS followed by a TABLE (never a column). This protects
 // `(`id`,`email`)` column lists in an INSERT — if a column ever shared a name
-// with a table it would NOT be corrupted. We also rewrite the FK constraint
-// names (unique per-database in MySQL) so the scratch restore doesn't collide
-// with the live constraint of the same name.
+// with a table it would NOT be corrupted. We ALSO rename every named constraint
+// (`CONSTRAINT \`X\``) because foreign-key names are unique per-DATABASE in
+// MySQL/MariaDB — a scratch table re-creating a live FK name fails with errno
+// 121. Prisma names them `<table>_<col>_fkey` (not MySQL's `_ibfk_N`), so we
+// prefix ALL of them, matching any name.
 function prefix_dump_tables(string $sql, array $tables): string
 {
     $kw = 'CREATE TABLE|DROP TABLE IF EXISTS|DROP TABLE|INSERT INTO|'
@@ -350,7 +352,9 @@ function prefix_dump_tables(string $sql, array $tables): string
             $sql
         );
     }
-    return preg_replace('/\bCONSTRAINT\s+`([A-Za-z0-9]+_ibfk_\d+)`/', 'CONSTRAINT `rt_$1`', $sql);
+    // Rename every named constraint to rt_<name>. `[^`]+` matches any constraint
+    // name (Prisma `_fkey`, MySQL `_ibfk_N`, or a custom @@map name).
+    return preg_replace('/\bCONSTRAINT\s+`([^`]+)`/', 'CONSTRAINT `rt_$1`', $sql);
 }
 
 // Split a dump into executable statements. Safe because esc_sql() guarantees no
@@ -376,10 +380,18 @@ function list_base_tables(PDO $pdo): array
     return $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
 }
 
+// Drop any leftover rt_ scratch tables. Scratch tables reference EACH OTHER
+// (rt_Booking -> rt_Trip, ...), so dropping a parent before a child violates
+// FK constraint 1451. FOREIGN_KEY_CHECKS=0 lets us drop them in any order.
+// These are scratch-only; live tables are never touched here.
 function drop_rt_tables(PDO $pdo): array
 {
     $left = $pdo->query("SHOW TABLES LIKE 'rt\\_%'")->fetchAll(PDO::FETCH_COLUMN);
-    foreach ($left as $x) $pdo->exec('DROP TABLE IF EXISTS `' . $x . '`');
+    if ($left !== []) {
+        $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        foreach ($left as $x) $pdo->exec('DROP TABLE IF EXISTS `' . $x . '`');
+        $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+    }
     return $left;
 }
 // UNIT-TEST-REGION-END
@@ -574,6 +586,8 @@ switch ($step) {
         }
 
     case 'dbverify':
+        set_time_limit(0);   // restoring 30+ tables can exceed the default cap
+        ignore_user_abort(true);
         $file = (string)($_REQUEST['file'] ?? '');
         if (!preg_match('/^db-\d{8}-\d{6}\.sql$/', $file)) {
             die_err(400, "give file=db-YYYYMMDD-HHMMSS.sql (the basename from step=dbdump)");
@@ -612,15 +626,17 @@ switch ($step) {
                 if (!$match) $okAll = false;
                 $cmp[$orig] = ['live' => $live, 'restored' => $restored, 'match' => $match];
             }
-            $left = drop_rt_tables($pdo);
-            log_line('dbverify ' . ($okAll ? 'ok' : 'MISMATCH') . " file=$file applied=$applied");
+            $dropped = drop_rt_tables($pdo);
+            // Genuinely confirm cleanup: nothing rt_-prefixed may remain.
+            $remaining = $pdo->query("SHOW TABLES LIKE 'rt\\_%'")->fetchAll(PDO::FETCH_COLUMN);
+            log_line('dbverify ' . ($okAll ? 'ok' : 'MISMATCH') . " file=$file applied=$applied dropped=" . count($dropped) . ' remaining=' . count($remaining));
             respond($okAll ? 200 : 422, [
                 'ok' => $okAll, 'file' => $file, 'statements_applied' => $applied,
                 'tables' => count($scratch), 'rows_match' => $cmp,
-                'scratch_dropped' => count($left) === 0,
+                'scratch_dropped' => count($remaining) === 0,
             ]);
         } catch (Throwable $e) {
-            drop_rt_tables($pdo); // never leave scratch tables behind
+            try { drop_rt_tables($pdo); } catch (Throwable $e2) { log_line('cleanup drop failed: ' . $e2->getMessage()); }
             log_line('dbverify failed: ' . $e->getMessage());
             die_err(422, 'db verify failed (scratch cleaned up): ' . substr($e->getMessage(), 0, 200));
         }
