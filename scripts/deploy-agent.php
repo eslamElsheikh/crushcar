@@ -31,6 +31,9 @@
  *   rollback     restore the newest (or named) release + restart
  *   snapshot     zip the CURRENT standalone tree -> releases/ (initial rollback source)
  *   build-check  both BUILD_IDs + markers
+ *   dbdump       dump every base table -> backup/db-<ts>.sql (pure PHP, no mysqldump)
+ *   dbverify     restore a dump into rt_-prefixed scratch tables, compare row
+ *                counts, then drop the scratch tables (never touches live data)
  */
 declare(strict_types=1);
 
@@ -51,6 +54,11 @@ define('RELEASES_DIR', $TEST_ROOT ? $TEST_ROOT . '/releases'        : APP_ROOT .
 define('KEY_FILE',     APP_ROOT . '/deploy-agent.key');
 define('ZIP_FILE',     APP_ROOT . '/app.zip');
 define('LOG_FILE',     APP_ROOT . '/logs/deploy-agent.log');
+// DB dumps land here. In production this is /www/backup (the SAME shared dir the
+// old agent's dumps went to — already writable by the web user, already
+// web-protected by the .htaccess). It sits OUTSIDE APP_ROOT, so a deploy/rollback
+// (which only touches APP_ROOT + PUBLIC_HTML) can never clobber a backup.
+define('BACKUP_DIR',   $TEST_ROOT ? $TEST_ROOT . '/backup' : '/home/safro/backup');
 define('MAX_LOG_BYTES', 524288); // 512KB rotation
 
 // Exact filenames never written, even if a zip contained them.
@@ -218,6 +226,164 @@ function restore_release(?string $zipPath): bool
     return $ok;
 }
 
+// --- DB credential lookup (for the dbdump/dbverify steps only) -------------
+// Mirrors the proven deploy-fix.php parsing. Never echoed anywhere.
+// UNIT-TEST-REGION-BEGIN (scripts/test-deploy-agent.php extracts the pure
+// helpers between these two markers; the marker lines are inert comments).
+function env_file_value(string $key): ?string
+{
+    foreach ([STANDALONE . '/.env', APP_ROOT . '/.env', APP_ROOT . '/.env.production'] as $f) {
+        if (!is_file($f)) continue;
+        $txt = (string)file_get_contents($f);
+        if (preg_match('/^\s*' . preg_quote($key, '/') . '\s*=\s*(.+?)\s*$/m', $txt, $m)) {
+            $v = trim($m[1]);
+            if (strlen($v) >= 2 && ($v[0] === '"' || $v[0] === "'") && $v[0] === substr($v, -1)) {
+                $v = substr($v, 1, -1);
+            }
+            if ($v !== '') return $v;
+        }
+    }
+    $v = getenv($key); // .htaccess SetEnv also lands here under Apache/LiteSpeed
+    return ($v !== false && $v !== '') ? (string)$v : null;
+}
+
+function db_pdo_conn(): PDO
+{
+    $url = env_file_value('DATABASE_URL');
+    if (!$url || !preg_match('#^mysql://([^:/]+):([^@]+)@([^/@]+)/([^?\s]+)$#', $url, $m)) {
+        throw new RuntimeException('DATABASE_URL missing or unparseable');
+    }
+    $pdo = new PDO(
+        'mysql:host=' . $m[3] . ';dbname=' . $m[4] . ';charset=utf8mb4',
+        $m[1],
+        rawurldecode($m[2]),
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            // Return every column as a string so the dumper never sees a
+            // DateTime object / float it can't quote. COUNT(*) is cast to int
+            // at the call site, so dbverify is unaffected.
+            PDO::ATTR_STRINGIFY_FETCHES => true,
+        ]
+    );
+    $pdo->exec('SET NAMES utf8mb4'); // must precede byte-wise escaping (see esc_sql)
+    return $pdo;
+}
+
+// Byte-wise MySQL string escaping. SAFE for utf8mb4 only (explicitly set above):
+// UTF-8 continuation bytes are always 10xxxxxx, so no multi-byte sequence can
+// contain 0x27(') or 0x5C(\) — byte-wise replacement cannot split a character.
+// Newlines are escaped as \n, so dumped statements never contain a raw newline
+// inside a string literal — which is what makes statement-splitting safe.
+function esc_sql(?string $v): string
+{
+    if ($v === null) return 'NULL';
+    $v = str_replace(
+        ["\\", "\0", "\n", "\r", "'", '"', "\x1a"],
+        ["\\\\", "\\0", "\\n", "\\r", "\\'", '\\"', "\\Z"],
+        $v
+    );
+    return "'" . $v . "'";
+}
+
+function is_numeric_col(string $type): bool
+{
+    return (bool)preg_match('/^(tinyint|smallint|mediumint|int|integer|bigint|float|double|decimal|numeric|real|bit)/i', $type);
+}
+
+function sql_literal(mixed $v, string $type): string
+{
+    if ($v === null) return 'NULL';
+    $s = (string)$v;
+    // Quote everything except genuinely numeric values in numeric columns.
+    // (Quoting a VARCHAR that looks numeric MUST still happen — quoting keeps
+    // "1e5" from being cast to 100000.)
+    if (is_numeric_col($type) && is_numeric($s)) return $s;
+    return esc_sql($s);
+}
+
+// Build the INSERT statement(s) for one table's rows. Pure (no PDO) so the
+// harness can unit-test the quoting. $columns/$types come from SHOW FULL
+// COLUMNS (same order as SELECT *); $rows is a list of value arrays in that
+// same order. Chunked into multi-row INSERTs so we stay under
+// max_allowed_packet and don't emit one statement per row.
+function build_inserts(string $table, array $columns, array $types, array $rows): string
+{
+    if ($rows === []) return '';
+    $qi = '`' . str_replace('`', '``', $table) . '`';
+    $colList = '`' . implode('`,`', array_map(fn($c) => str_replace('`', '``', $c), $columns)) . '`';
+    $out = '';
+    $buf = [];
+    foreach ($rows as $row) {
+        $lits = [];
+        foreach ($columns as $i => $c) {
+            $lits[] = sql_literal($row[$i] ?? null, $types[$i] ?? '');
+        }
+        $buf[] = '(' . implode(',', $lits) . ')';
+        if (count($buf) >= 200) {
+            $out .= "INSERT INTO $qi ($colList) VALUES\n" . implode(",\n", $buf) . ";\n";
+            $buf = [];
+        }
+    }
+    if ($buf !== []) {
+        $out .= "INSERT INTO $qi ($colList) VALUES\n" . implode(",\n", $buf) . ";\n";
+    }
+    return $out;
+}
+
+// Rewrite a dump so its tables restore as `rt_<name>` instead of colliding with
+// live tables. KEYWORD-ANCHORED: a table name is only rewritten where it follows
+// a keyword that is ALWAYS followed by a TABLE (never a column). This protects
+// `(`id`,`email`)` column lists in an INSERT — if a column ever shared a name
+// with a table it would NOT be corrupted. We also rewrite the FK constraint
+// names (unique per-database in MySQL) so the scratch restore doesn't collide
+// with the live constraint of the same name.
+function prefix_dump_tables(string $sql, array $tables): string
+{
+    $kw = 'CREATE TABLE|DROP TABLE IF EXISTS|DROP TABLE|INSERT INTO|'
+        . 'ALTER TABLE|ALTER IGNORE TABLE|REFERENCES|LOCK TABLES|UNLOCK TABLES|'
+        . 'DELETE FROM|TRUNCATE TABLE|UPDATE';
+    foreach ($tables as $t) {
+        $q = preg_quote($t, '/');
+        $sql = preg_replace(
+            '/\b(' . $kw . ')\s+`' . $q . '`/i',
+            '$1 `rt_' . $t . '`',
+            $sql
+        );
+    }
+    return preg_replace('/\bCONSTRAINT\s+`([A-Za-z0-9]+_ibfk_\d+)`/', 'CONSTRAINT `rt_$1`', $sql);
+}
+
+// Split a dump into executable statements. Safe because esc_sql() guarantees no
+// raw newline exists inside any string literal, so ";\n" only occurs between
+// statements. `--` comment lines are dropped from each chunk.
+function dump_statements(string $sql): array
+{
+    $out = [];
+    foreach (explode(";\n", $sql) as $chunk) {
+        $lines = [];
+        foreach (explode("\n", $chunk) as $ln) {
+            if (preg_match('/^\s*--/', $ln)) continue;
+            $lines[] = $ln;
+        }
+        $stmt = trim(implode("\n", $lines));
+        if ($stmt !== '') $out[] = $stmt;
+    }
+    return $out;
+}
+
+function list_base_tables(PDO $pdo): array
+{
+    return $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+}
+
+function drop_rt_tables(PDO $pdo): array
+{
+    $left = $pdo->query("SHOW TABLES LIKE 'rt\\_%'")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($left as $x) $pdo->exec('DROP TABLE IF EXISTS `' . $x . '`');
+    return $left;
+}
+// UNIT-TEST-REGION-END
+
 // --- Steps -----------------------------------------------------------------
 switch ($step) {
     case 'status':
@@ -356,6 +522,109 @@ switch ($step) {
             'note' => 'restore with step=rollback&release=' . basename($target),
         ]);
 
+    case 'dbdump':
+        set_time_limit(0); // dumping ~20 tables row-by-row
+        try {
+            $pdo = db_pdo_conn();
+        } catch (Throwable $e) {
+            log_line('dbdump connect failed: ' . $e->getMessage());
+            die_err(503, 'db connection failed (see agent log); no dump written');
+        }
+        try {
+            $tables = array_values(array_filter(list_base_tables($pdo),
+                fn($t) => !str_starts_with($t, 'rt_'))); // never dump our own scratch tables
+            if (!$tables) die_err(503, 'no base tables found in database');
+            $counts = [];
+            $totalRows = 0;
+            if (!is_dir(BACKUP_DIR)) @mkdir(BACKUP_DIR, 0755, true);
+            $file = BACKUP_DIR . '/db-' . date('Ymd-His') . '.sql';
+            $fh = fopen($file, 'w');
+            if (!$fh) die_err(503, 'cannot open backup dir for writing');
+            fwrite($fh, "-- Safro deploy-agent DB dump\n-- generated: " . gmdate('c') . "\n");
+            fwrite($fh, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n");
+            foreach ($tables as $t) {
+                $qt = '`' . str_replace('`', '``', $t) . '`';
+                $create = $pdo->query("SHOW CREATE TABLE $qt")->fetch(PDO::FETCH_ASSOC);
+                $ddl = $create['Create Table'] ?? null;
+                if ($ddl === null) { fclose($fh); @unlink($file); die_err(503, "cannot read schema for `$t`; partial dump removed"); }
+                $cols = $pdo->query("SHOW FULL COLUMNS FROM $qt")->fetchAll(PDO::FETCH_ASSOC);
+                $names = array_column($cols, 'Field');
+                $types = array_column($cols, 'Type');
+                $rows = $pdo->query("SELECT * FROM $qt")->fetchAll(PDO::FETCH_NUM);
+                fwrite($fh, "-- {$t}: " . count($rows) . " rows\n");
+                fwrite($fh, "DROP TABLE IF EXISTS $qt;\n");
+                fwrite($fh, $ddl . ";\n");
+                fwrite($fh, build_inserts($t, $names, $types, $rows));
+                fwrite($fh, "\n");
+                $counts[$t] = count($rows);
+                $totalRows += count($rows);
+            }
+            fwrite($fh, "SET FOREIGN_KEY_CHECKS=1;\n");
+            fclose($fh);
+            log_line('dbdump ok file=' . basename($file) . " tables=" . count($tables) . " rows=$totalRows");
+            respond(200, [
+                'ok' => true, 'file' => basename($file), 'path' => BACKUP_DIR,
+                'bytes' => is_file($file) ? filesize($file) : 0,
+                'tables' => count($tables), 'total_rows' => $totalRows,
+                'rows' => $counts,
+            ]);
+        } catch (Throwable $e) {
+            log_line('dbdump failed: ' . $e->getMessage());
+            die_err(503, 'db dump failed: ' . substr($e->getMessage(), 0, 200));
+        }
+
+    case 'dbverify':
+        $file = (string)($_REQUEST['file'] ?? '');
+        if (!preg_match('/^db-\d{8}-\d{6}\.sql$/', $file)) {
+            die_err(400, "give file=db-YYYYMMDD-HHMMSS.sql (the basename from step=dbdump)");
+        }
+        $path = BACKUP_DIR . '/' . $file;
+        if (!is_file($path)) die_err(404, 'no such dump in backup dir');
+        try {
+            $pdo = db_pdo_conn();
+        } catch (Throwable $e) {
+            log_line('dbverify connect failed: ' . $e->getMessage());
+            die_err(503, 'db connection failed (see agent log)');
+        }
+        $sql = (string)file_get_contents($path);
+        if ($sql === '') die_err(422, 'dump file empty');
+        try {
+            drop_rt_tables($pdo); // clean any leftover scratch from a failed run
+            $stmts = dump_statements($sql);
+            // Which tables will be created as rt_ scratch? Read them from the dump's
+            // CREATE TABLE statements so we know what to compare + drop afterwards.
+            $scratch = [];
+            foreach ($stmts as $s) {
+                if (preg_match('/^CREATE TABLE `([^`]+)`/i', $s, $m)) $scratch[] = $m[1];
+            }
+            $applied = 0;
+            foreach ($stmts as $s) {
+                $pdo->exec(prefix_dump_tables($s, $scratch));
+                $applied++;
+            }
+            // Compare live vs restored row counts.
+            $cmp = [];
+            $okAll = true;
+            foreach ($scratch as $orig) {
+                $live = (int)$pdo->query('SELECT COUNT(*) FROM `' . str_replace('`', '``', $orig) . '`')->fetchColumn();
+                $restored = (int)$pdo->query('SELECT COUNT(*) FROM `rt_' . str_replace('`', '``', $orig) . '`')->fetchColumn();
+                $match = ($live === $restored);
+                if (!$match) $okAll = false;
+                $cmp[$orig] = ['live' => $live, 'restored' => $restored, 'match' => $match];
+            }
+            $left = drop_rt_tables($pdo);
+            log_line('dbverify ' . ($okAll ? 'ok' : 'MISMATCH') . " file=$file applied=$applied");
+            respond($okAll ? 200 : 422, [
+                'ok' => $okAll, 'file' => $file, 'statements_applied' => $applied,
+                'tables' => count($scratch), 'rows_match' => $cmp,
+                'scratch_dropped' => count($left) === 0,
+            ]);
+        } catch (Throwable $e) {
+            drop_rt_tables($pdo); // never leave scratch tables behind
+            log_line('dbverify failed: ' . $e->getMessage());
+            die_err(422, 'db verify failed (scratch cleaned up): ' . substr($e->getMessage(), 0, 200));
+        }
+
     default:
-        die_err(400, "unknown step '$step' (status|build-check|deploy|rollback|snapshot)");
+        die_err(400, "unknown step '$step' (status|build-check|deploy|rollback|snapshot|dbdump|dbverify)");
 }
