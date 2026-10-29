@@ -231,13 +231,14 @@ export async function seedScratchDatabase(databaseUrl?: string) {
     })
 
     // ── 4. Create Buses & Layouts ───────────────────────────────────
-    // Bus 1: 40 seats Coach bus
+    // Bus 1: 41 seats Coach bus — 9 rows × 4 + a 5-seat back bench (row J),
+    // the layout the seatmap-mobile spec pins (count + no-aisle bench).
     const coachBus = await prisma.bus.create({
       data: {
         id: 'bus-coach-40',
         name: 'Coach 01',
         type: 'COACH_BUS',
-        seatCount: 40,
+        seatCount: 41,
         companyId: cairoExpress.id,
       },
     })
@@ -247,16 +248,20 @@ export async function seedScratchDatabase(databaseUrl?: string) {
         id: 'layout-coach-40',
         busId: coachBus.id,
         rows: 10,
-        cols: 4,
+        cols: 5,
         aisleAfter: 2,
-        colsPerRow: JSON.stringify(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [String.fromCharCode(65 + i), 4]))),
+        colsPerRow: JSON.stringify({
+          ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [String.fromCharCode(65 + i), 4])),
+          J: 5,
+        }),
       },
     })
 
     const coachSeats = []
     const rowLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
     for (let r = 0; r < 10; r++) {
-      for (let c = 1; c <= 4; c++) {
+      const cols = r === 9 ? 5 : 4 // row J: continuous 5-seat back bench
+      for (let c = 1; c <= cols; c++) {
         coachSeats.push({
           id: `seat-coach-${r}-${c}`,
           layoutId: coachLayout.id,
@@ -573,7 +578,7 @@ export async function seedScratchDatabase(databaseUrl?: string) {
       },
     })
 
-    // 7. Normal trip with 40 seats (available for customer & company golden flow)
+    // 7. Normal trip with 41 seats (available for customer & company golden flow)
     const tripNormal40 = await prisma.trip.create({
       data: {
         id: 'trip-normal-40',

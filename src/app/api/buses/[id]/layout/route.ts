@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { seatCapError } from '@/lib/seat-layout'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -32,6 +33,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id } = await params
     const { rows, cols, aisleAfter, colsPerRow, seats } = await req.json()
+
+    // Max 5 seats per row. This handler is the ONLY place seat layouts are
+    // written (bus creation redirects straight into it), so the cap is
+    // checked here — before the delete below, so a rejected payload never
+    // destroys the layout it was meant to replace. Counting actual seats,
+    // not the colsPerRow span: legacy rows with an aisle hole (Safro101's
+    // row M: span 6, 5 seats) remain saveable.
+    if (!Array.isArray(seats)) {
+      return NextResponse.json({ error: 'Missing seats' }, { status: 400 })
+    }
+    const capError = seatCapError(seats)
+    if (capError) return NextResponse.json({ error: capError }, { status: 400 })
 
     const existing = await prisma.busLayout.findUnique({ where: { busId: id } })
     if (existing) {

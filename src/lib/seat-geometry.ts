@@ -17,10 +17,12 @@
  *  - The aisle sits before column `aisleAfter + 1`, and only in rows wide
  *    enough to have one (4+ seats). Rows of 2–3 seats render as one block.
  *  - Back-bench exception: the LAST row of a coach is commonly one
- *    continuous 5-seat bench (2 + 3). Users asked for those five seats to
- *    sit adjacent with no aisle between them, so the gap is suppressed when
- *    the last row has exactly 5 seats. This applies automatically to every
- *    layout — no per-bus configuration.
+ *    continuous bench (2 + 3). Users asked for those seats to sit adjacent
+ *    with no aisle between them, so the gap is suppressed when the last row
+ *    spans 5 columns — the bench every new layout builds — or 6, the legacy
+ *    span of prod bus Safro101's row M (5 seats over 6 columns with an aisle
+ *    hole at column 3). Applies automatically to every layout — no per-bus
+ *    configuration. Only the last row gets this: mid rows keep their aisle.
  */
 export function hasAisleGap(params: {
   col: number;
@@ -33,6 +35,6 @@ export function hasAisleGap(params: {
   if (col !== aisleAfter + 1) return false;
   if (rowSeatCount <= 3) return false;
   const isLastRow = rowIdx === rows - 1;
-  if (isLastRow && rowSeatCount === 5) return false;
+  if (isLastRow && (rowSeatCount === 5 || rowSeatCount === 6)) return false;
   return true;
 }

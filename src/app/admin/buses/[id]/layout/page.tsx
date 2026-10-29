@@ -12,11 +12,17 @@ import { V2Field, V2Input, V2Select } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2Skeleton } from '@/components/v2/ui';
 import { BUS_TYPES } from '@/lib/bus-types';
+import { MAX_SEATS_PER_ROW } from '@/lib/seat-layout';
+import { hasAisleGap } from '@/lib/seat-geometry';
 
 /* V2 bus layout + stations editor — same load/save APIs as V1. */
 
-const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-const MAX_ROWS = 12;
+// Row letters must cover every layout the public seat-map renderer draws
+// (src/app/trips/[id]/page.tsx goes to P): prod bus Safro101 has 13 rows (A–M),
+// and with only A–L row M rendered as an undefined label whose "add seat"
+// buttons minted seats called "undefined3".
+const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'];
+const MAX_ROWS = ROWS.length;
 
 type SeatType = 'NORMAL' | 'VIP' | 'DISABLED';
 interface SeatDraft { label: string; row: number; col: number; type: SeatType; price: number }
@@ -143,14 +149,22 @@ export default function BusLayoutPage() {
         credentials: 'include',
         body: JSON.stringify({
           rows: totalRows,
-          cols: 6,
+          // Widest row actually in the grid (spans include aisle holes, so a
+          // 5-seat row over 6 columns legitimately reports 6) — the old
+          // hardcoded 6 claimed six columns even for a 4-wide mini bus.
+          cols: Math.max(1, ...Array.from({ length: totalRows }, (_, i) => colsPerRow[ROWS[i]] || 0)),
           aisleAfter,
           colsPerRow: JSON.stringify(colsPerRow),
           seats,
         }),
       });
       if (res.ok) router.push('/admin/buses');
-      else toast.error(t('common.error'));
+      else {
+        // e.g. the 5-seats-per-row cap — show the server's reason, not a
+        // generic failure, so the admin knows what to change.
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.error || t('common.error'));
+      }
     } catch {
       toast.error(t('common.error'));
     } finally {
@@ -233,9 +247,9 @@ export default function BusLayoutPage() {
                   <div key={rowIdx} className="flex items-center gap-1.5">
                     <span className="w-6 shrink-0 text-center text-[11px] font-bold tabular-nums text-[#9AA8BD]">{letter}</span>
                     <input
-                      type="number" min="1" max="6" value={count}
+                      type="number" min="1" max={MAX_SEATS_PER_ROW} value={count}
                       onChange={(e) => {
-                        const c = Math.max(1, Math.min(6, Number(e.target.value) || 1));
+                        const c = Math.max(1, Math.min(MAX_SEATS_PER_ROW, Number(e.target.value) || 1));
                         const next = { ...colsPerRow, [letter]: c };
                         setColsPerRow(next);
                         setSeats((prev) => cleanOrphans(prev, totalRows, next));
@@ -247,7 +261,9 @@ export default function BusLayoutPage() {
                     {Array.from({ length: count }, (_, colIdx) => {
                       const col = colIdx + 1;
                       const seat = seats.find((s) => s.row === rowIdx && s.col === col);
-                      const isAisle = col === aisleAfter + 1 && count > 3;
+                      // Same rule every renderer applies — so the back bench
+                      // previews exactly as the public seat map will draw it.
+                      const isAisle = hasAisleGap({ col, aisleAfter, rowSeatCount: count, rowIdx, rows: totalRows });
                       if (!seat) {
                         return (
                           <button

@@ -95,6 +95,9 @@ test.describe('Phase A: Page Health - Customer Role', () => {
   // even though they are where a long reference or a route heading would
   // widen the page.
   test('health check for customer on the first booking detail and ticket', async ({ page }) => {
+    // List navigation + two full health checks (detail, ticket) — the same
+    // multi-step shape phase-b raises to 90s;60s runs out on a dev server.
+    test.setTimeout(90_000);
     // The first id exists only in the --big fixture; listed first is the one
     // the standard seed carries, so the fallback resolves to a booking whose
     // ticket endpoint actually has something to serve.
@@ -161,6 +164,8 @@ test.describe('Phase A: Page Health - Company Manager Role', () => {
   // The company booking detail is the page a company manager lives on, and
   // it leads with the booking reference as its heading.
   test('health check for company manager on the first booking detail and ticket', async ({ page }) => {
+    // List navigation + two full health checks (detail, ticket):90s like phase-b.
+    test.setTimeout(90_000);
     const detail = await resolveFirstBookingHref(page, '/company/bookings', /^\/company\/bookings\/[^/]+$/, ['cb-e2e-cancel-test']);
     await assertPageHealth(page, detail);
     await assertPageHealth(page, `${detail}/print`);
@@ -215,9 +220,16 @@ test.describe('Phase A: Page Health - Super Admin Role', () => {
   // Trip passengers, trip seats and bus layout are dense grids reached from
   // a list, and none of them were health-checked.
   test('health check for super admin on the first trip passengers and seats pages', async ({ page }) => {
+    // List navigation + two full health checks (seats, passengers):90s like phase-b.
+    test.setTimeout(90_000);
     await page.goto('/admin/trips');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForSelector('a[href*="/seats"]', { timeout: 30_000 }).catch(() => {});
+    // Wait for a TRIP ROW's seats link, not any link containing "/seats" —
+    // the sidebar's /admin/seats matched the looser selector instantly, so
+    // this wait was a no-op and the list was read before /api/trips returned.
+    await page
+      .waitForSelector('a[href^="/admin/trips/"][href$="/seats"]', { timeout: 30_000 })
+      .catch(() => {});
     await page.waitForTimeout(600);
     const seats = await resolveHref(page, /^\/admin\/trips\/[^/]+\/seats$/);
     await assertPageHealth(page, seats);
@@ -228,7 +240,14 @@ test.describe('Phase A: Page Health - Super Admin Role', () => {
     await page.goto('/admin/buses');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(600);
-    const layoutButton = page.locator('[aria-label="Layout"]').first();
+    // Two renderings of the same action: the desktop table's icon button is
+    // identified by aria-label (it has no text), the mobile card's button by
+    // its visible text — no aria-label there, so the name follows the locale
+    // (WCAG 2.5.3 Label in Name). :visible picks whichever is on screen; the
+    // hidden variant still matches the DOM at every width.
+    const layoutButton = page
+      .locator('[aria-label="Layout"]:visible, button:visible:has-text("التخطيط"), button:visible:has-text("Layout")')
+      .first();
     await expect(layoutButton).toBeVisible();
     await layoutButton.click();
     await page.waitForURL(/\/admin\/buses\/[^/]+\/layout/, { timeout: 25_000 });

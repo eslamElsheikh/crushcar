@@ -15,7 +15,14 @@ const env = {
   PORT: '3002',
   NEXTAUTH_URL: 'http://127.0.0.1:3002',
   NODE_ENV: 'development',
-  NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --max-old-space-size=4096`.trim(),
+  // Next dev checks used_heap > 0.8 × heap_size_limit after EVERY request and
+  // self-restarts when it crosses (hardcoded, no config knob). At the default
+  // 4096MB the limit is ~4.4GB, so the threshold (~3.5GB) is hit ~15 min into
+  // a full e2e run — the 8-20s outage + wiped compile cache then fails
+  // otherwise-green tests (ERR_CONNECTION_REFUSED, ClientFetchError, empty
+  // lists). 8192 puts the threshold (~6.8GB) above anything a run produces:
+  // observed peaks are ~3.5GB, and raising the limit allocates nothing.
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --max-old-space-size=8192`.trim(),
 }
 
 const child = spawn('npx', ['next', 'dev', '-p', '3002'], {

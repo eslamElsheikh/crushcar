@@ -23,6 +23,10 @@ export async function assertPageHealth(
     const text = msg.text();
     // Exclude react-query or harmless next-auth noise if any
     if (msg.type() === 'error') {
+      // Chromium stopped putting the failing URL in the message text, so the
+      // favicon.ico exemption below must also look at msg.location().url.
+      const locUrl = typeof msg.location === 'function' ? msg.location()?.url ?? '' : '';
+      if (text.includes('favicon.ico') || locUrl.includes('favicon.ico')) return;
       consoleErrors.push(text);
     } else if (msg.type() === 'warning' && text.toLowerCase().includes('hydration')) {
       consoleErrors.push(`Hydration warning: ${text}`);
