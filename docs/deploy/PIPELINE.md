@@ -167,20 +167,29 @@ Done by hand over FTP, once:
 3. Verify it is inert without the key and live with it:
    - `curl https://safrotravel.com/deploy-agent.php` → 403 "not configured"
    - `curl -X POST --data-urlencode "key=<KEY>" --data-urlencode "step=status" https://safrotravel.com/deploy-agent.php` → JSON with both BUILD_IDs
-4. Create the initial rollback artifact:
+4. Take a fresh DB backup and prove it restores cleanly (pure PHP, no
+   mysqldump/SSH needed — this is the safety net before any code changes):
+   - `curl -X POST --data-urlencode "key=<KEY>" --data-urlencode "step=dbdump" https://safrotravel.com/deploy-agent.php`
+     → writes `backup/db-<ts>.sql`, returns table + row counts.
+   - `curl -X POST --data-urlencode "key=<KEY>" --data-urlencode "step=dbverify" --data-urlencode "file=<basename from dbdump>" https://safrotravel.com/deploy-agent.php`
+     → restores into `rt_`-prefixed scratch tables, compares row counts, drops
+       the scratch tables. `rows_match` all `true` + `scratch_dropped: true`.
+5. Create the initial rollback artifact:
    `curl -X POST --data-urlencode "key=<KEY>" --data-urlencode "step=snapshot" https://safrotravel.com/deploy-agent.php`
    → `travel-app/releases/app-<ts>.zip` (zips the current standalone tree).
-5. **Delete the old agent** `public_html/deploy-fix.php` — it authenticates with
+6. **Delete the old agent** `public_html/deploy-fix.php` — it authenticates with
    a short, guessable, hardcoded key committed to this repo's history, and its
    `fulldeploy` endpoint can wipe the app dir. As long as it exists, anyone who
    can guess that key can overwrite production. Confirm it is gone:
    `curl -s -o /dev/null -w '%{http_code}' https://safrotravel.com/deploy-fix.php?key=<OLD>&step=status` → 404.
-6. Set the six GitHub secrets, then push / run the workflow.
+7. Set the six GitHub secrets, then push / run the workflow.
 
 ## First production run — verification checklist
 
 - [ ] `step=status` shows `ZipArchive ok`, `build_ids_match: true`, and the
       expected `standalone_build`/`static_build`
+- [ ] Fresh `step=dbdump` wrote `backup/db-<ts>.sql`; `step=dbverify` on it
+      returned all `rows_match: true` and `scratch_dropped: true`
 - [ ] `step=snapshot` produced `travel-app/releases/app-<ts>.zip` (rollback source exists)
 - [ ] Old `deploy-fix.php` returns 404
 - [ ] Workflow run is green through "Verify live site"
@@ -202,6 +211,10 @@ Done by hand over FTP, once:
 - **Restart:** `touch tmp/restart.txt` (Passenger). Takes a few seconds; the
   health check retries for 5 minutes.
 - **Logs:** `/home/safro/travel-app/logs/deploy-agent.log` (rotates at 512KB).
+- **DB backups:** `step=dbdump` dumps every table to `backup/db-<ts>.sql` in pure
+  PHP (no mysqldump/SSH). `step=dbverify` restores a dump into `rt_`-prefixed
+  scratch tables and compares row counts — it never writes to live tables and
+  drops the scratch tables when done. Both run under the same agent key.
 - **Legacy junk** in the app root (`nm-s*.zip` shards, `server.zip`,
   `static.zip`, `public.zip` — ~135MB) is left alone by the agent and excluded
   from snapshots. Removing it needs explicit approval.
