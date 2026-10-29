@@ -14,6 +14,24 @@ export const metadata: Metadata = {
   },
 }
 
+/**
+ * Every page is rendered per request, on purpose.
+ *
+ * src/middleware.ts mints a fresh CSP nonce for each request and hands it to
+ * the renderer through the request headers; Next stamps it onto the <script>
+ * tags it emits. A statically prerendered page is rendered once at *build*
+ * time — there is no request and no nonce — so its HTML ships without one,
+ * while the per-request CSP header still arrives at the browser. The browser
+ * then blocks every chunk ('strict-dynamic' never gets an initiator), React
+ * never hydrates, and the user sees a black page with a permanent spinner.
+ *
+ * So no page under this layout may be prerendered. `dynamic` set in a layout
+ * is collected for every route beneath it (see Next's reduceAppConfig), and
+ * nothing below re-declares it. The cost is one render per request; the
+ * alternative is a site that loads once and never runs.
+ */
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({
   children,
 }: {
