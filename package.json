@@ -55,6 +55,7 @@
     "reconcile:balances": "node scripts/reconcile-balances.mjs",
     "reconcile:platform": "node scripts/reconcile-platform-wallet.mjs",
     "deploy:generate": "prisma generate --schema=prisma/schema.mysql.prisma",
+    "deploy:bundle": "node scripts/assemble-standalone.mjs && node scripts/zip-deploy.mjs deploy/app.zip deploy/standalone-app",
     "deploy:sharp": "node scripts/vendor-sharp-linux.mjs",
     "deploy:package": "node scripts/deploy.mjs",
     "deploy:check": "node scripts/deploy.mjs --check",

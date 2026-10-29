@@ -1,52 +1,163 @@
-name: Deploy to Vercel
+name: Deploy to cPanel (SafroTravel production)
+
+# Push-to-deploy pipeline for the existing cPanel/CloudLinux host.
+# Build runs on Linux => Prisma query engines and sharp are native debian
+# binaries, matching production (Passenger, Node 24). No secrets are needed at
+# build time: every route is force-dynamic (no DB during build) and production
+# has zero NEXT_PUBLIC_* vars. NEXTAUTH_URL is the only baked-in value and it
+# is a constant (sitemap/robots generation).
+#
+# Production deploys to TWO targets (see docs/deploy/PIPELINE.md): the Node
+# server tree at travel-app/.next/standalone AND the Apache-served static dir
+# at public_html/_next/static/<BUILD_ID>/. The agent updates both; we verify
+# the Node tree's BUILD_ID and that the static per-build dir is in place.
+#
+# Required repo secrets:
+#   FTP_HOST      from DEPLOY.md (host name / IP)
+#   FTP_USER      from DEPLOY.md
+#   FTP_PASS      FTP password
+#   FTP_BASE_PATH /travel-app   (FTP cwd is /home/safro; app.zip -> travel-app/)
+#   AGENT_URL     https://safrotravel.com/deploy-agent.php
+#   AGENT_KEY     32+ char key, must equal contents of travel-app/deploy-agent.key
 
 on:
   push:
-    branches: [master]
-  workflow_dispatch:
+    branches: [fix/seatmap-mobile]
+  workflow_dispatch: # manual deploy of any branch from the Actions tab
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false # never kill a deploy that is mid-extract
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Lint + test deploy agent
+        # The agent is uploaded to the server by hand, once. Catching a syntax
+        # error or a broken guard here is far cheaper than finding it live.
+        run: |
+          php -l scripts/deploy-agent.php
+          php scripts/test-deploy-agent.php
+
+      - name: Setup Node.js (production runs Node 24)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci # .npmrc sets legacy-peer-deps=true
 
-      - name: Create Environment Files
+      - name: Generate Prisma client (MySQL schema)
+        run: npm run deploy:generate
+
+      - name: Build (Next.js standalone)
+        env:
+          NEXTAUTH_URL: https://www.safrotravel.com
+        run: npm run build
+
+      - name: Assemble + zip deploy artifact
         run: |
-          cp .env.example .env
-          echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> .env
-          echo "NEXTAUTH_URL=https://${{ vars.VERCEL_PROJECT_NAME }}.vercel.app" >> .env
-          echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" >> .env
-          echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
-          echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}" >> .env
-          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
-          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
-          echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
-          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
-          echo "SMTP_FROM=${{ secrets.SMTP_FROM }}" >> .env
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
-          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env
+          npm run deploy:bundle
+          echo "BUILD_ID=$(cat .next/BUILD_ID)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Built \`$(cat .next/BUILD_ID)\` -> deploy/app.zip" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run Prisma migrations
-        run: npx prisma migrate deploy
+      - name: Upload app.zip via FTP
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          FTP_BASE_PATH: ${{ secrets.FTP_BASE_PATH }}
+        run: |
+          set -euo pipefail
+          # curl config avoids shell-escaping problems in passwords.
+          esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+          {
+            printf 'user = "%s:%s"\n' "$(esc "$FTP_USER")" "$(esc "$FTP_PASS")"
+          } > "$RUNNER_TEMP/ftp.conf"
+          curl --fail --silent --show-error \
+            --config "$RUNNER_TEMP/ftp.conf" \
+            --ftp-create-dirs \
+            --connect-timeout 30 --max-time 900 \
+            -T deploy/app.zip \
+            "ftp://${FTP_HOST}${FTP_BASE_PATH}/app.zip"
+          rm -f "$RUNNER_TEMP/ftp.conf"
+          echo "Uploaded deploy/app.zip" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
+      - name: Trigger server-side deploy
+        id: deploy
+        env:
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_KEY: ${{ secrets.AGENT_KEY }}
+        run: |
+          set -euo pipefail
+          # POST so the key never lands in server access logs as a query string.
+          resp=$(curl --fail --silent --show-error --max-time 900 \
+            --data-urlencode "key=$AGENT_KEY" --data-urlencode "step=deploy" \
+            "$AGENT_URL")
+          echo "$resp"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$resp" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Verify live site
+        env:
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_KEY: ${{ secrets.AGENT_KEY }}
+        run: |
+          set -euo pipefail
+          ok=""
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' \
+              --max-time 20 https://www.safrotravel.com/api/health || echo 000)
+            if [ "$code" = "200" ] && grep -q '"status":"healthy"' /tmp/health.json; then
+              ok=1; break
+            fi
+            echo "health attempt $i: http=$code $(cat /tmp/health.json 2>/dev/null || true)"
+            sleep 10
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::production did not report healthy within 5 minutes"
+            cat /tmp/health.json 2>/dev/null || true
+            exit 1
+          fi
+          build=$(curl --fail --silent --show-error --max-time 60 \
+            --data-urlencode "key=$AGENT_KEY" --data-urlencode "step=build-check" \
+            "$AGENT_URL")
+          echo "$build"
+          echo "Live BUILD_ID check: $build" >> "$GITHUB_STEP_SUMMARY"
+          bid=$(cat .next/BUILD_ID)
+          # The Node tree must carry this build, and the Apache static target
+          # must have this build's /_next/static/<BUILD_ID>/ directory in place.
+          grep -q "\"standalone_build\": \"$bid\"" <<< "$build" || {
+            echo "::error::Node tree BUILD_ID != $bid"; exit 1; }
+          grep -q '"build_ids_match": true' <<< "$build" || {
+            echo "::error::Apache static target missing $bid (pages would 404/stale)"; exit 1; }
+          echo "✅ Deployed, healthy, Node tree + Apache static both at $bid" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build Project
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Rollback on failure
+        if: failure()
+        env:
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_KEY: ${{ secrets.AGENT_KEY }}
+        run: |
+          set -uo pipefail
+          echo "Deploy failed — attempting server-side rollback to previous release"
+          curl --silent --show-error --max-time 900 \
+            --data-urlencode "key=$AGENT_KEY" --data-urlencode "step=rollback" \
+            "$AGENT_URL" || echo "rollback call failed"
+          # Confirm the site came back after rollback.
+          for i in $(seq 1 18); do
+            code=$(curl -s -o /tmp/rb.json -w '%{http_code}' \
+              --max-time 20 https://www.safrotravel.com/api/health || echo 000)
+            [ "$code" = "200" ] && grep -q '"status":"healthy"' /tmp/rb.json && {
+              echo "Rollback restored service" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+            sleep 10
+          done
+          echo "::error::rollback did not restore health — MANUAL INTERVENTION REQUIRED" \
+            "see docs/deploy/ROLLBACK.md"
+          exit 1

@@ -23,6 +23,14 @@ vercel.json
 tsconfig.tsbuildinfo
 .opencode/
 
+# CI build artifacts (assemble-standalone.mjs + zip-deploy.mjs). ~60-100MB per
+# build; rebuilt on every pipeline run, never committed.
+/deploy/
+# The deploy agent's auth key. The agent (scripts/deploy-agent.php) IS tracked —
+# it contains no secrets — but its key file is uploaded to the server by hand
+# and must never enter git.
+/scripts/deploy-agent.key
+
 # Contains live production secrets or a dump of the live database
 # (customer names, phone numbers, password hashes), or a hardcoded deploy key.
 # Keep them out of version control; they live on the operator's machine.
