@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { lockRow } from '@/lib/row-lock'
-import { resolveBookingLimits } from '@/lib/company-quota'
+import { resolveBookingLimits, assertRoundTripSeatParity } from '@/lib/company-quota'
 import { chargeCompanyWithCreditTopUp, splitCharge } from '@/lib/company-charge'
 import { audit } from '@/lib/audit'
 import { parseCollectAmount } from '@/lib/validations'
@@ -209,6 +209,14 @@ export async function POST(req: NextRequest) {
         roundTripGroupId: roundTripGroupId || null,
       })
 
+      // Same round-trip rule as the company's own path: the return leg must
+      // cover exactly the seats the outbound leg created.
+      await assertRoundTripSeatParity(tx, {
+        companyId,
+        roundTripGroupId: roundTripGroupId || null,
+        requestedSeats: priced.length,
+      })
+
       // Every seat is checked before anything is written: it has to exist,
       // it must not be blocked, and it must be free for the leg being
       // booked.
@@ -404,6 +412,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'SEAT_CAP_EXCEEDED', message: `الحد الأقصى للحجز الواحد ${err.max} مقاعد` },
         { status: 413 },
+      )
+    }
+    if (code === 'ROUND_TRIP_SEAT_MISMATCH') {
+      return NextResponse.json(
+        {
+          error: 'ROUND_TRIP_SEAT_MISMATCH',
+          message: `عدد مقاعد العودة يجب أن يساوي عدد مقاعد الذهاب (${err.expected})`,
+          expected: err.expected,
+          requested: err.requested,
+        },
+        { status: 400 },
       )
     }
     if (code === 'TRIP_QUOTA_EXCEEDED') {

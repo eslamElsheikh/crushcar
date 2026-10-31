@@ -12,6 +12,20 @@ import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 company bookings list — same ?status&q&page API as V1. */
 
+/* A booking in a round-trip group is shown as linked to its other leg.
+   The group id is shared by both legs; the earlier departure is the
+   outbound (ذهاب) and the later one the return (عودة). */
+function roundTripLegLabel(b: any, all: any[], isRTL: boolean): string | null {
+  if (!b.roundTripGroupId) return null;
+  const group = all.filter((x) => x.roundTripGroupId === b.roundTripGroupId);
+  if (group.length < 2) return isRTL ? 'ضمن رحلة ذهاب وعودة' : 'Part of a round trip';
+  const dep = (x: any) => new Date(x.actualDeparture || x.trip?.departure || 0).getTime();
+  const sorted = [...group].sort((a, b2) => dep(a) - dep(b2));
+  return sorted[0].id === b.id
+    ? (isRTL ? 'ذهاب' : 'Outbound')
+    : (isRTL ? 'عودة' : 'Return');
+}
+
 export default function CompanyBookingsPage() {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
@@ -104,6 +118,11 @@ export default function CompanyBookingsPage() {
                       {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
                     <span className="min-w-0 max-w-full break-all font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
+                    {roundTripLegLabel(b, bookings, isRTL) && (
+                      <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                        {roundTripLegLabel(b, bookings, isRTL)}
+                      </span>
+                    )}
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
                       {(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                     </span>

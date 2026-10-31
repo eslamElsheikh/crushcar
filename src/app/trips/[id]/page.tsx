@@ -423,9 +423,21 @@ function TripDetailPageContent() {
 
   function toggleReturnSeat(label: string) {
     if (returnReservedSeats.has(label)) return;
-    setReturnSelectedSeats((prev) =>
-      prev.includes(label) ? prev.filter((s) => s !== label) : [...prev, label]
-    );
+    setReturnSelectedSeats((prev) => {
+      if (prev.includes(label)) return prev.filter((s) => s !== label);
+      // Round trip rule: the number of return seats must equal the number of
+      // outbound seats. The server enforces this too (with an Arabic error)
+      // so a UI that bypasses this check cannot create a mismatched leg.
+      if (prev.length >= selectedSeats.length) {
+        toast.error(isRTL ? 'عدد مقاعد العودة يجب أن يساوي عدد مقاعد الذهاب' : 'Return seats must equal outbound seats');
+        return prev;
+      }
+      if (seatCap !== null && prev.length >= seatCap) {
+        toast.error(isRTL ? `الحد الأقصى ${seatCap} مقاعد في الحجز الواحد` : `At most ${seatCap} seats in one booking`);
+        return prev;
+      }
+      return [...prev, label];
+    });
   }
 
   function scrollToReturn() {
@@ -596,7 +608,11 @@ function TripDetailPageContent() {
       }
       // SUPER_ADMIN: the platform pays for the seat from its own wallet, so
       // there is no receipt to ask for and no company to charge.
-      if (session.user.role === 'SUPER_ADMIN') {
+      //
+      // This must be an `else if`: it used to be a standalone `if`, so a
+      // COMPANY_ADMIN fell through the company branch above into the
+      // customer branch below and re-posted every seat to /api/bookings.
+      else if (session.user.role === 'SUPER_ADMIN') {
         // When the admin is booking on a company's behalf, the company's
         // wallet pays and the booking belongs to that company. The platform
         // wallet is not touched at all in that case.

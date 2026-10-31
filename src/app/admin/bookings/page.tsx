@@ -21,6 +21,20 @@ const PROOF_REQUIRED_FROM_MS = new Date(
   process.env.NEXT_PUBLIC_PROOF_REQUIRED_FROM || '2026-07-01T00:00:00Z'
 ).getTime();
 
+/* Round-trip legs are linked by roundTripGroupId. The earlier departure is
+   the outbound leg, the later one the return, so the admin list can label
+   both without a stored direction column. */
+function roundTripLegLabel(b: any, all: any[], isRTL: boolean): string | null {
+  if (!b.roundTripGroupId) return null;
+  const group = all.filter((x) => x.roundTripGroupId === b.roundTripGroupId);
+  if (group.length < 2) return isRTL ? 'ذهاب وعودة' : 'Round trip';
+  const dep = (x: any) => new Date(x.actualDeparture || x.trip?.departure || 0).getTime();
+  const sorted = [...group].sort((a, b2) => dep(a) - dep(b2));
+  return sorted[0].id === b.id
+    ? (isRTL ? 'ذهاب' : 'Outbound')
+    : (isRTL ? 'عودة' : 'Return');
+}
+
 export default function AdminBookings() {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
@@ -258,7 +272,14 @@ export default function AdminBookings() {
               </span>
             );
             const cells = [
-              <span key="r" className="break-all font-mono text-[12.5px] tabular-nums" dir="ltr" style={{ textAlign: 'start' }}>{b.reference}</span>,
+              <span key="r" className="break-all font-mono text-[12.5px] tabular-nums" dir="ltr" style={{ textAlign: 'start' }}>
+                {b.reference}
+                {roundTripLegLabel(b, bookings, isRTL) && (
+                  <span className="ms-1.5 inline-flex items-center rounded-full bg-indigo-50 px-1.5 py-0.5 font-sans text-[10.5px] font-bold text-indigo-700">
+                    {roundTripLegLabel(b, bookings, isRTL)}
+                  </span>
+                )}
+              </span>,
               <span key="c">
                 <span className="block font-bold break-words">{b.passengerName}</span>
                 <span className="block text-[12.5px] font-normal tabular-nums text-[var(--sp-text-muted)]" dir="ltr" style={{ textAlign: 'start' }}>{b.passengerPhone}</span>

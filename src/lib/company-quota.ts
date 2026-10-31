@@ -1,5 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
+import { randomUUID } from 'crypto'
 import { lockRow } from './row-lock'
+import { dbDialect } from './prisma'
 import {
   SEAT_HOLDING_STATUSES,
   effectiveDailyCap,
@@ -35,6 +37,43 @@ export class SeatCapExceededError extends Error {
   constructor(readonly max: number) {
     super('Seat cap exceeded')
     this.name = 'SeatCapExceededError'
+  }
+}
+
+/**
+ * The second leg of a round trip must cover exactly as many seats as the
+ * first. A round trip is posted as two requests sharing one
+ * `roundTripGroupId`; the first creates the outbound rows, so any later
+ * request must match the count already in the group. The seat UI enforces
+ * this too, but the rule belongs on the server: a direct API call that
+ * bypasses the UI used to be able to book 10 outbound and 12 return seats.
+ */
+export class RoundTripSeatMismatchError extends Error {
+  readonly code = 'ROUND_TRIP_SEAT_MISMATCH'
+  constructor(readonly expected: number, readonly requested: number) {
+    super(`ROUND_TRIP_SEAT_MISMATCH:${expected}:${requested}`)
+    this.name = 'RoundTripSeatMismatchError'
+  }
+}
+
+export async function assertRoundTripSeatParity(
+  tx: Prisma.TransactionClient,
+  args: {
+    companyId: string
+    roundTripGroupId?: string | null
+    requestedSeats: number
+  },
+): Promise<void> {
+  if (!args.roundTripGroupId) return
+  const existing = await tx.companyBooking.count({
+    where: {
+      companyId: args.companyId,
+      roundTripGroupId: args.roundTripGroupId,
+      status: { in: [...SEAT_HOLDING_STATUSES] },
+    },
+  })
+  if (existing > 0 && args.requestedSeats !== existing) {
+    throw new RoundTripSeatMismatchError(existing, args.requestedSeats)
   }
 }
 
@@ -136,23 +175,56 @@ async function ensureAndLockQuota(
   table: 'CompanyTripQuota' | 'CompanyRouteQuota',
   where: { companyId: string; tripId?: string; routeKey?: string; travelDate?: string },
 ): Promise<{ id: string; maxSeats: number | null } | null> {
+  // The upsert is expressed twice because the two dialects spell it
+  // differently. Without the SQLite branch the company booking path could not
+  // run on the scratch SQLite database at all, which is where the test suite
+  // runs; MySQL keeps its original statement byte for byte.
+  const now = new Date()
+  const id = randomUUID()
   if (table === 'CompanyTripQuota') {
-    await tx.$executeRawUnsafe(
-      `INSERT INTO \`CompanyTripQuota\` (\`id\`, \`companyId\`, \`tripId\`, \`maxSeats\`, \`createdAt\`, \`updatedAt\`)
-       VALUES (UUID(), ?, ?, NULL, NOW(3), NOW(3))
-       ON DUPLICATE KEY UPDATE \`updatedAt\` = \`updatedAt\``,
-      where.companyId,
-      where.tripId,
-    )
+    if (dbDialect() === 'mysql') {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO \`CompanyTripQuota\` (\`id\`, \`companyId\`, \`tripId\`, \`maxSeats\`, \`createdAt\`, \`updatedAt\`)
+         VALUES (UUID(), ?, ?, NULL, NOW(3), NOW(3))
+         ON DUPLICATE KEY UPDATE \`updatedAt\` = \`updatedAt\``,
+        where.companyId,
+        where.tripId,
+      )
+    } else {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CompanyTripQuota" ("id", "companyId", "tripId", "maxSeats", "createdAt", "updatedAt")
+         VALUES (?, ?, ?, NULL, ?, ?)
+         ON CONFLICT("companyId", "tripId") DO NOTHING`,
+        id,
+        where.companyId,
+        where.tripId,
+        now,
+        now,
+      )
+    }
   } else {
-    await tx.$executeRawUnsafe(
-      `INSERT INTO \`CompanyRouteQuota\` (\`id\`, \`companyId\`, \`routeKey\`, \`travelDate\`, \`maxSeats\`, \`createdAt\`, \`updatedAt\`)
-       VALUES (UUID(), ?, ?, ?, NULL, NOW(3), NOW(3))
-       ON DUPLICATE KEY UPDATE \`updatedAt\` = \`updatedAt\``,
-      where.companyId,
-      where.routeKey,
-      where.travelDate,
-    )
+    if (dbDialect() === 'mysql') {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO \`CompanyRouteQuota\` (\`id\`, \`companyId\`, \`routeKey\`, \`travelDate\`, \`maxSeats\`, \`createdAt\`, \`updatedAt\`)
+         VALUES (UUID(), ?, ?, ?, NULL, NOW(3), NOW(3))
+         ON DUPLICATE KEY UPDATE \`updatedAt\` = \`updatedAt\``,
+        where.companyId,
+        where.routeKey,
+        where.travelDate,
+      )
+    } else {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CompanyRouteQuota" ("id", "companyId", "routeKey", "travelDate", "maxSeats", "createdAt", "updatedAt")
+         VALUES (?, ?, ?, ?, NULL, ?, ?)
+         ON CONFLICT("companyId", "routeKey", "travelDate") DO NOTHING`,
+        id,
+        where.companyId,
+        where.routeKey,
+        where.travelDate,
+        now,
+        now,
+      )
+    }
   }
 
   const row = table === 'CompanyTripQuota'
