@@ -27,6 +27,8 @@ export default function CompanyCreditPage() {
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
+  const [availableMethods, setAvailableMethods] = useState<any[]>([]);
+  const [selectedMethodId, setSelectedMethodId] = useState<string>('');
   const [proofUrl, setProofUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [wallets, setWallets] = useState({ vodafone: '', instapay: '' });
@@ -40,9 +42,15 @@ export default function CompanyCreditPage() {
       fetch('/api/company/wallet?page=1&take=20').then((r) => r.json()),
       fetch('/api/company/deposit-requests').then((r) => r.json()),
       fetch('/api/settings/payment').then((r) => r.json()).catch(() => ({})),
+      fetch('/api/payment-methods').then((r) => r.json()).catch(() => ({})),
     ])
-      .then(([c, w, d, p]) => {
+      .then(([c, w, d, p, pm]) => {
         setCredit(c);
+        if (Array.isArray(pm?.methods) && pm.methods.length > 0) {
+          setAvailableMethods(pm.methods);
+          setSelectedMethodId(pm.methods[0].id);
+          setMethod(pm.methods[0].displayName || pm.methods[0].type);
+        }
         setTx(w.data || []);
         setRequests(d.data || []);
         setWallets({ vodafone: p.vodafone || '', instapay: p.instapay || '' });
@@ -93,7 +101,7 @@ export default function CompanyCreditPage() {
       const res = await fetch('/api/company/deposit-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: value, method, attachmentUrl: proofUrl, attachmentName: 'transfer-proof', notes }),
+        body: JSON.stringify({ amount: value, method, paymentMethodId: selectedMethodId || undefined, attachmentUrl: proofUrl, attachmentName: 'transfer-proof', notes }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -166,7 +174,30 @@ export default function CompanyCreditPage() {
               />
             </V2Field>
           </div>
-          {(wallets.vodafone || wallets.instapay) && (
+          {/* Payment Method Details / Wallets */}
+          {availableMethods.length > 0 ? (
+            (() => {
+              const activePm = availableMethods.find((m) => m.id === selectedMethodId) || availableMethods[0];
+              return activePm ? (
+                <div className="mt-3 grid gap-2 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-[#0B1B33]">{activePm.displayName}</span>
+                    {activePm.accountNumber && (
+                      <span className="font-extrabold tabular-nums text-[#0B1B33]" dir="ltr">{activePm.accountNumber}</span>
+                    )}
+                  </div>
+                  {activePm.accountHolder && (
+                    <p className="text-[12px] text-[var(--sp-text-muted)]">{activePm.accountHolder}</p>
+                  )}
+                  {activePm.instructions && (
+                    <p className="mt-1 text-[12px] leading-relaxed text-[var(--sp-text-muted)] border-t border-slate-200/50 pt-1.5">
+                      {activePm.instructions}
+                    </p>
+                  )}
+                </div>
+              ) : null;
+            })()
+          ) : (wallets.vodafone || wallets.instapay) ? (
             <div className="mt-3 grid gap-2 rounded-xl bg-[var(--sp-inset)] px-4 py-3 text-[13px]">
               {wallets.vodafone && (
                 <p className="flex items-center justify-between gap-2">
@@ -181,26 +212,43 @@ export default function CompanyCreditPage() {
                 </p>
               )}
             </div>
-          )}
+          ) : null}
           <div className="mt-4">
             <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.method')}</p>
             <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('pay.method')}>
-              {METHODS.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={method === m.key}
-                  onClick={() => setMethod(m.key)}
-                  className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
-                    method === m.key
-                      ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
-                      : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
-                  }`}
-                >
-                  {t(m.labelKey)}
-                </button>
-              ))}
+              {availableMethods.length > 0
+                ? availableMethods.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedMethodId === m.id}
+                      onClick={() => { setSelectedMethodId(m.id); setMethod(m.displayName || m.type); }}
+                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
+                        selectedMethodId === m.id
+                          ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                          : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
+                      }`}
+                    >
+                      {m.displayName}
+                    </button>
+                  ))
+                : METHODS.map((m) => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={method === m.key}
+                      onClick={() => setMethod(m.key)}
+                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
+                        method === m.key
+                          ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                          : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
+                      }`}
+                    >
+                      {t(m.labelKey)}
+                    </button>
+                  ))}
             </div>
           </div>
           <div className="mt-4">

@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { id } = await params
-    const { status, reason, adminOverride, action, passengerName, passengerPhone, passengerHotel, paymentMethod, paymentProofUrl, paymentNotes, applyToGroup } = await req.json()
+    const { status, reason, adminOverride, action, passengerName, passengerPhone, passengerHotel, paymentMethod, paymentMethodId, paymentProofUrl, paymentNotes, applyToGroup } = await req.json()
 
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -74,14 +74,30 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
       if (booking.status !== 'PENDING') {
         return NextResponse.json({ error: 'Booking is not pending' }, { status: 400 })
       }
-      if (!PAYMENT_METHODS.includes(paymentMethod)) {
+      let validatedMethod = paymentMethod
+      let validatedMethodId: string | null = null
+
+      if (paymentMethodId) {
+        const pm = await prisma.paymentMethod.findUnique({
+          where: { id: paymentMethodId, isActive: true },
+        })
+        if (!pm) {
+          return NextResponse.json(
+            { error: 'INVALID_PAYMENT_METHOD', message: 'طريقة الدفع غير صالحة أو غير مفعلة' },
+            { status: 400 }
+          )
+        }
+        validatedMethodId = pm.id
+        validatedMethod = pm.displayName || pm.type
+      } else if (!PAYMENT_METHODS.includes(paymentMethod)) {
         return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
       }
       if (typeof paymentProofUrl !== 'string' || !PROOF_RE.test(paymentProofUrl)) {
         return NextResponse.json({ error: 'Invalid proof URL' }, { status: 400 })
       }
       const data = {
-        paymentMethod,
+        paymentMethod: validatedMethod,
+        paymentMethodId: validatedMethodId,
         paymentProofUrl,
         paymentNotes: paymentNotes || '',
         paymentStatus: 'PENDING',

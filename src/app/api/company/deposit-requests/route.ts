@@ -32,13 +32,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No company linked' }, { status: 400 })
     }
 
-    const { amount, method, attachmentUrl, attachmentName, notes } = await req.json()
+    const { amount, method, paymentMethodId, attachmentUrl, attachmentName, notes } = await req.json()
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
     }
 
     const METHODS = ['VODAFONE_CASH', 'INSTAPAY']
-    if (method !== undefined && !METHODS.includes(method)) {
+    let validatedMethod = method || null
+    let validatedMethodId: string | null = null
+
+    if (paymentMethodId) {
+      const pm = await prisma.paymentMethod.findUnique({
+        where: { id: paymentMethodId, isActive: true },
+      })
+      if (!pm) {
+        return NextResponse.json(
+          { error: 'INVALID_PAYMENT_METHOD', message: 'طريقة الدفع غير صالحة أو غير مفعلة' },
+          { status: 400 }
+        )
+      }
+      validatedMethodId = pm.id
+      validatedMethod = pm.displayName || pm.type
+    } else if (method !== undefined && method !== null && !METHODS.includes(method)) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
     }
     const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
@@ -50,7 +65,8 @@ export async function POST(req: NextRequest) {
       data: {
         companyId: session.user.companyId,
         amount,
-        method: method || null,
+        method: validatedMethod,
+        paymentMethodId: validatedMethodId,
         notes: notes || '',
         attachmentUrl: attachmentUrl || '',
         attachmentName: attachmentName || '',

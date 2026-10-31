@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Loader2, Check, Settings2, Building2, UserCheck } from 'lucide-react';
+import { Clock, Loader2, Check, Settings2, Building2, UserCheck, CreditCard, Plus, Trash2, Power } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,18 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [savedExpiry, setSavedExpiry] = useState(false);
   const [savedWallets, setSavedWallets] = useState(false);
-
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [loadingPm, setLoadingPm] = useState(false);
+  const [newPm, setNewPm] = useState({
+    type: 'BANK',
+    displayName: '',
+    accountHolder: '',
+    accountNumber: '',
+    instructions: '',
+    isActive: true,
+    sortOrder: 0,
+  });
+  const [addingPm, setAddingPm] = useState(false);
   useEffect(() => {
     loadSettings();
   }, []);
@@ -48,6 +59,90 @@ export default function AdminSettingsPage() {
       toast.error(isRTL ? 'خطأ في الاتصال بالخادم' : 'Server connection error');
     } finally {
       setLoading(false);
+    }
+  }
+  async function loadPaymentMethods() {
+    setLoadingPm(true);
+    try {
+      const res = await fetch('/api/admin/payment-methods');
+      if (res.ok) {
+        const data = await res.json();
+        setPaymentMethods(data.methods || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingPm(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPaymentMethods();
+  }, []);
+
+  async function addPaymentMethod(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPm.displayName.trim()) {
+      toast.error(isRTL ? 'اسم طريقة الدفع مطلوب' : 'Display name is required');
+      return;
+    }
+    setAddingPm(true);
+    try {
+      const res = await fetch('/api/admin/payment-methods', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPm),
+      });
+      if (res.ok) {
+        toast.success(isRTL ? 'تمت إضافة طريقة الدفع بنجاح' : 'Payment method added');
+        setNewPm({
+          type: 'BANK',
+          displayName: '',
+          accountHolder: '',
+          accountNumber: '',
+          instructions: '',
+          isActive: true,
+          sortOrder: 0,
+        });
+        loadPaymentMethods();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || err.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setAddingPm(false);
+    }
+  }
+
+  async function togglePmActive(id: string, current: boolean) {
+    try {
+      const res = await fetch(`/api/admin/payment-methods/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !current }),
+      });
+      if (res.ok) {
+        setPaymentMethods((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, isActive: !current } : m))
+        );
+        toast.success(isRTL ? 'تم تحديث الحالة' : 'Status updated');
+      }
+    } catch {
+      toast.error(t('common.error'));
+    }
+  }
+
+  async function deletePm(id: string) {
+    try {
+      const res = await fetch(`/api/admin/payment-methods/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPaymentMethods((prev) => prev.filter((m) => m.id !== id));
+        toast.success(isRTL ? 'تم الحذف' : 'Deleted');
+      }
+    } catch {
+      toast.error(t('common.error'));
     }
   }
 
@@ -381,6 +476,166 @@ export default function AdminSettingsPage() {
               ? isRTL ? 'تم الحفظ' : 'Saved'
               : isRTL ? 'حفظ الأرقام' : 'Save numbers'}
           </V2Button>
+        </motion.div>
+
+        {/* Payment Methods Management Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl border border-slate-200/80 bg-[var(--sp-card)] p-6 shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex items-start gap-4 mb-5">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <CreditCard className="size-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-[#0B1B33]">
+                {isRTL ? 'إدارة طرق الدفع' : 'Payment Methods Management'}
+              </h3>
+              <p className="text-sm text-slate-500">
+                {isRTL
+                  ? 'قائمة طرق الدفع المتاحة للعملاء والشركات (حسابات بنكية، فودافون كاش، إنستاباي، وغيرها).'
+                  : 'Configured payment methods for customers and companies (Bank, Vodafone Cash, InstaPay, etc.).'}
+              </p>
+            </div>
+          </div>
+
+          {/* Existing payment methods list */}
+          <div className="space-y-3 mb-6">
+            {loadingPm ? (
+              <div className="flex justify-center p-4">
+                <Loader2 className="size-5 animate-spin text-slate-400" />
+              </div>
+            ) : paymentMethods.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">
+                {isRTL ? 'لا توجد طرق دفع مضافة حالياً.' : 'No payment methods configured.'}
+              </p>
+            ) : (
+              paymentMethods.map((m) => (
+                <div
+                  key={m.id}
+                  className={cn(
+                    'flex items-center justify-between gap-3 p-4 rounded-xl border transition',
+                    m.isActive ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'
+                  )}
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#0B1B33] text-[14.5px]">{m.displayName}</span>
+                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                        {m.type}
+                      </span>
+                      {!m.isActive && (
+                        <span className="rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-600">
+                          {isRTL ? 'معطل' : 'Inactive'}
+                        </span>
+                      )}
+                    </div>
+                    {m.accountNumber && (
+                      <p className="text-[13px] text-slate-500 font-mono" dir="ltr">
+                        {m.accountNumber} {m.accountHolder ? `(${m.accountHolder})` : ''}
+                      </p>
+                    )}
+                    {m.instructions && (
+                      <p className="text-[12px] text-slate-400 line-clamp-1">{m.instructions}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => togglePmActive(m.id, m.isActive)}
+                      title={m.isActive ? (isRTL ? 'تعطيل' : 'Deactivate') : (isRTL ? 'تفعيل' : 'Activate')}
+                      className={cn(
+                        'grid size-9 place-items-center rounded-xl border transition',
+                        m.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : 'border-slate-200 bg-slate-100 text-slate-400'
+                      )}
+                    >
+                      <Power className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePm(m.id)}
+                      title={isRTL ? 'حذف' : 'Delete'}
+                      className="grid size-9 place-items-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add new method form */}
+          <form onSubmit={addPaymentMethod} className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 space-y-3">
+            <h4 className="text-[13.5px] font-bold text-[#0B1B33]">
+              {isRTL ? 'إضافة طريقة دفع جديدة' : 'Add New Payment Method'}
+            </h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-[12px] font-bold text-slate-600">{isRTL ? 'النوع' : 'Type'}</label>
+                <select
+                  value={newPm.type}
+                  onChange={(e) => setNewPm({ ...newPm, type: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13.5px] font-bold text-[#0B1B33]"
+                >
+                  <option value="BANK">{isRTL ? 'حساب بنكي' : 'Bank Account'}</option>
+                  <option value="VODAFONE_CASH">{isRTL ? 'فودافون كاش' : 'Vodafone Cash'}</option>
+                  <option value="INSTAPAY">{isRTL ? 'إنستاباي' : 'InstaPay'}</option>
+                  <option value="OTHER">{isRTL ? 'أخرى' : 'Other'}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[12px] font-bold text-slate-600">{isRTL ? 'الاسم الظاهر (مثل: بنك مصر)' : 'Display Name'}</label>
+                <input
+                  value={newPm.displayName}
+                  onChange={(e) => setNewPm({ ...newPm, displayName: e.target.value })}
+                  placeholder={isRTL ? 'مثال: بنك مصر، فودافون كاش...' : 'e.g. Banque Misr'}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13.5px] font-bold text-[#0B1B33]"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold text-slate-600">{isRTL ? 'رقم الحساب / الهاتف' : 'Account Number / Phone'}</label>
+                <input
+                  value={newPm.accountNumber}
+                  onChange={(e) => setNewPm({ ...newPm, accountNumber: e.target.value })}
+                  dir="ltr"
+                  placeholder="IBAN / 01xxxxxxxxx"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13.5px] font-bold text-[#0B1B33]"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold text-slate-600">{isRTL ? 'اسم صاحب الحساب' : 'Account Holder'}</label>
+                <input
+                  value={newPm.accountHolder}
+                  onChange={(e) => setNewPm({ ...newPm, accountHolder: e.target.value })}
+                  placeholder={isRTL ? 'الاسم الثلاثي أو اسم الشركة' : 'Account holder name'}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13.5px] font-bold text-[#0B1B33]"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[12px] font-bold text-slate-600">{isRTL ? 'تعليمات الدفع (تظهر للمسافر)' : 'Payment Instructions'}</label>
+              <textarea
+                value={newPm.instructions}
+                onChange={(e) => setNewPm({ ...newPm, instructions: e.target.value })}
+                placeholder={isRTL ? 'تعليمات إضافية للتحويل...' : 'Additional transfer instructions...'}
+                rows={2}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] leading-relaxed text-[#0B1B33]"
+              />
+            </div>
+            <V2Button
+              type="submit"
+              disabled={addingPm}
+              variant="primary"
+              size="md"
+              className="gap-2"
+            >
+              {addingPm ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              {isRTL ? 'إضافة طريقة الدفع' : 'Add Payment Method'}
+            </V2Button>
+          </form>
         </motion.div>
       </div>
     </div>

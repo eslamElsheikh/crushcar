@@ -245,6 +245,8 @@ model Booking {
   paidAt          DateTime?
   // Manual transfer proof (customer pays after booking, admin reviews)
   paymentMethod       String?   // VODAFONE_CASH | INSTAPAY
+  paymentMethodId     String?
+  paymentMethodRef    PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
   paymentProofUrl     String?   // /api/uploads/... screenshot of the transfer
   paymentNotes        String?   @default("")
   paymentStatus       String    @default("NONE") // NONE | PENDING | REJECTED (awaiting review / needs new proof)
@@ -497,6 +499,8 @@ model DepositRequest {
   amount         Float
   status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
   method         String?  // VODAFONE_CASH | INSTAPAY
+  paymentMethodId String?
+  paymentMethodRef PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
   notes          String? @db.Text  @default("")
   adminNotes     String @db.Text   @default("")
   attachmentUrl  String   @default("")
@@ -620,6 +624,22 @@ model VerificationToken {
 
   @@index([email])
   @@index([expires])
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  type          String   // BANK | VODAFONE_CASH | INSTAPAY | OTHER
+  displayName   String
+  accountHolder String   @default("")
+  accountNumber String   @default("")
+  instructions  String   @db.Text @default("")
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bookings        Booking[]
+  depositRequests DepositRequest[]
 }
 
 

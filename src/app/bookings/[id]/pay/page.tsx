@@ -54,6 +54,8 @@ export default function BookingPayPage() {
   const [group, setGroup] = useState<PayBooking[]>([]);
   const [wallets, setWallets] = useState({ vodafone: '', instapay: '' });
   const [method, setMethod] = useState('');
+  const [availableMethods, setAvailableMethods] = useState<any[]>([]);
+  const [selectedMethodId, setSelectedMethodId] = useState<string>('');
   const [proofUrl, setProofUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -69,9 +71,10 @@ export default function BookingPayPage() {
     if (status === 'loading') return;
     (async () => {
       try {
-        const [bRes, wRes] = await Promise.all([
+        const [bRes, wRes, pmRes] = await Promise.all([
           fetch(`/api/bookings/${id}`),
           fetch('/api/settings/payment'),
+          fetch('/api/payment-methods'),
         ]);
         if (!bRes.ok) {
           setError(bRes.status === 404 ? t('v2.noTrips') : 'Error');
@@ -82,6 +85,14 @@ export default function BookingPayPage() {
         if (wRes.ok) {
           const w = await wRes.json();
           setWallets({ vodafone: w.vodafone || '', instapay: w.instapay || '' });
+        }
+        if (pmRes.ok) {
+          const pm = await pmRes.json();
+          if (Array.isArray(pm.methods) && pm.methods.length > 0) {
+            setAvailableMethods(pm.methods);
+            setSelectedMethodId(pm.methods[0].id);
+            setMethod(pm.methods[0].displayName || pm.methods[0].type);
+          }
         }
         if (b.groupId) {
           const gRes = await fetch(`/api/bookings?groupId=${b.groupId}`);
@@ -170,6 +181,7 @@ export default function BookingPayPage() {
         body: JSON.stringify({
           action: 'SUBMIT_PROOF',
           paymentMethod: method,
+          paymentMethodId: selectedMethodId || undefined,
           paymentProofUrl: proofUrl,
           paymentNotes: notes,
           applyToGroup: isGroup,
@@ -285,8 +297,39 @@ export default function BookingPayPage() {
               </p>
             </div>
 
-            {/* Merchant wallets */}
-            {(wallets.vodafone || wallets.instapay) && (
+            {/* Payment Method Details / Wallets */}
+            {availableMethods.length > 0 ? (
+              (() => {
+                const activePm = availableMethods.find((m) => m.id === selectedMethodId) || availableMethods[0];
+                return activePm ? (
+                  <div className="v2-card grid gap-3 p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[14.5px] font-bold text-[#0B1B33]">{activePm.displayName}</p>
+                        {activePm.accountHolder && (
+                          <p className="text-[12.5px] text-[#5B6B84]">{activePm.accountHolder}</p>
+                        )}
+                      </div>
+                      {activePm.accountNumber && (
+                        <button
+                          type="button"
+                          onClick={() => copyNum(activePm.accountNumber, 'pm')}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-[#F1F4F9] px-3.5 py-2 text-[14px] font-extrabold tabular-nums text-[#0B1B33]"
+                          dir="ltr"
+                        >
+                          {activePm.accountNumber} {copied === 'pm' ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+                        </button>
+                      )}
+                    </div>
+                    {activePm.instructions && (
+                      <p className="mt-1 text-[13px] leading-relaxed text-[#5B6B84] bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        {activePm.instructions}
+                      </p>
+                    )}
+                  </div>
+                ) : null;
+              })()
+            ) : (wallets.vodafone || wallets.instapay) ? (
               <div className="v2-card grid gap-3 p-6">
                 {wallets.vodafone && (
                   <div className="flex items-center justify-between gap-3">
@@ -307,28 +350,45 @@ export default function BookingPayPage() {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Method */}
             <div className="v2-card p-6">
               <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('pay.method')}</p>
               <div className="mt-3 grid grid-cols-2 gap-2.5" role="radiogroup" aria-label={t('pay.method')}>
-                {METHODS.map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    role="radio"
-                    aria-checked={method === m.key}
-                    onClick={() => setMethod(m.key)}
-                    className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
-                      method === m.key
-                        ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
-                        : 'border-slate-200 bg-white text-[#5B6B84]'
-                    }`}
-                  >
-                    {t(m.labelKey)}
-                  </button>
-                ))}
+                {availableMethods.length > 0
+                  ? availableMethods.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selectedMethodId === m.id}
+                        onClick={() => { setSelectedMethodId(m.id); setMethod(m.displayName || m.type); }}
+                        className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
+                          selectedMethodId === m.id
+                            ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                            : 'border-slate-200 bg-white text-[#5B6B84]'
+                        }`}
+                      >
+                        {m.displayName}
+                      </button>
+                    ))
+                  : METHODS.map((m) => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={method === m.key}
+                        onClick={() => setMethod(m.key)}
+                        className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
+                          method === m.key
+                            ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                            : 'border-slate-200 bg-white text-[#5B6B84]'
+                        }`}
+                      >
+                        {t(m.labelKey)}
+                      </button>
+                    ))}
               </div>
             </div>
 
