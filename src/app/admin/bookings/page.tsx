@@ -2,7 +2,7 @@
 
 import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Loader2, AlertTriangle, Wallet, X, Trash2 } from 'lucide-react';
+import { Pencil, Loader2, AlertTriangle, Wallet, X, Trash2, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Table, V2Pagination, V2Modal, V2Tabs, V2SearchInput } from '@/components/v2/admin';
@@ -62,7 +62,7 @@ export default function AdminBookings() {
   const [deleteNote, setDeleteNote] = useState('');
   const [deleteFee, setDeleteFee] = useState('');
   const [deleting, setDeleting] = useState(false);
-
+  const [exporting, setExporting] = useState(false);
   const load = useCallback(async (pageNum: number, tb: Tab, q: string, ref: string) => {
     setLoading(true);
     try {
@@ -302,6 +302,34 @@ export default function AdminBookings() {
       setDeleting(false);
     }
   }
+  async function exportToExcel() {
+    setExporting(true);
+    try {
+      const qParam = search ? `&q=${encodeURIComponent(search)}` : '';
+      const refParam = refSearch ? `&reference=${encodeURIComponent(refSearch)}` : '';
+      const url = `/api/admin/bookings/export?tab=${tab}${qParam}${refParam}`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (res.ok) {
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `safrotravel-bookings-${tab}-${Date.now()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+        toast.success(isRTL ? 'تم تصدير ملف الإكسيل بنجاح' : 'Excel file exported successfully');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || err.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div>
@@ -318,9 +346,20 @@ export default function AdminBookings() {
         />
       </div>
 
-      <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-        <V2SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('bookings.search')} />
-        <V2SearchInput value={refSearch} onChange={(v) => { setRefSearch(v); setPage(1); }} placeholder={t('bookings.reference')} />
+      <div className="mt-4 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+        <div className="flex-1 grid gap-2.5 sm:grid-cols-2">
+          <V2SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('bookings.search')} />
+          <V2SearchInput value={refSearch} onChange={(v) => { setRefSearch(v); setPage(1); }} placeholder={t('bookings.reference')} />
+        </div>
+        <button
+          type="button"
+          onClick={exportToExcel}
+          disabled={exporting}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13.5px] font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 shrink-0"
+        >
+          {exporting ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4 text-emerald-600" />}
+          {isRTL ? 'تصدير إكسيل (.xlsx)' : 'Export to Excel'}
+        </button>
       </div>
 
       <div className="mt-4">
