@@ -67,6 +67,7 @@ export default function EditCompanyPage() {
     autoPayEnabled: false,
     maxSeatsPerBooking: '' as string,
     maxDailySeats: '' as string,
+    seatQuota: '' as string,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -226,6 +227,7 @@ export default function EditCompanyPage() {
             autoPayEnabled: data.autoPayEnabled === true,
             maxSeatsPerBooking: data.maxSeatsPerBooking == null ? '' : String(data.maxSeatsPerBooking),
             maxDailySeats: data.maxDailySeats == null ? '' : String(data.maxDailySeats),
+            seatQuota: data.seatQuota == null ? '' : String(data.seatQuota),
           });
         }
       } catch { /* keep blank */ } finally { setLoading(false); }
@@ -369,6 +371,22 @@ export default function EditCompanyPage() {
                 {isRTL
                   ? `هذا الحد مختلف عن حد الحجز الواحد (${DEFAULT_MAX_SEATS_PER_BOOKING} مقاعد)، والأصغر منهما هو المطبَّق. اتركه فارغاً لعدم وضع حد يومي.`
                   : `This is separate from the per-booking limit of ${DEFAULT_MAX_SEATS_PER_BOOKING} seats; the smaller of the two applies. Leave it empty for no daily limit.`}
+              </p>
+            </V2Field>
+            <V2Field label={isRTL ? 'حصة المقاعد لكل وجهة/مسار (يومياً)' : 'Seat quota per route (daily)'}>
+              <V2Input
+                type="number"
+                min="1"
+                value={form.seatQuota}
+                onChange={(e) => setForm({ ...form, seatQuota: e.target.value })}
+                placeholder={isRTL ? 'بلا حد' : 'No limit'}
+                dir="ltr"
+                className="tabular-nums"
+              />
+              <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
+                {isRTL
+                  ? 'حصة المقاعد المخصصة للشركة على كل مسار في يوم السفر الواحد. مقعد الذهاب والعودة يُحسب كمقعد واحد في تاريخ الذهاب فقط.'
+                  : 'Seat quota per route on the outbound travel date. Round-trip seats count as 1 seat on the outbound date.'}
               </p>
             </V2Field>
           </div>

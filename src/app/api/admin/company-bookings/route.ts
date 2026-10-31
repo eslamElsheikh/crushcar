@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { lockRow } from '@/lib/row-lock'
-import { resolveBookingLimits, assertRoundTripSeatParity } from '@/lib/company-quota'
+import { resolveBookingLimits, assertRoundTripSeatParity, enforceCompanySeatQuota, SeatQuotaExceededError } from '@/lib/company-quota'
 import { chargeCompanyWithCreditTopUp, splitCharge } from '@/lib/company-charge'
 import { audit } from '@/lib/audit'
 import { parseCollectAmount } from '@/lib/validations'
@@ -217,6 +217,15 @@ export async function POST(req: NextRequest) {
         requestedSeats: priced.length,
       })
 
+      // Enforce the company seat quota (outbound consumes 1 per round-trip seat, return does not)
+      await enforceCompanySeatQuota(tx, {
+        companyId,
+        tripId,
+        trip,
+        requestedSeats: priced.length,
+        roundTripGroupId: roundTripGroupId || null,
+      })
+
       // Every seat is checked before anything is written: it has to exist,
       // it must not be blocked, and it must be free for the leg being
       // booked.
@@ -366,6 +375,18 @@ export async function POST(req: NextRequest) {
           { status: 409 },
         )
       }
+    }
+    if (err instanceof SeatQuotaExceededError || code === 'SEAT_QUOTA_EXCEEDED') {
+      return NextResponse.json(
+        {
+          error: 'SEAT_QUOTA_EXCEEDED',
+          message: err.message,
+          limit: err.limit,
+          used: err.used,
+          requested: err.requested,
+        },
+        { status: 400 },
+      )
     }
     if (code === 'UNKNOWN_SEAT') {
       return NextResponse.json(

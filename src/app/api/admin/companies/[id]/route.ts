@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (session.user.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { id } = await params
-    const { name, subdomain, creditLimit, paymentMode, billingCycle, isActive, autoPayEnabled, maxSeatsPerBooking, maxDailySeats } = await req.json()
+    const { name, subdomain, creditLimit, paymentMode, billingCycle, isActive, autoPayEnabled, maxSeatsPerBooking, maxDailySeats, seatQuota } = await req.json()
 
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
@@ -122,6 +122,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           )
         }
         updateData.maxDailySeats = parsed
+      }
+    }
+    // The per-route daily seat quota set by super admin for the company.
+    // Evaluated on the outbound date per route; round-trip counts as 1 seat.
+    // Null means no quota limit.
+    if (seatQuota !== undefined) {
+      if (seatQuota === null || seatQuota === '') {
+        updateData.seatQuota = null
+      } else {
+        const parsed = parseInt(String(seatQuota), 10)
+        if (!Number.isFinite(parsed) || parsed < 1) {
+          return NextResponse.json(
+            { error: 'The seat quota must be at least 1' },
+            { status: 400 },
+          )
+        }
+        updateData.seatQuota = parsed
       }
     }
 

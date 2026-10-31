@@ -53,7 +53,7 @@ export default function AdminCreditReport() {
 
       <div className="mt-5">
         <V2Table
-          columns={[t('company.manageCompanies'), t('company.creditLimit'), t('company.outstanding'), t('company.wallet'), isRTL ? 'مستحقات المنصة' : 'Platform due', '']}
+          columns={[t('company.manageCompanies'), t('company.creditLimit'), t('company.outstanding'), t('company.wallet'), isRTL ? 'حصة المقاعد' : 'Seat quota', isRTL ? 'مستحقات المنصة' : 'Platform due', '']}
           rows={companies || []}
           rowKey={(c) => c.id}
           loading={loading}
@@ -69,6 +69,7 @@ export default function AdminCreditReport() {
               <span key="l" className="tabular-nums">{Number(c.creditLimit || 0).toLocaleString(locale)}</span>,
               <span key="o" className="font-bold tabular-nums text-amber-700">{Number(c.outstandingBalance || 0).toLocaleString(locale)}</span>,
               <span key="w" className="font-bold tabular-nums text-emerald-700">{Number(c.walletBalance || 0).toLocaleString(locale)}</span>,
+              <span key="q" className="tabular-nums font-medium text-slate-700">{c.seatQuota ? `${c.seatQuota} ${isRTL ? 'مقعد' : 'seats'}` : (isRTL ? 'بلا حد' : 'No limit')}</span>,
               <span key="p" className="font-bold tabular-nums text-blue-700">{Number(c.platformUnsettled || 0).toLocaleString(locale)}</span>,
               <Link key="e" href={`/admin/companies/${c.id}/edit`} aria-label={t('company.editCompany')} className="grid size-10 place-items-center rounded-xl text-[var(--sp-text-muted)] hover:bg-slate-100 hover:text-[#0B1B33]">
                 <Pencil className="size-5" />

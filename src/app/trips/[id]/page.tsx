@@ -1458,6 +1458,12 @@ function TripDetailPageContent() {
                               {isRTL ? 'حصة المسار اليومي: ' : 'Daily route quota: '}
                               {companyPreview.limits?.routeLimit ?? '∞'}
                             </span>
+                            {companyPreview.seatQuota?.quota != null && (
+                              <span>
+                                {isRTL ? 'حصة مسار الشركة: ' : 'Company route quota: '}
+                                {companyPreview.seatQuota.remaining} / {companyPreview.seatQuota.quota}
+                              </span>
+                            )}
                           </div>
                         </div>
                       )}

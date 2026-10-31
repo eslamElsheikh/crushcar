@@ -30,6 +30,7 @@ export async function GET(_req: NextRequest) {
       // customer selecting more seats than the company may hold. The server
       // enforces it either way; this is so the page does not let them try.
       maxSeatsPerBooking: effectiveMaxSeatsPerBooking(company),
+      seatQuota: company.seatQuota ?? null,
     })
   } catch (err) {
     console.error(err)

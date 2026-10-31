@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
           outstandingBalance: true,
           billingCycle: true,
           isActive: true,
+          seatQuota: true,
           createdAt: true,
         },
         orderBy: { outstandingBalance: 'desc' },

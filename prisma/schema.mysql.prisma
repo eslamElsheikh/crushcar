@@ -2,12 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  // The production host is Node 22 on CloudLinux built against OpenSSL 1.1,
-  // so the 1.1.x engine is the one that actually runs. It was missing from
-  // this list, which generated a client with no usable engine and took every
-  // API route down with PrismaClientInitializationError until the engines
-  // were downloaded by hand.
-  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -61,19 +56,22 @@ model Company {
     // column may lower it for a company; it can never raise it, and the
     // server clamps it.
     maxSeatsPerBooking Int?
-    // The overall daily seat cap: how many seats this company may hold on
-    // ONE travel date, counted across every trip, route, direction and bus
-    // on that date.
-    //
-    // null means no overall daily cap, which is the same as no limit. It is
-    // not the same as the ten-seat per-booking cap above: that one is per
-    // booking request, this one is per day, and the smaller of the two is
-    // what applies.
-    //
-    // The travel date is the Cairo day of the trip's departure, the same day
-    // the route allowance uses, so the two never disagree about which day a
-    // seat belongs to.
-    maxDailySeats     Int?
+  // The overall daily seat cap: how many seats this company may hold on ONE
+  // travel date, counted across every trip, route, direction and bus on that
+  // date.
+  //
+  // null means no overall daily cap, which is the same as no limit. It is not
+  // the same as the ten-seat per-booking cap above: that one is per booking
+  // request, this one is per day, and the smaller of the two is what applies.
+  //
+  // The travel date is the Cairo day of the trip's departure, the same day
+  // the route allowance uses, so the two never disagree about which day a seat
+  // belongs to.
+  maxDailySeats     Int?
+  // The per-route daily seat quota set by super admin for the company.
+  // One round-trip seat counts as 1 seat of this quota evaluated on the outbound date.
+  // null means no seat quota.
+  seatQuota         Int?
   users            User[]
   buses            Bus[]
   companyCustomers CompanyCustomer[]
@@ -461,7 +459,7 @@ model PlatformTransaction {
   type                  String   // FUNDING | BOOKING_CHARGE | REFUND | ADJUSTMENT
   amountPiastres        Int      // positive = cash in, negative = cash out
   balanceAfterPiastres  Int
-  description           String   @default("")
+  description           String @db.Text   @default("")
   reference             String   @default("") // booking reference, funding reference
   idempotencyKey        String?  @unique
   actorId               String?

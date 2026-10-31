@@ -67,6 +67,10 @@ model Company {
   // the route allowance uses, so the two never disagree about which day a seat
   // belongs to.
   maxDailySeats     Int?
+  // The per-route daily seat quota set by super admin for the company.
+  // One round-trip seat counts as 1 seat of this quota evaluated on the outbound date.
+  // null means no seat quota.
+  seatQuota         Int?
   users            User[]
   buses            Bus[]
   companyCustomers CompanyCustomer[]

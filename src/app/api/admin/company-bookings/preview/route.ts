@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { logger } from '@/lib/logger'
-import { readBookingLimits } from '@/lib/company-quota'
+import { readBookingLimits, readCompanySeatQuota } from '@/lib/company-quota'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
 
     const limits = await readBookingLimits(prisma, { company, tripId, trip })
+    const seatQuota = await readCompanySeatQuota(prisma, { companyId, tripId, trip })
 
     // The price of one seat, from the same arithmetic the booking uses.
     const seatPrice =
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
         walletBalance: company.walletBalance,
         maxSeatsPerBooking: company.maxSeatsPerBooking,
         maxDailySeats: company.maxDailySeats,
+        seatQuota: company.seatQuota,
       },
       trip: {
         id: trip.id,
@@ -70,6 +72,7 @@ export async function GET(req: NextRequest) {
         travelDate: trip.travelDate,
       },
       limits,
+      seatQuota,
       seatPrice,
       // The seats the company could take right now: the smallest of the
       // ceilings that applies, less what it already holds.

@@ -9,7 +9,7 @@ import { companyBookingExpiryHours } from '@/lib/booking-expiry'
 import { companyPaymentDeadline } from '@/lib/payments'
 import { chargeCompany, splitCharge } from '@/lib/company-charge'
 import { lockRow } from '@/lib/row-lock'
-import { resolveBookingLimits, assertRoundTripSeatParity } from '@/lib/company-quota'
+import { resolveBookingLimits, assertRoundTripSeatParity, enforceCompanySeatQuota, SeatQuotaExceededError } from '@/lib/company-quota'
 
 export async function GET(req: NextRequest) {
   try {
@@ -188,6 +188,15 @@ export async function POST(req: NextRequest) {
         companyId,
         roundTripGroupId: roundTripGroupId || null,
         requestedSeats: seatPrices.length,
+      })
+
+      // Enforce the company seat quota (outbound consumes 1 per round-trip seat, return does not)
+      await enforceCompanySeatQuota(tx, {
+        companyId,
+        tripId,
+        trip,
+        requestedSeats: seatPrices.length,
+        roundTripGroupId: roundTripGroupId || null,
       })
 
       // Check every seat before creating any: it has to exist, it must not
@@ -374,6 +383,18 @@ export async function POST(req: NextRequest) {
     }
     if (err.message === 'COMPANY_INACTIVE') {
       return NextResponse.json({ error: 'COMPANY_INACTIVE', message: 'حساب الشركة غير مفعّل' }, { status: 403 })
+    }
+    if (err instanceof SeatQuotaExceededError || err.code === 'SEAT_QUOTA_EXCEEDED') {
+      return NextResponse.json(
+        {
+          error: 'SEAT_QUOTA_EXCEEDED',
+          message: err.message,
+          limit: err.limit,
+          used: err.used,
+          requested: err.requested,
+        },
+        { status: 400 },
+      )
     }
     if (err.message?.startsWith('SEAT_CAP_EXCEEDED')) {
       const max = err.message.split(':')[1] || ''
