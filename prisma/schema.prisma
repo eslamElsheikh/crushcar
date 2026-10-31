@@ -332,6 +332,7 @@ model CompanyBooking {
   passengerHotel  String   @default("")
   passengerNotes  String   @default("")
   collectAmount   Float?
+  paymentProofUrl String?
   bookingType     String   @default("FOR_EMPLOYEE") // FOR_CLIENT | FOR_EMPLOYEE
   status          String   @default("PENDING") // PENDING | PAID | CANCELLED | BOARDED
   total           Float

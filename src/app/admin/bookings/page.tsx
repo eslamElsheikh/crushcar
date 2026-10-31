@@ -2,7 +2,7 @@
 
 import { routeLabel } from '@/lib/route-label';
 import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Loader2, AlertTriangle, Wallet, X } from 'lucide-react';
+import { Pencil, Loader2, AlertTriangle, Wallet, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLangStore } from '@/lib/lang';
 import { V2PageHeader, V2Table, V2Pagination, V2Modal, V2Tabs, V2SearchInput } from '@/components/v2/admin';
@@ -58,6 +58,10 @@ export default function AdminBookings() {
   const [editHotel, setEditHotel] = useState('');
   const [editing, setEditing] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteNote, setDeleteNote] = useState('');
+  const [deleteFee, setDeleteFee] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async (pageNum: number, tb: Tab, q: string, ref: string) => {
     setLoading(true);
@@ -86,6 +90,39 @@ export default function AdminBookings() {
 
   async function confirmPaid() {
     if (!confirmId) return;
+    if (tab === 'company') {
+      if (!rejectReason.trim()) {
+        toast.error(isRTL ? 'يرجى كتابة ملاحظة توضح سبب التأكيد' : 'Note is required to confirm');
+        return;
+      }
+      setConfirming(true);
+      try {
+        const res = await fetch(`/api/admin/company-bookings/${confirmId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'CONFIRM_WITHOUT_PROOF', note: rejectReason.trim() }),
+        });
+        if (res.ok) {
+          const body = await res.json();
+          setBookings((prev) =>
+            prev.map((b) => (b.id === confirmId ? { ...b, status: 'PAID', paidAt: body.booking?.paidAt || new Date().toISOString() } : b))
+          );
+          setConfirmId(null);
+          setRejectReason('');
+          toast.success(t('payment.confirmed'));
+        } else {
+          const body = await res.json().catch(() => ({}));
+          toast.error(body.message || body.error || t('common.error'));
+        }
+      } catch {
+        toast.error(t('common.error'));
+      } finally {
+        setConfirming(false);
+      }
+      return;
+    }
+
     // The server enforces this too; catching it here avoids a raw error toast.
     if (confirmBooking && !confirmBooking.paymentProofUrl && needsProof(confirmBooking)) {
       toast.error(t('pay.proofRequired'));
@@ -191,29 +228,78 @@ export default function AdminBookings() {
   const needsProof = (b: any) =>
     !!b && !b.paymentProofUrl && new Date(b.createdAt).getTime() >= PROOF_REQUIRED_FROM_MS;
 
-  const confirmBlocked = confirmBooking ? needsProof(confirmBooking) : false;
+  const confirmBlocked = confirmBooking
+    ? tab === 'company'
+      ? !rejectReason.trim()
+      : needsProof(confirmBooking)
+    : false;
 
   async function saveEdit() {
     if (!edit) return;
     setEditing(true);
     try {
-      const res = await fetch(`/api/bookings/${edit.id}`, {
+      const url = tab === 'company' ? `/api/admin/company-bookings/${edit.id}` : `/api/bookings/${edit.id}`;
+      const body = tab === 'company'
+        ? { action: 'EDIT', passengerName: editName, passengerPhone: editPhone, passengerHotel: editHotel, note: 'Admin updated details' }
+        : { action: 'UPDATE', passengerName: editName, passengerPhone: editPhone, passengerHotel: editHotel };
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'UPDATE', passengerName: editName, passengerPhone: editPhone, passengerHotel: editHotel }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setBookings((prev) => prev.map((b) => (b.id === edit.id ? { ...b, passengerName: editName, passengerPhone: editPhone, passengerHotel: editHotel } : b)));
         setEdit(null);
         toast.success(t('common.success'));
       } else {
-        toast.error(t('common.error'));
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.message || err.error || t('common.error'));
       }
     } catch {
       toast.error(t('common.error'));
     } finally {
       setEditing(false);
+    }
+  }
+
+  async function deleteCompanyBooking() {
+    if (!deleteTarget || !deleteNote.trim()) {
+      toast.error(isRTL ? 'سبب الإلغاء والحذف مطلوب' : 'Cancellation reason is required');
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/company-bookings/${deleteTarget.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          note: deleteNote.trim(),
+          fee: deleteFee ? Number(deleteFee) : 0,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === deleteTarget.id
+              ? { ...b, status: 'CANCELLED', cancellationReason: deleteNote.trim(), refundAmount: data.refundAmount }
+              : b
+          )
+        );
+        setDeleteTarget(null);
+        setDeleteNote('');
+        setDeleteFee('');
+        toast.success(isRTL ? 'تم إلغاء وحذف الحجز بنجاح' : 'Booking cancelled and reversed successfully');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.message || data.error || t('common.error'));
+      }
+    } catch {
+      toast.error(t('common.error'));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -383,6 +469,16 @@ export default function AdminBookings() {
                 >
                   <Pencil className="size-4" />
                 </button>
+                {tab === 'company' && b.status !== 'CANCELLED' && (
+                  <button
+                    onClick={() => { setDeleteTarget(b); setDeleteNote(''); setDeleteFee(''); }}
+                    aria-label={isRTL ? 'إلغاء وحذف الحجز' : 'Cancel & delete booking'}
+                    title={isRTL ? 'إلغاء وحذف الحجز مع استرداد المبلغ' : 'Cancel & delete with financial reversal'}
+                    className="grid size-10 place-items-center rounded-xl text-rose-600 hover:bg-rose-50"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
               </span>,
             ];
             return cells[i];
@@ -445,6 +541,14 @@ export default function AdminBookings() {
                 >
                   {t('common.edit')}
                 </button>
+                {tab === 'company' && b.status !== 'CANCELLED' && (
+                  <button
+                    onClick={() => { setDeleteTarget(b); setDeleteNote(''); setDeleteFee(''); }}
+                    className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13.5px] font-bold text-rose-600"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -474,11 +578,11 @@ export default function AdminBookings() {
           </div>
         )}
         <div className="mt-4">
-          <V2Field label={t('pay.reasonLabel')}>
+          <V2Field label={tab === 'company' ? (isRTL ? 'ملاحظة التأكيد (مطلوبة)' : 'Confirmation note (required)') : t('pay.reasonLabel')}>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder={t('pay.reasonPh')}
+              placeholder={tab === 'company' ? (isRTL ? 'اكتب سبب تأكيد الحجز نيابة عن الشركة...' : 'Reason for confirming without proof...') : t('pay.reasonPh')}
               rows={3}
               className="v2-input resize-none py-3 leading-relaxed"
             />
@@ -488,17 +592,19 @@ export default function AdminBookings() {
           <button onClick={() => { setConfirmId(null); setRejectReason(''); }} className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]">
             {t('common.cancel')}
           </button>
-          <V2Button disabled={confirming || confirmBlocked} onClick={confirmPaid} title={confirmBlocked ? t('pay.proofRequired') : undefined}>
-            {confirming ? <Loader2 className="size-5 animate-spin" /> : null} {t('payment.confirmBtn')}
+          <V2Button disabled={confirming || confirmBlocked} onClick={confirmPaid} title={confirmBlocked ? (tab === 'company' ? (isRTL ? 'الملاحظة مطلوبة' : 'Note is required') : t('pay.proofRequired')) : undefined}>
+            {confirming ? <Loader2 className="size-5 animate-spin" /> : null} {tab === 'company' ? (isRTL ? 'تأكيد الحجز' : 'Confirm Booking') : t('payment.confirmBtn')}
           </V2Button>
         </div>
-        <button
-          onClick={requestProof}
-          disabled={requesting || !rejectReason.trim()}
-          className="mt-2.5 w-full rounded-xl border border-amber-300 bg-amber-50 py-3 text-[14px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
-        >
-          {requesting ? <Loader2 className="mx-auto size-5 animate-spin" /> : t('pay.requestNew')}
-        </button>
+        {tab !== 'company' && (
+          <button
+            onClick={requestProof}
+            disabled={requesting || !rejectReason.trim()}
+            className="mt-2.5 w-full rounded-xl border border-amber-300 bg-amber-50 py-3 text-[14px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {requesting ? <Loader2 className="mx-auto size-5 animate-spin" /> : t('pay.requestNew')}
+          </button>
+        )}
       </V2Modal>
 
       <V2Modal open={!!edit} onClose={() => setEdit(null)} title={t('common.edit')}>
@@ -516,6 +622,57 @@ export default function AdminBookings() {
         <V2Button disabled={editing} onClick={saveEdit} size="lg" className="mt-5 w-full">
           {editing ? <Loader2 className="size-5 animate-spin" /> : null} {t('common.save')}
         </V2Button>
+      </V2Modal>
+      <V2Modal
+        open={!!deleteTarget}
+        onClose={() => { setDeleteTarget(null); setDeleteNote(''); setDeleteFee(''); }}
+        title={isRTL ? 'إلغاء وحذف حجز الشركة' : 'Delete Company Booking'}
+      >
+        <p className="text-[14.5px] text-[var(--sp-text-muted)]">
+          {isRTL
+            ? 'سيتم إلغاء الحجز وتحرير المقعد، واسترداد المبلغ بالكامل إلى محفظة / ائتمان الشركة دون أي خصم.'
+            : 'The booking will be cancelled, seat released, and funds fully reversed to the company wallet/credit.'}
+        </p>
+        <div className="mt-4 grid gap-3">
+          <V2Field label={isRTL ? 'سبب الإلغاء والحذف (مطلوب)' : 'Reason / Note (required)'}>
+            <textarea
+              value={deleteNote}
+              onChange={(e) => setDeleteNote(e.target.value)}
+              placeholder={isRTL ? 'اكتب سبب الحذف...' : 'Enter cancellation note...'}
+              rows={3}
+              className="v2-input resize-none py-3 leading-relaxed"
+            />
+          </V2Field>
+          {deleteTarget?.status === 'PAID' && (
+            <V2Field label={isRTL ? 'رسوم إلغاء اختيارية (الافتراضي 0 = استرداد كامل)' : 'Optional cancellation fee (default 0 = full refund)'}>
+              <V2Input
+                type="number"
+                min="0"
+                max={deleteTarget.total}
+                value={deleteFee}
+                onChange={(e) => setDeleteFee(e.target.value)}
+                placeholder="0"
+                dir="ltr"
+                className="tabular-nums"
+              />
+            </V2Field>
+          )}
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-2.5">
+          <button
+            onClick={() => { setDeleteTarget(null); setDeleteNote(''); setDeleteFee(''); }}
+            className="rounded-xl bg-slate-100 py-3.5 text-[14.5px] font-bold text-[#0B1B33]"
+          >
+            {t('common.cancel')}
+          </button>
+          <V2Button
+            disabled={deleting || !deleteNote.trim()}
+            onClick={deleteCompanyBooking}
+            className="bg-rose-600 hover:bg-rose-700 text-white"
+          >
+            {deleting ? <Loader2 className="size-5 animate-spin" /> : null} {isRTL ? 'تأكيد الحذف' : 'Confirm Delete'}
+          </V2Button>
+        </div>
       </V2Modal>
     </div>
   );
