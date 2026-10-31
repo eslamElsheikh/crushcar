@@ -74,10 +74,26 @@ export async function PATCH(
       paymentProofUrl,
     } = body
 
-    if (!action) {
+    const isBoardAction = action === 'BOARD' || body.status === 'BOARDED'
+    if (!action && !isBoardAction) {
       return NextResponse.json({ error: 'Action is required' }, { status: 400 })
     }
 
+    if (isBoardAction) {
+      const updated = await prisma.companyBooking.update({
+        where: { id },
+        data: { status: 'BOARDED', boardedAt: new Date() },
+      })
+      await audit({
+        action: 'BOARD',
+        entity: 'CompanyBooking',
+        entityId: id,
+        companyId: updated.companyId,
+        session,
+        metadata: { action: 'BOARD' },
+      })
+      return NextResponse.json({ booking: updated, boardedAt: updated.boardedAt?.toISOString() || null })
+    }
     // ─────────────────────────────────────────────────────────────────────────
     // 1. CONFIRM_WITHOUT_PROOF
     // ─────────────────────────────────────────────────────────────────────────
