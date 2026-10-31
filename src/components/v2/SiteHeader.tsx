@@ -119,6 +119,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
           <nav className="hidden items-center gap-7 text-[14.5px] font-semibold lg:flex" aria-label="Primary">
             <Link className={linkCls} href="/#destinations">{t('v2.explore')}</Link>
             <Link className={linkCls} href="/trips">{t('v2.trips')}</Link>
+            <Link className={linkCls} href="/company/charter">{t('v2.requestBus')}</Link>
             <Link className={linkCls} href="/destinations">{t('v2.destinations')}</Link>
             <Link className={linkCls} href="/faq">{t('v2.help')}</Link>
           </nav>
@@ -152,6 +153,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
           <nav className="grid gap-1 text-[16px] font-semibold text-[#0B1B33]" aria-label="Mobile">
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/#destinations" onClick={() => setOpen(false)}>{t('v2.explore')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/trips" onClick={() => setOpen(false)}>{t('v2.trips')}</Link>
+            <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/company/charter" onClick={() => setOpen(false)}>{t('v2.requestBus')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/destinations" onClick={() => setOpen(false)}>{t('v2.destinations')}</Link>
             <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/faq" onClick={() => setOpen(false)}>{t('v2.help')}</Link>
             {session ? (
