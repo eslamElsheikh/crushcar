@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   MapPin, Users, ArrowLeftRight, Search,
-  Zap, ShieldCheck, Leaf, ArrowRight, Clock, Bus,
+  Zap, ShieldCheck, Headset, ArrowRight, Clock, Bus,
   TicketCheck, Check, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -204,7 +204,7 @@ export default function V2HomePage() {
     { icon: Zap, title: stats ? `${stats.activeTrips} ${isRTL ? 'رحلة نشطة' : 'active trips'}` : t('v2.trustRoutes'), sub: t('v2.trustRoutesSub') },
     { icon: MapPin, title: stations.length ? `${stations.length} ${isRTL ? 'محطة' : 'stations'}` : t('v2.trustStations'), sub: t('v2.trustStationsSub') },
     { icon: ShieldCheck, title: t('v2.trustSecure'), sub: t('v2.trustSecureSub') },
-    { icon: Leaf, title: t('v2.trustGreen'), sub: t('v2.trustGreenSub') },
+    { icon: Headset, title: t('v2.trustSupport') || (isRTL ? 'خدمة عملاء 24/7' : '24/7 Customer Service'), sub: t('v2.trustSupportSub') || (isRTL ? 'دعم متواصل على مدار الساعة' : 'Always here to assist you'), href: '/faq' },
   ];
 
   const BusSeatIcon = (
@@ -412,17 +412,26 @@ export default function V2HomePage() {
       {/* ── TRUST ── */}
       <section className="border-b border-[var(--sp-line)]">
         <div className="v2-container grid grid-cols-2 gap-x-4 gap-y-7 py-8 lg:grid-cols-4">
-          {trust.map((it) => (
-            <div key={it.title} className="flex items-center gap-3.5">
-              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#F1F4F9] text-[#0A1E3C]">
-                <it.icon className="size-6" />
-              </span>
-              <span>
-                <span className="block text-balance text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">{it.title}</span>
-                <span className="mt-0.5 block text-[13px] text-[var(--sp-text-muted)]">{it.sub}</span>
-              </span>
-            </div>
-          ))}
+          {trust.map((it) => {
+            const content = (
+              <div className="flex items-center gap-3.5">
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#F1F4F9] text-[#0A1E3C] transition group-hover:bg-[#E3E9F4]">
+                  <it.icon className="size-6" />
+                </span>
+                <span>
+                  <span className="block text-balance text-[15.5px] font-extrabold tabular-nums text-[#0B1B33]">{it.title}</span>
+                  <span className="mt-0.5 block text-[13px] text-[var(--sp-text-muted)]">{it.sub}</span>
+                </span>
+              </div>
+            );
+            return it.href ? (
+              <Link key={it.title} href={it.href} className="group transition hover:opacity-95">
+                {content}
+              </Link>
+            ) : (
+              <div key={it.title}>{content}</div>
+            );
+          })}
         </div>
       </section>
 

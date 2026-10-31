@@ -651,6 +651,8 @@ const translations: Record<string, Record<Language, string>> = {
   'v2.trustSecureSub': { ar: 'سلامتك أولًا', en: 'Your safety matters' },
   'v2.trustGreen': { ar: 'سفر صديق للبيئة', en: 'Greener travel' },
   'v2.trustGreenSub': { ar: 'بصمة كربونية أقل', en: 'Lower carbon footprint' },
+  'v2.trustSupport': { ar: 'خدمة عملاء 24/7', en: '24/7 Customer Service' },
+  'v2.trustSupportSub': { ar: 'دعم متواصل على مدار الساعة', en: 'Always here to assist you' },
   'v2.popularTitle': { ar: 'الوجهات الأكثر شعبية', en: 'Popular destinations' },
   'v2.popularSub': { ar: 'اكتشف أماكن مذهلة، وسافر إليها براحة.', en: 'Discover amazing places, and get there comfortably.' },
   'v2.exploreAll': { ar: 'استكشف كل الوجهات', en: 'Explore all destinations' },
