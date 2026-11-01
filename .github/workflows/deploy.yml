@@ -87,6 +87,37 @@ jobs:
             "ftp://${FTP_HOST}${FTP_BASE_PATH}/app.zip"
           rm -f "$RUNNER_TEMP/ftp.conf"
           echo "Uploaded deploy/app.zip" >> "$GITHUB_STEP_SUMMARY"
+      - name: Apply DB migrations
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+        run: |
+          set -euo pipefail
+          esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+          {
+            printf 'user = "%s:%s"\n' "$(esc "$FTP_USER")" "$(esc "$FTP_PASS")"
+          } > "$RUNNER_TEMP/ftp-mig.conf"
+          echo "Uploading apply-migrations.php to public_html..."
+          curl --fail --silent --show-error \
+            --config "$RUNNER_TEMP/ftp-mig.conf" \
+            -T scripts/apply-migrations.php \
+            "ftp://${FTP_HOST}/public_html/apply-migrations.php"
+          
+          echo "Executing migrations..."
+          BASE_URL=$(echo "$AGENT_URL" | sed 's|/deploy-agent\.php$||')
+          mig_resp=$(curl --fail --silent --show-error --max-time 180 \
+            "${BASE_URL}/apply-migrations.php?key=safro_extract_2026&go=1")
+          echo "$mig_resp"
+          echo "### Database Migrations" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "$mig_resp" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          # Remove apply-migrations.php from public_html
+          curl --silent --config "$RUNNER_TEMP/ftp-mig.conf" -Q "DELE /public_html/apply-migrations.php" "ftp://${FTP_HOST}/" || true
+          rm -f "$RUNNER_TEMP/ftp-mig.conf"
 
       - name: Trigger server-side deploy
         id: deploy
