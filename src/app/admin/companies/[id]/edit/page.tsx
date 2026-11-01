@@ -1,9 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowRight, Loader2, Power, Zap } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  Calendar,
+  ChevronDown,
+  Edit3,
+  Loader2,
+  MapPin,
+  Search,
+  Trash2,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
@@ -13,8 +26,6 @@ import { V2Field, V2Select, V2Input } from '@/components/v2/Field';
 import { V2Button } from '@/components/v2/Button';
 import { V2Skeleton } from '@/components/v2/ui';
 
-/* V2 company edit — same GET/PATCH as V1. */
-
 /** Whether a day is the one right after another. */
 function isNextDay(after: string, day: string): boolean {
   const a = new Date(`${after}T00:00:00Z`).getTime();
@@ -23,30 +34,107 @@ function isNextDay(after: string, day: string): boolean {
   return Math.round((b - a) / 86400000) === 1;
 }
 
-/**
- * How a route is named in the editor.
- *
- * Two journeys can have the same origin and the same destination and still
- * be different journeys. The canonical key keeps them apart; the label has to
- * as well, or the administrator cannot tell which one they are choosing. So
- * the intermediate stops are shown, in the order the bus visits them.
- *
- * A stop whose name is not known is not invented: the label says the stops
- * are unknown rather than guessing at them.
- */
-function routeLabelText(route: any, isRTL: boolean): string {
-  const from = route?.origin || route?.stops?.[0] || '';
-  const to = route?.destination || route?.stops?.[route.stops.length - 1] || '';
-  const base = `${from} → ${to}`;
-  if (route?.stopsComplete === false) {
-    return isRTL ? `${base} (المحطات غير معروفة)` : `${base} (stops unknown)`;
-  }
-  const intermediates = (route?.stops ?? []).slice(1, -1);
-  if (intermediates.length > 0) {
-    const via = intermediates.join(isRTL ? ' · ' : ', ');
-    return isRTL ? `${base} (عبر ${via})` : `${base} (via ${via})`;
-  }
-  return base;
+/** Searchable station selector component */
+function SearchableStationSelect({
+  label,
+  value,
+  onChange,
+  stations,
+  excludeId,
+  placeholder,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  stations: { id: string; name: string; city: string }[];
+  excludeId?: string;
+  placeholder: string;
+  error?: string;
+}) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return stations
+      .filter((s) => s.id !== excludeId)
+      .filter((s) => !q || s.name.toLowerCase().includes(q) || (s.city && s.city.toLowerCase().includes(q)));
+  }, [stations, excludeId, search]);
+
+  const selected = stations.find((s) => s.id === value);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative grid gap-1.5 text-right" ref={containerRef}>
+      <label className="text-[13px] font-bold text-[#0B1B33]">{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'flex min-h-[48px] w-full items-center justify-between rounded-xl border bg-[var(--sp-card)] px-3 py-2 text-right text-[14px] transition',
+          error ? 'border-rose-400 focus:border-rose-500' : 'border-[var(--sp-line)] focus:border-blue-500',
+          !selected ? 'text-[var(--sp-text-muted)]' : 'text-[#0B1B33] font-bold'
+        )}
+      >
+        <span className="truncate">{selected ? `${selected.name} (${selected.city || ''})` : placeholder}</span>
+        <ChevronDown className={cn('size-4 shrink-0 transition text-slate-400', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-hidden rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] shadow-xl">
+          <div className="p-2 border-b border-[var(--sp-line)]">
+            <div className="flex items-center gap-2 rounded-lg bg-[var(--sp-inset)] px-2.5 py-1.5">
+              <Search className="size-3.5 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ابحث بالاسم أو المدينة..."
+                className="w-full bg-transparent text-[12.5px] outline-none placeholder:text-slate-400 text-right"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-44 overflow-y-auto p-1 divide-y divide-[var(--sp-line)]/40">
+            {filtered.length === 0 ? (
+              <p className="p-3 text-center text-[12px] text-slate-400">لا توجد محطات مطابقة</p>
+            ) : (
+              filtered.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(s.id);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  className={cn(
+                    'flex w-full items-center justify-between px-3 py-2 text-right text-[13px] rounded-lg transition hover:bg-[var(--sp-inset)]',
+                    s.id === value ? 'bg-blue-50 text-blue-700 font-bold' : 'text-[#0B1B33]'
+                  )}
+                >
+                  <span>{s.name}</span>
+                  <span className="text-[11px] text-slate-400">{s.city}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+      {error && <span className="text-[11.5px] font-bold text-rose-600">{error}</span>}
+    </div>
+  );
 }
 
 export default function EditCompanyPage() {
@@ -56,6 +144,7 @@ export default function EditCompanyPage() {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const isRTL = lang === 'ar';
+  const formRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -67,25 +156,33 @@ export default function EditCompanyPage() {
     autoPayEnabled: false,
     maxSeatsPerBooking: '' as string,
     maxDailySeats: '' as string,
-    seatQuota: '' as string,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  // The daily allowances: how many seats this company may hold on one route
-  // on one travel day, shared by every bus serving that route.
+
+  // Daily route quotas state
   const [quotas, setQuotas] = useState<any[]>([]);
+  const [stations, setStations] = useState<any[]>([]);
   const [quotasLoading, setQuotasLoading] = useState(true);
-  const [newQuota, setNewQuota] = useState({ routeKey: '', travelDate: '', dateTo: '', maxSeats: '' });
-  const [addingQuota, setAddingQuota] = useState(false);
-  // The routes this company could be given an allowance on: the routes its
-  // buses actually run, with the next date each one runs.
-  const [routeOptions, setRouteOptions] = useState<any[]>([]);
-  // The overall daily cap, and what the company has used of it on each date
-  // it has booked on.
-  const [dailyCap, setDailyCap] = useState<{ limit: number | null; usedByDate: Record<string, number> }>({
+  const [summary, setSummary] = useState({
+    overallCap: null as number | null,
+    distinctRoutesCount: 0,
+    todayUsed: 0,
+  });
+  const [_dailyCap, setDailyCap] = useState<{ limit: number | null; usedByDate: Record<string, number> }>({
     limit: null,
     usedByDate: {},
   });
+
+  const [quotaForm, setQuotaForm] = useState({
+    originStationId: '',
+    destinationStationId: '',
+    travelDate: '',
+    dateTo: '',
+    maxSeats: '',
+  });
+  const [savingQuota, setSavingQuota] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
 
   async function loadQuotas() {
     try {
@@ -93,123 +190,29 @@ export default function EditCompanyPage() {
       if (res.ok) {
         const data = await res.json();
         setQuotas(data.quotas || []);
-        // The routes this company's own buses run, with the earliest day each
-        // one runs. Offering any other route would be a cap on nothing.
-        setRouteOptions(data.routes || []);
+        setStations(data.stations || []);
         setDailyCap(data.dailyCap || { limit: null, usedByDate: {} });
+        if (data.summary) {
+          setSummary(data.summary);
+        } else {
+          setSummary({
+            overallCap: data.company?.maxDailySeats ?? null,
+            distinctRoutesCount: 0,
+            todayUsed: 0,
+          });
+        }
       }
-    } catch { /* keep empty */ } finally { setQuotasLoading(false); }
+    } catch {
+      /* keep empty */
+    } finally {
+      setQuotasLoading(false);
+    }
   }
 
   useEffect(() => {
     loadQuotas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  async function addQuota() {
-    if (!newQuota.routeKey || !newQuota.travelDate) {
-      toast.error(isRTL ? 'اختر المسار وتاريخ السفر' : 'Pick a route and a travel date');
-      return;
-    }
-    // The same rule the server applies, so the admin is told straight away
-    // rather than after a round trip. The server still checks it: this is a
-    // convenience, not the rule.
-    if (newQuota.maxSeats !== '') {
-      const cap = Number(newQuota.maxSeats);
-      if (!Number.isFinite(cap) || cap < 1 || cap > 500) {
-        toast.error(t('quota.invalidCap'));
-        return;
-      }
-    }
-    setAddingQuota(true);
-    try {
-      const res = await fetch(`/api/admin/companies/${id}/route-quotas`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newQuota),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data?.error === 'INVALID_SEAT_CAP' ? t('quota.invalidCap') : (data?.message || data?.error || t('common.error')));
-        return;
-      }
-      setNewQuota({ routeKey: '', travelDate: '', dateTo: '', maxSeats: '' });
-      await loadQuotas();
-      toast.success(isRTL ? 'تم حفظ الحصة' : 'Quota saved');
-    } catch {
-      toast.error(t('common.error'));
-    } finally {
-      setAddingQuota(false);
-    }
-  }
-
-  /**
-   * Consecutive days with the same route and the same cap are one allowance
-   * as far as the administrator is concerned, so they are shown as one row
-   * with a range on it. The model is still one row per day underneath.
-   */
-  const groupedQuotas = useMemo(() => {
-    const sorted = [...quotas].sort((a, b) =>
-      a.routeKey === b.routeKey
-        ? a.travelDate.localeCompare(b.travelDate)
-        : a.routeKey.localeCompare(b.routeKey),
-    );
-    const groups: {
-      routeKey: string;
-      routeName: string;
-      route: any;
-      from: string;
-      to: string;
-      maxSeats: number | null;
-      used: number;
-    }[] = [];
-    for (const q of sorted) {
-      const last = groups[groups.length - 1];
-      const sameRun =
-        last &&
-        last.routeKey === q.routeKey &&
-        last.maxSeats === q.maxSeats &&
-        isNextDay(last.to, q.travelDate);
-      if (sameRun) {
-        last.to = q.travelDate;
-        last.used += q.used || 0;
-      } else {
-        groups.push({
-          routeKey: q.routeKey,
-          routeName: q.routeName,
-          route: q,
-          from: q.travelDate,
-          to: q.travelDate,
-          maxSeats: q.maxSeats,
-          used: q.used || 0,
-        });
-      }
-    }
-    return groups;
-  }, [quotas]);
-
-  async function removeQuota(g: { routeKey: string; from: string; to: string }) {
-    try {
-      const params = new URLSearchParams({
-        routeKey: g.routeKey,
-        travelDate: g.from,
-      });
-      if (g.from !== g.to) params.set('dateTo', g.to);
-      const res = await fetch(`/api/admin/companies/${id}/route-quotas?${params.toString()}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data?.error || t('common.error'));
-        return;
-      }
-      await loadQuotas();
-    } catch {
-      toast.error(t('common.error'));
-    }
-  }
 
   useEffect(() => {
     (async () => {
@@ -227,10 +230,13 @@ export default function EditCompanyPage() {
             autoPayEnabled: data.autoPayEnabled === true,
             maxSeatsPerBooking: data.maxSeatsPerBooking == null ? '' : String(data.maxSeatsPerBooking),
             maxDailySeats: data.maxDailySeats == null ? '' : String(data.maxDailySeats),
-            seatQuota: data.seatQuota == null ? '' : String(data.seatQuota),
           });
         }
-      } catch { /* keep blank */ } finally { setLoading(false); }
+      } catch {
+        /* keep blank */
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [id]);
 
@@ -257,10 +263,208 @@ export default function EditCompanyPage() {
     }
   }
 
+  /**
+   * Group consecutive days with same route and cap.
+   */
+  const groupedQuotas = useMemo(() => {
+    const sorted = [...quotas].sort((a, b) => {
+      const routeA = `${a.originStationId}:${a.destinationStationId}`;
+      const routeB = `${b.originStationId}:${b.destinationStationId}`;
+      if (routeA !== routeB) return routeA.localeCompare(routeB);
+      return a.travelDate.localeCompare(b.travelDate);
+    });
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const groups: {
+      originStationId: string;
+      destinationStationId: string;
+      originName: string;
+      destinationName: string;
+      from: string;
+      to: string;
+      maxSeats: number | null;
+      usageByDate: Record<string, number>;
+    }[] = [];
+
+    for (const q of sorted) {
+      const last = groups[groups.length - 1];
+      const sameRoute =
+        last &&
+        last.originStationId === q.originStationId &&
+        last.destinationStationId === q.destinationStationId &&
+        last.maxSeats === q.maxSeats;
+
+      if (sameRoute && isNextDay(last.to, q.travelDate)) {
+        last.to = q.travelDate;
+        last.usageByDate[q.travelDate] = q.used || 0;
+      } else {
+        groups.push({
+          originStationId: q.originStationId,
+          destinationStationId: q.destinationStationId,
+          originName: q.originName,
+          destinationName: q.destinationName,
+          from: q.travelDate,
+          to: q.travelDate,
+          maxSeats: q.maxSeats,
+          usageByDate: { [q.travelDate]: q.used || 0 },
+        });
+      }
+    }
+
+    return groups.map((g) => {
+      let status: 'ACTIVE' | 'UPCOMING' | 'EXPIRED' = 'ACTIVE';
+      let statusLabel = 'نشط';
+      let displayUsed = 0;
+      let displayDateLabel = '';
+
+      if (todayStr >= g.from && todayStr <= g.to) {
+        status = 'ACTIVE';
+        statusLabel = 'نشط';
+        displayUsed = g.usageByDate[todayStr] ?? 0;
+        displayDateLabel = `اليوم (${todayStr})`;
+      } else if (todayStr < g.from) {
+        status = 'UPCOMING';
+        statusLabel = 'قادم';
+        displayUsed = g.usageByDate[g.from] ?? 0;
+        displayDateLabel = g.from;
+      } else {
+        status = 'EXPIRED';
+        statusLabel = 'منتهي';
+        displayUsed = g.usageByDate[g.to] ?? 0;
+        displayDateLabel = g.to;
+      }
+
+      return {
+        ...g,
+        key: `${g.originStationId}:${g.destinationStationId}:${g.from}:${g.to}`,
+        status,
+        statusLabel,
+        displayUsed,
+        displayDateLabel,
+      };
+    });
+  }, [quotas]);
+
+  function editQuota(g: any) {
+    setQuotaForm({
+      originStationId: g.originStationId,
+      destinationStationId: g.destinationStationId,
+      travelDate: g.from,
+      dateTo: g.from === g.to ? '' : g.to,
+      maxSeats: g.maxSeats == null ? '' : String(g.maxSeats),
+    });
+    setQuotaError(null);
+    formRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function removeQuota(g: any) {
+    if (!confirm('هل أنت متأكد من حذف هذه الحصة اليومية؟')) return;
+    try {
+      const params = new URLSearchParams({
+        originStationId: g.originStationId,
+        destinationStationId: g.destinationStationId,
+        travelDate: g.from,
+      });
+      if (g.from !== g.to) params.set('dateTo', g.to);
+      const res = await fetch(`/api/admin/companies/${id}/route-quotas?${params.toString()}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data?.message || data?.error || 'حدث خطأ أثناء الحذف');
+        return;
+      }
+      toast.success('تم حذف الحصة بنجاح');
+      await loadQuotas();
+    } catch {
+      toast.error('حدث خطأ أثناء الحذف');
+    }
+  }
+
+  async function handleSaveQuota() {
+    setQuotaError(null);
+    if (!quotaForm.originStationId || !quotaForm.destinationStationId) {
+      setQuotaError('يرجى تحديد محطة الانطلاق ومحطة الوصول');
+      toast.error('يرجى تحديد محطة الانطلاق ومحطة الوصول');
+      return;
+    }
+    if (quotaForm.originStationId === quotaForm.destinationStationId) {
+      setQuotaError('لا يمكن أن تكون محطة الانطلاق ومحطة الوصول متطابقتين');
+      toast.error('لا يمكن أن تكون محطة الانطلاق ومحطة الوصول متطابقتين');
+      return;
+    }
+    if (!quotaForm.travelDate) {
+      setQuotaError('يرجى تحديد تاريخ البداية');
+      toast.error('يرجى تحديد تاريخ البداية');
+      return;
+    }
+    if (quotaForm.dateTo && quotaForm.dateTo < quotaForm.travelDate) {
+      setQuotaError('تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية');
+      toast.error('تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية');
+      return;
+    }
+    if (quotaForm.maxSeats !== '') {
+      const parsed = Number(quotaForm.maxSeats);
+      if (!Number.isFinite(parsed) || parsed < 1 || parsed > 500) {
+        setQuotaError('الحد الأقصى للمقاعد يجب أن يكون رقماً صحيحاً بين 1 و 500');
+        toast.error('الحد الأقصى للمقاعد يجب أن يكون رقماً صحيحاً بين 1 و 500');
+        return;
+      }
+    }
+
+    setSavingQuota(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${id}/route-quotas`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originStationId: quotaForm.originStationId,
+          destinationStationId: quotaForm.destinationStationId,
+          travelDate: quotaForm.travelDate,
+          dateTo: quotaForm.dateTo || undefined,
+          maxSeats: quotaForm.maxSeats === '' ? null : Number(quotaForm.maxSeats),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data?.error === 'QUOTA_BELOW_USAGE') {
+          const datesList = (data.violatingDates || []).map((v: any) => `${v.date} (${v.used} مقاعد)`).join('، ');
+          const msg = `${data.message}: التواريخ المتعارضة: ${datesList}`;
+          setQuotaError(msg);
+          toast.error(msg);
+        } else {
+          const msg = data?.message || data?.error || 'حدث خطأ أثناء حفظ الحصة';
+          setQuotaError(msg);
+          toast.error(msg);
+        }
+        return;
+      }
+      toast.success('تم حفظ الحصة اليومية بنجاح');
+      setQuotaForm({
+        originStationId: '',
+        destinationStationId: '',
+        travelDate: '',
+        dateTo: '',
+        maxSeats: '',
+      });
+      await loadQuotas();
+    } catch {
+      setQuotaError('حدث خطأ أثناء حفظ الحصة');
+      toast.error('حدث خطأ أثناء حفظ الحصة');
+    } finally {
+      setSavingQuota(false);
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <Link href="/admin/credit-report" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]">
-        <ArrowRight className="size-4 rotate-180 v2-flip-rtl" /> {t('company.creditReport')}
+    <div className="mx-auto max-w-4xl px-3 sm:px-4" dir="rtl">
+      <Link
+        href="/admin/credit-report"
+        className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33]"
+      >
+        <ArrowRight className="size-4 v2-flip-rtl" /> {t('company.creditReport')}
       </Link>
       <div className="mt-3">
         <V2PageHeader title={t('company.editCompany')} />
@@ -271,7 +475,7 @@ export default function EditCompanyPage() {
           <V2Skeleton className="h-64 rounded-2xl" />
         </div>
       ) : (
-        <form onSubmit={save} className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
+        <form onSubmit={save} className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6 text-right">
           <div className="grid gap-4 sm:grid-cols-2">
             <V2Field label={isRTL ? 'اسم الشركة' : 'Company name'}>
               <V2Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -280,7 +484,14 @@ export default function EditCompanyPage() {
               <V2Input value={form.subdomain} onChange={(e) => setForm({ ...form, subdomain: e.target.value })} dir="ltr" />
             </V2Field>
             <V2Field label={t('company.creditLimit')}>
-              <V2Input type="number" min="0" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: parseFloat(e.target.value) || 0 })} dir="ltr" className="tabular-nums" />
+              <V2Input
+                type="number"
+                min="0"
+                value={form.creditLimit}
+                onChange={(e) => setForm({ ...form, creditLimit: parseFloat(e.target.value) || 0 })}
+                dir="ltr"
+                className="tabular-nums"
+              />
             </V2Field>
             <V2Field label={t('company.paymentMode')}>
               <V2Select value={form.paymentMode} onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}>
@@ -289,29 +500,7 @@ export default function EditCompanyPage() {
                 <option value="BOTH">{t('company.bothMode')}</option>
               </V2Select>
             </V2Field>
-            <V2Field label={t('company.billingCycle')}>
-              <V2Select value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}>
-                <option value="MONTHLY">{t('company.monthly')}</option>
-                <option value="WEEKLY">{t('company.weekly')}</option>
-              </V2Select>
-            </V2Field>
-            <div className="grid gap-2">
-              <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('company.isActive')}</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.isActive}
-                onClick={() => setForm({ ...form, isActive: !form.isActive })}
-                className={cn(
-                  'flex min-h-[52px] items-center gap-2.5 rounded-xl border px-4 text-[14.5px] font-bold transition lg:min-h-[60px]',
-                  form.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'
-                )}
-              >
-                <Power className="size-5" />
-                {form.isActive ? t('company.isActive') : t('company.isInactive')}
-              </button>
-            </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:col-span-2">
               <span className="px-1 text-[13px] font-bold text-[#0B1B33]">{isRTL ? 'الدفع التلقائي' : 'Automatic payment'}</span>
               <button
                 type="button"
@@ -328,6 +517,11 @@ export default function EditCompanyPage() {
                   ? (isRTL ? 'مفعّل — يُخصم تلقائياً عند الحجز' : 'On — charged when the booking is created')
                   : (isRTL ? 'متوقف — الشركة تسدد بنفسها' : 'Off — the company settles it itself')}
               </button>
+              <p className="px-1 text-[12px] font-medium text-[var(--sp-text-muted)] leading-relaxed">
+                {isRTL
+                  ? 'عند تفعيل هذا الخيار، يتم خصم قيمة الحجز تلقائياً من رصيد الشركة عند تأكيد الحجز. إذا كان الرصيد غير كافٍ، فلن يتم إتمام عملية الخصم.'
+                  : 'When enabled, booking amounts are automatically deducted from the company balance upon booking confirmation. If the balance is insufficient, the deduction will not be completed.'}
+              </p>
             </div>
             <V2Field label={isRTL ? 'أقصى عدد مقاعد للحجز الواحد' : 'Max seats per booking'}>
               <V2Input
@@ -373,170 +567,278 @@ export default function EditCompanyPage() {
                   : `This is separate from the per-booking limit of ${DEFAULT_MAX_SEATS_PER_BOOKING} seats; the smaller of the two applies. Leave it empty for no daily limit.`}
               </p>
             </V2Field>
-            <V2Field label={isRTL ? 'حصة المقاعد لكل وجهة/مسار (يومياً)' : 'Seat quota per route (daily)'}>
-              <V2Input
-                type="number"
-                min="1"
-                value={form.seatQuota}
-                onChange={(e) => setForm({ ...form, seatQuota: e.target.value })}
-                placeholder={isRTL ? 'بلا حد' : 'No limit'}
-                dir="ltr"
-                className="tabular-nums"
-              />
-              <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
-                {isRTL
-                  ? 'حصة المقاعد المخصصة للشركة على كل مسار في يوم السفر الواحد. مقعد الذهاب والعودة يُحسب كمقعد واحد في تاريخ الذهاب فقط.'
-                  : 'Seat quota per route on the outbound travel date. Round-trip seats count as 1 seat on the outbound date.'}
-              </p>
-            </V2Field>
           </div>
           <V2Button type="submit" size="lg" disabled={saving} className="mt-5 w-full sm:w-auto">
-            {saving && <Loader2 className="size-5 animate-spin" />} {t('common.save')}
+            {saving && <Loader2 className="size-5 animate-spin ml-1.5" />} {t('common.save')}
           </V2Button>
         </form>
       )}
 
-      {/* ── The daily allowances ─────────────────────────────────────────
-          The cap is on the company, not on the bus: a company running three
-          buses on the same route on the same day shares one allowance. */}
-      <div className="mt-5 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
-        <h2 className="text-[15px] font-extrabold text-[#0B1B33]">
-          {isRTL ? 'حصص المقاعد اليومية' : 'Daily seat allowances'}
-        </h2>
-        <p className="mt-1 text-[12.5px] text-[var(--sp-text-muted)]">
-          {isRTL
-            ? 'عدد المقاعد التي يمكن للشركة حجزها على مسار واحد في يوم واحد، وكل الحافلات التي تسير على نفس المسار تتشارك في هذه الحصة.'
-            : 'How many seats this company may hold on one route on one travel day. Every bus serving that route shares the allowance.'}
-        </p>
-
-        {/* The overall daily cap, and what the company has used of it. The
-            route allowances sit inside it, so it is shown next to them. */}
-        <div className="mt-4 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3">
-          <p className="text-[13px] font-extrabold text-[#0B1B33]">
-            {isRTL ? 'الحصة اليومية الإجمالية' : 'Overall daily cap'}
-          </p>
-          <p className="mt-1 text-[12px] font-bold tabular-nums text-[var(--sp-text-muted)]">
-            {isRTL ? 'الحد' : 'cap'}{' '}
-            {dailyCap.limit == null ? '∞' : dailyCap.limit}
-            {Object.keys(dailyCap.usedByDate).length > 0 && (
-              <>
-                {' · '}
-                {isRTL ? 'المستخدم' : 'used'}{' '}
-                {Object.entries(dailyCap.usedByDate)
-                  .map(([date, used]) => `${date}: ${used}`)
-                  .join(' · ')}
-              </>
-            )}
+      {/* ── Daily seat quota overhaul (T2) ─────────────────────────────────── */}
+      <div className="mt-8 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6 text-right">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[18px] font-extrabold text-[#0B1B33]">
+            حصص المقاعد اليومية
+          </h2>
+          <p className="text-[13px] text-[var(--sp-text-muted)] leading-relaxed">
+            إدارة وتحديد الحد الأقصى للمقاعد المخصصة للشركة يومياً لكل مسار، وتتشارك فيها جميع الرحلات والأتوبيسات على نفس المسار والاتجاه.
           </p>
         </div>
 
-        {quotasLoading ? (
-          <div className="mt-4"><V2Skeleton className="h-24 rounded-xl" /></div>
-        ) : quotas.length === 0 ? (
-          <p className="mt-4 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3 text-[12.5px] font-bold text-[var(--sp-text-muted)]">
-            {isRTL ? 'لا توجد حصص — الشركة غير محدودة حالياً' : 'No allowances — the company is unlimited for now'}
-          </p>
-        ) : (
-          <div className="mt-4 space-y-2">
-            {groupedQuotas.map((g) => (
-              <div
-                key={`${g.routeKey}|${g.from}|${g.to}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--sp-inset)] px-3.5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-extrabold text-[#0B1B33]">
-                    {routeLabelText(g.route, isRTL)}
-                  </p>
-                  <p className="text-[12px] font-bold tabular-nums text-[var(--sp-text-muted)]">
-                    {g.from === g.to ? g.from : `${g.from} → ${g.to}`} ·{' '}
-                    {isRTL ? 'مستخدمة' : 'used'} {g.used} ·{' '}
-                    {isRTL ? 'الحد' : 'cap'}{' '}
-                    {g.maxSeats == null ? '∞' : g.maxSeats}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeQuota(g)}
-                  className="rounded-lg px-2.5 py-1.5 text-[12px] font-extrabold text-rose-600 hover:bg-rose-50"
-                >
-                  {isRTL ? 'حذف' : 'Remove'}
-                </button>
-              </div>
-            ))}
+        {/* 3 Summary Cards Grid */}
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-4">
+            <div className="flex items-center gap-2 text-[var(--sp-text-muted)] text-[12px] font-bold">
+              <Building2 className="size-4 text-emerald-600 shrink-0" />
+              <span>الحصة الإجمالية للشركة</span>
+            </div>
+            <div className="mt-2 text-[20px] font-black text-[#0B1B33] tabular-nums">
+              {summary.overallCap !== null ? `${summary.overallCap} مقعد / يوم` : '∞'}
+            </div>
           </div>
-        )}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <V2Field label={isRTL ? 'المسار' : 'Route'}>
-            <V2Select
-              value={newQuota.routeKey}
-              onChange={(e) => {
-                const opt = routeOptions.find((o) => o.routeKey === e.target.value);
-                setNewQuota({
-                  ...newQuota,
-                  routeKey: e.target.value,
-                  // The date follows the route: the day that route next runs.
-                  travelDate: opt?.travelDate || newQuota.travelDate,
-                });
-              }}
-            >
-              <option value="">{isRTL ? 'اختر المسار…' : 'Choose a route…'}</option>
-              {routeOptions.map((o) => (
-                <option key={o.routeKey} value={o.routeKey}>
-                  {routeLabelText(o, isRTL)}
-                </option>
-              ))}
-            </V2Select>
-          </V2Field>
-          <V2Field label={isRTL ? 'تاريخ السفر' : 'Travel date'}>
-            <V2Input
-              type="date"
-              value={newQuota.travelDate}
-              onChange={(e) => setNewQuota({ ...newQuota, travelDate: e.target.value })}
-              dir="ltr"
-            />
-          </V2Field>
-          <V2Field label={isRTL ? 'حتى تاريخ' : 'To date'}>
-            <V2Input
-              type="date"
-              value={newQuota.dateTo}
-              onChange={(e) => setNewQuota({ ...newQuota, dateTo: e.target.value })}
-              placeholder={isRTL ? 'يوم واحد' : 'Single day'}
-              dir="ltr"
-            />
-            <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
-              {isRTL
-                ? 'اتركه فارغاً ليوم واحد. المدى يُحفظ كصف لكل يوم.'
-                : 'Leave it empty for a single day. A range is stored as one row per day.'}
-            </p>
-          </V2Field>
-          <V2Field label={isRTL ? 'حد المقاعد' : 'Seat cap'}>
-            <V2Input
-              type="number"
-              min="1"
-              max="500"
-              value={newQuota.maxSeats}
-              onChange={(e) => setNewQuota({ ...newQuota, maxSeats: e.target.value })}
-              placeholder={isRTL ? 'بلا حد' : 'No limit'}
-              dir="ltr"
-              className="tabular-nums"
-            />
-            <p className="mt-1 text-[12px] text-[var(--sp-text-muted)]">
-              {isRTL
-                ? 'من 1 إلى 500 مقعد. اتركه فارغاً لعدم وضع حد. هذا الحد لا يرفع حد الـ 10 مقاعد لكل حجز.'
-                : '1 to 500 seats. Leave it empty for no limit. This cap cannot raise the ten-seat limit on a single booking.'}
-            </p>
-          </V2Field>
+          <div className="rounded-xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-4">
+            <div className="flex items-center gap-2 text-[var(--sp-text-muted)] text-[12px] font-bold">
+              <MapPin className="size-4 text-blue-600 shrink-0" />
+              <span>عدد المسارات المحددة</span>
+            </div>
+            <div className="mt-2 text-[20px] font-black text-[#0B1B33] tabular-nums">
+              {summary.distinctRoutesCount} مسارات
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-4">
+            <div className="flex items-center gap-2 text-[var(--sp-text-muted)] text-[12px] font-bold">
+              <Users className="size-4 text-amber-600 shrink-0" />
+              <span>المقاعد المستخدمة اليوم</span>
+            </div>
+            <div className="mt-2 text-[20px] font-black text-[#0B1B33] tabular-nums">
+              {summary.todayUsed} مقاعد
+            </div>
+          </div>
         </div>
-        <V2Button
-          type="button"
-          onClick={addQuota}
-          disabled={addingQuota || !newQuota.routeKey || !newQuota.travelDate}
-          className="mt-3"
-        >
-          {addingQuota && <Loader2 className="size-5 animate-spin" />}
-          {isRTL ? 'حفظ الحصة' : 'Save allowance'}
-        </V2Button>
+
+        {/* Existing Quota Cards List */}
+        <div className="mt-6">
+          <h3 className="text-[15px] font-extrabold text-[#0B1B33] mb-3">
+            الحصص المحددة
+          </h3>
+
+          {quotasLoading ? (
+            <div className="space-y-3">
+              <V2Skeleton className="h-28 rounded-xl" />
+              <V2Skeleton className="h-28 rounded-xl" />
+            </div>
+          ) : groupedQuotas.length === 0 ? (
+            <div className="rounded-xl bg-[var(--sp-inset)] p-6 text-center">
+              <p className="text-[13px] font-bold text-[var(--sp-text-muted)]">
+                لا توجد حصص مسارات محددة حالياً — الشركة غير مقيدة بحصص مسارات
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {groupedQuotas.map((g) => (
+                <div
+                  key={g.key}
+                  className="rounded-xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4 shadow-sm transition hover:border-slate-300"
+                >
+                  {/* Header row: Route with Arabic directional arrow, scope badge, status badge */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--sp-line)]/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-black text-[#0B1B33]">{g.originName}</span>
+                      <ArrowLeft className="size-4 text-slate-400 shrink-0" />
+                      <span className="text-[15px] font-black text-[#0B1B33]">{g.destinationName}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                        جميع رحلات المسار
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded-md border px-2 py-0.5 text-[11px] font-bold',
+                          g.status === 'ACTIVE' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                          g.status === 'UPCOMING' && 'border-blue-200 bg-blue-50 text-blue-700',
+                          g.status === 'EXPIRED' && 'border-slate-200 bg-slate-100 text-slate-600'
+                        )}
+                      >
+                        {g.statusLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Info row: Daily quota & Date range */}
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 text-[12.5px]">
+                    <div className="flex items-center gap-1.5 text-[var(--sp-text-muted)] font-medium">
+                      <Users className="size-4 text-slate-400 shrink-0" />
+                      <span>الحد اليومي:</span>
+                      <span className="font-extrabold text-[#0B1B33] tabular-nums">
+                        {g.maxSeats !== null ? `${g.maxSeats} مقعد` : 'بلا حد (∞)'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[var(--sp-text-muted)] font-medium">
+                      <Calendar className="size-4 text-slate-400 shrink-0" />
+                      <span>الفترة:</span>
+                      <span className="font-extrabold text-[#0B1B33] tabular-nums" dir="ltr">
+                        {g.from === g.to ? g.from : `من ${g.from} إلى ${g.to}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Live consumption & progress bar */}
+                  <div className="mt-3 rounded-lg bg-[var(--sp-inset)] p-3">
+                    <div className="flex items-center justify-between text-[12px] font-bold">
+                      <span className="text-[var(--sp-text-muted)]">
+                        الاستهلاك ({g.displayDateLabel}):
+                      </span>
+                      <span className="text-[#0B1B33] tabular-nums">
+                        المستخدم: {g.displayUsed} · المتبقي: {g.maxSeats !== null ? Math.max(0, g.maxSeats - g.displayUsed) : '∞'}
+                      </span>
+                    </div>
+                    {g.maxSeats !== null ? (
+                      <div className="mt-2 h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-300',
+                            g.displayUsed / g.maxSeats >= 1
+                              ? 'bg-rose-500'
+                              : g.displayUsed / g.maxSeats >= 0.8
+                              ? 'bg-amber-500'
+                              : 'bg-emerald-500'
+                          )}
+                          style={{ width: `${Math.min(100, Math.round((g.displayUsed / g.maxSeats) * 100))}%` }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-[11px] text-[var(--sp-text-muted)] font-medium">
+                        لا يوجد حد أقصى — الحجز متاح بحرية
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-3 flex items-center justify-end gap-2 pt-1 border-t border-[var(--sp-line)]/40">
+                    <button
+                      type="button"
+                      onClick={() => editQuota(g)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-bold text-blue-600 hover:bg-blue-50 transition"
+                    >
+                      <Edit3 className="size-3.5" />
+                      <span>تعديل</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeQuota(g)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-bold text-rose-600 hover:bg-rose-50 transition"
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span>حذف</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add / Edit Quota Form */}
+        <div ref={formRef} className="mt-8 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-inset)] p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--sp-line)] pb-3">
+            <h3 className="text-[15px] font-extrabold text-[#0B1B33]">
+              {quotaForm.travelDate && quotaForm.originStationId ? 'تعديل حصة مسار يومية' : 'إضافة / تعديل حصة مسار يومية'}
+            </h3>
+            <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11.5px] font-extrabold text-indigo-700">
+              جميع رحلات المسار (كل الأتوبيسات والرحلات)
+            </span>
+          </div>
+
+          {quotaError && (
+            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12.5px] font-bold text-rose-700 leading-relaxed">
+              {quotaError}
+            </div>
+          )}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <SearchableStationSelect
+              label="محطة الانطلاق"
+              value={quotaForm.originStationId}
+              onChange={(id) => setQuotaForm((f) => ({ ...f, originStationId: id }))}
+              stations={stations}
+              excludeId={quotaForm.destinationStationId}
+              placeholder="اختر محطة الانطلاق..."
+            />
+            <SearchableStationSelect
+              label="محطة الوصول"
+              value={quotaForm.destinationStationId}
+              onChange={(id) => setQuotaForm((f) => ({ ...f, destinationStationId: id }))}
+              stations={stations}
+              excludeId={quotaForm.originStationId}
+              placeholder="اختر محطة الوصول..."
+            />
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <V2Field label="تاريخ البداية">
+              <V2Input
+                type="date"
+                value={quotaForm.travelDate}
+                onChange={(e) => setQuotaForm({ ...quotaForm, travelDate: e.target.value })}
+                dir="ltr"
+              />
+            </V2Field>
+
+            <V2Field label="تاريخ النهاية (اختياري)">
+              <V2Input
+                type="date"
+                value={quotaForm.dateTo}
+                onChange={(e) => setQuotaForm({ ...quotaForm, dateTo: e.target.value })}
+                placeholder="يوم واحد (اختياري)"
+                dir="ltr"
+              />
+            </V2Field>
+
+            <V2Field label="الحد الأقصى للمقاعد يومياً">
+              <V2Input
+                type="number"
+                min="1"
+                max="500"
+                value={quotaForm.maxSeats}
+                onChange={(e) => setQuotaForm({ ...quotaForm, maxSeats: e.target.value })}
+                placeholder="بلا حد (اتركه فارغاً)"
+                dir="ltr"
+                className="tabular-nums"
+              />
+            </V2Field>
+          </div>
+
+          <p className="mt-2 text-[12px] font-medium text-[var(--sp-text-muted)] leading-relaxed">
+            يتم تطبيق هذا الحد بشكل متكرر على كل يوم داخل الفترة المحددة، ويشمل جميع الأتوبيسات والرحلات التي تسير على نفس المسار والاتجاه.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <V2Button
+              type="button"
+              onClick={handleSaveQuota}
+              disabled={savingQuota || !quotaForm.originStationId || !quotaForm.destinationStationId || !quotaForm.travelDate}
+              className="w-full sm:w-auto"
+            >
+              {savingQuota && <Loader2 className="size-4 animate-spin ml-1.5" />}
+              حفظ الحصة اليومية
+            </V2Button>
+
+            {(quotaForm.originStationId || quotaForm.travelDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuotaForm({ originStationId: '', destinationStationId: '', travelDate: '', dateTo: '', maxSeats: '' });
+                  setQuotaError(null);
+                }}
+                className="rounded-lg px-3 py-2 text-[13px] font-bold text-[var(--sp-text-muted)] hover:text-[#0B1B33] transition"
+              >
+                إلغاء
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

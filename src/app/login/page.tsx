@@ -107,12 +107,12 @@ function LoginForm() {
           <span className="relative block">
             <V2Input
               type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" required dir="ltr" autoComplete="current-password" className="pe-12"
+              placeholder="••••••••" required dir="ltr" autoComplete="current-password" className="pr-12 text-left"
             />
             <button
               type="button" onClick={() => setShowPw(!showPw)}
               aria-label={showPw ? 'Hide password' : 'Show password'}
-              className="absolute end-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#9AA8BD] hover:text-[#0B1B33]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#9AA8BD] hover:text-[#0B1B33]"
             >
               {showPw ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
             </button>

@@ -408,8 +408,8 @@ function TripDetailPageContent() {
   function toggleSeat(label: string) {
     if (reservedSeats.has(label)) return;
     setSelectedSeats((prev) => {
-      if (prev.includes(label)) return prev.filter((s) => s !== label);
-      if (seatCap !== null && prev.length >= seatCap) {
+      const next = prev.includes(label) ? prev.filter((s) => s !== label) : [...prev, label];
+      if (!prev.includes(label) && seatCap !== null && prev.length >= seatCap) {
         toast.error(
           isRTL
             ? `الحد الأقصى ${seatCap} مقاعد في الحجز الواحد`
@@ -417,23 +417,31 @@ function TripDetailPageContent() {
         );
         return prev;
       }
-      return [...prev, label];
+      if (returnTripId && next.length < returnSelectedSeats.length) {
+        setReturnSelectedSeats((retPrev) => retPrev.slice(0, next.length));
+      }
+      return next;
     });
   }
 
   function toggleReturnSeat(label: string) {
     if (returnReservedSeats.has(label)) return;
+    if (selectedSeats.length === 0) {
+      toast.error(
+        isRTL
+          ? 'يرجى اختيار مقاعد رحلة الذهاب أولاً'
+          : 'Please select outbound seats first'
+      );
+      return;
+    }
     setReturnSelectedSeats((prev) => {
       if (prev.includes(label)) return prev.filter((s) => s !== label);
-      // Round trip rule: the number of return seats must equal the number of
-      // outbound seats. The server enforces this too (with an Arabic error)
-      // so a UI that bypasses this check cannot create a mismatched leg.
       if (prev.length >= selectedSeats.length) {
-        toast.error(isRTL ? 'عدد مقاعد العودة يجب أن يساوي عدد مقاعد الذهاب' : 'Return seats must equal outbound seats');
-        return prev;
-      }
-      if (seatCap !== null && prev.length >= seatCap) {
-        toast.error(isRTL ? `الحد الأقصى ${seatCap} مقاعد في الحجز الواحد` : `At most ${seatCap} seats in one booking`);
+        toast.error(
+          isRTL
+            ? `عدد مقاعد العودة (${selectedSeats.length}) يجب أن يطابق عدد مقاعد الذهاب`
+            : `Return seats count must match outbound seats (${selectedSeats.length})`
+        );
         return prev;
       }
       return [...prev, label];
@@ -451,6 +459,15 @@ function TripDetailPageContent() {
 
   async function handleHold() {
     if (selectedSeats.length === 0) return;
+    if (returnTripId && returnSelectedSeats.length !== selectedSeats.length) {
+      toast.error(
+        isRTL
+          ? `يجب اختيار ${selectedSeats.length} مقاعد لرحلة العودة (نفس عدد مقاعد الذهاب)`
+          : `Please select ${selectedSeats.length} return seats (matching outbound)`
+      );
+      scrollToReturn();
+      return;
+    }
     if (!session) {
       toast.error(isRTL ? 'سجل دخول أولاً' : 'Please sign in first');
       router.push('/login');
@@ -463,6 +480,16 @@ function TripDetailPageContent() {
     if (!session) {
       toast.error(isRTL ? 'سجل دخول أولاً' : 'Please sign in first');
       router.push('/login');
+      return;
+    }
+    if (returnTripId && returnSelectedSeats.length !== selectedSeats.length) {
+      toast.error(
+        isRTL
+          ? `يجب اختيار ${selectedSeats.length} مقاعد لرحلة العودة (نفس عدد مقاعد الذهاب)`
+          : `Please select ${selectedSeats.length} return seats (matching outbound)`
+      );
+      setBooking(false);
+      scrollToReturn();
       return;
     }
     setBooking(true);
@@ -605,13 +632,10 @@ function TripDetailPageContent() {
           setPassenger({ name: session.user?.name || '', phone: '', hotel: '', notes: '', collectAmount: '' });
           toast.success(isRTL ? 'تم الحجز بنجاح، تأكد من الدفع في صفحة الحجوزات' : 'Booked successfully, confirm payment in bookings page');
         }
+        return;
       }
       // SUPER_ADMIN: the platform pays for the seat from its own wallet, so
       // there is no receipt to ask for and no company to charge.
-      //
-      // This must be an `else if`: it used to be a standalone `if`, so a
-      // COMPANY_ADMIN fell through the company branch above into the
-      // customer branch below and re-posted every seat to /api/bookings.
       else if (session.user.role === 'SUPER_ADMIN') {
         // When the admin is booking on a company's behalf, the company's
         // wallet pays and the booking belongs to that company. The platform
@@ -779,6 +803,7 @@ function TripDetailPageContent() {
           setPassenger({ name: session.user?.name || '', phone: '', hotel: '', notes: '', collectAmount: '' });
           toast.success(isRTL ? 'تم الحجز من محفظة المنصة' : 'Booked from the platform wallet');
         }
+        return;
       } else {
         // CUSTOMER: use regular booking endpoint (one per seat)
         const hasRoundTrip = !!(returnTripId && returnSeats);
@@ -1458,12 +1483,6 @@ function TripDetailPageContent() {
                               {isRTL ? 'حصة المسار اليومي: ' : 'Daily route quota: '}
                               {companyPreview.limits?.routeLimit ?? '∞'}
                             </span>
-                            {companyPreview.seatQuota?.quota != null && (
-                              <span>
-                                {isRTL ? 'حصة مسار الشركة: ' : 'Company route quota: '}
-                                {companyPreview.seatQuota.remaining} / {companyPreview.seatQuota.quota}
-                              </span>
-                            )}
                           </div>
                         </div>
                       )}
@@ -1602,7 +1621,7 @@ function TripDetailPageContent() {
                 <V2Button
                   size="lg"
                   onClick={handleHold}
-                  disabled={selectedSeats.length === 0 || booking || (isRoundTrip && returnSelectedSeats.length === 0)}
+                  disabled={selectedSeats.length === 0 || booking || (isRoundTrip && returnSelectedSeats.length !== selectedSeats.length)}
                   className="w-full mt-2"
                 >
                   {booking ? (
@@ -1613,10 +1632,16 @@ function TripDetailPageContent() {
                   ) : selectedSeats.length === 0 ? (
                     t('seat.selectFirst')
                   ) : isRoundTrip ? (
-                    <>
-                      <Sparkles size={16} />
-                      {isRTL ? 'تأكيد الحجز' : 'Confirm Booking'} ({selectedSeats.length + returnSelectedSeats.length})
-                    </>
+                    returnSelectedSeats.length !== selectedSeats.length ? (
+                      isRTL
+                        ? `اختر مقاعد العودة (${returnSelectedSeats.length}/${selectedSeats.length})`
+                        : `Select return seats (${returnSelectedSeats.length}/${selectedSeats.length})`
+                    ) : (
+                      <>
+                        <Sparkles size={16} />
+                        {isRTL ? 'تأكيد الحجز' : 'Confirm Booking'} ({selectedSeats.length + returnSelectedSeats.length})
+                      </>
+                    )
                   ) : (
                     <>
                       <Sparkles size={16} />
@@ -1662,6 +1687,16 @@ function TripDetailPageContent() {
                       <h3 className="text-lg font-extrabold text-[#0B1B33]">{t('seat.select')}</h3>
                       <p className="text-xs text-[var(--sp-text-muted)] mt-0.5">{returnTrip.bus?.name} · {returnLayout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0} seats</p>
                     </div>
+                    <span className={cn(
+                      'text-xs font-bold px-3 py-1.5 rounded-xl border',
+                      returnSelectedSeats.length === selectedSeats.length
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-amber-50 border-amber-200 text-amber-700'
+                    )}>
+                      {isRTL
+                        ? `المقاعد: ${returnSelectedSeats.length} من ${selectedSeats.length}`
+                        : `Seats: ${returnSelectedSeats.length} of ${selectedSeats.length}`}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-center mb-6">
@@ -1772,11 +1807,13 @@ function TripDetailPageContent() {
                 <V2Button
                   size="lg"
                   onClick={handleHold}
-                  disabled={returnSelectedSeats.length === 0 || booking}
+                  disabled={returnSelectedSeats.length !== selectedSeats.length || booking}
                   className="w-full mt-4"
                 >
                   {booking ? (
                     <><Loader2 size={18} className="animate-spin" /> {t('common.loading')}</>
+                  ) : returnSelectedSeats.length !== selectedSeats.length ? (
+                    <>{isRTL ? `اختر ${selectedSeats.length} مقاعد للعودة (${returnSelectedSeats.length}/${selectedSeats.length})` : `Select ${selectedSeats.length} return seats (${returnSelectedSeats.length}/${selectedSeats.length})`}</>
                   ) : (
                     <><Sparkles size={16} /> {isRTL ? 'تأكيد الحجز' : 'Confirm Booking'} ({selectedSeats.length + returnSelectedSeats.length})</>
                   )}

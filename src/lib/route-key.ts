@@ -44,6 +44,55 @@ export function routeKeyOfTrip(trip: { tripStops?: { stationId: string; stopOrde
 }
 
 /**
+ * Canonical quota route key for an origin and destination station.
+ * Quotas do not depend on intermediate stops, bus IDs, trip IDs, or departure times.
+ * Format: `od:${originStationId}:${destinationStationId}`.
+ * Direction-sensitive: od:A:B !== od:B:A.
+ */
+export function getQuotaRouteKey(originStationId: string, destinationStationId: string): string {
+  return `od:${originStationId}:${destinationStationId}`
+}
+
+/**
+ * Extracts origin and destination station IDs from trip stops.
+ * Sorts stops by stopOrder ascending.
+ * Origin = stop with minimum stopOrder; Destination = stop with maximum stopOrder.
+ * Returns { originStationId, destinationStationId } or null if fewer than 2 stops.
+ */
+export function tripEndpoints(
+  trip: { tripStops?: { stationId: string; stopOrder: number }[] } | null | undefined,
+): { originStationId: string; destinationStationId: string } | null {
+  if (!trip?.tripStops || trip.tripStops.length < 2) return null
+  const sorted = [...trip.tripStops].sort((a, b) => a.stopOrder - b.stopOrder)
+  const origin = sorted[0]?.stationId
+  const destination = sorted[sorted.length - 1]?.stationId
+  if (!origin || !destination) return null
+  return { originStationId: origin, destinationStationId: destination }
+}
+
+/**
+ * Parses a quota route key into its origin and destination station IDs.
+ * Supports both the new `od:A:B` format and legacy `A|...|B` formats seamlessly.
+ */
+export function parseQuotaRouteKey(key: string): { originStationId: string; destinationStationId: string } | null {
+  if (!key || typeof key !== 'string') return null
+  if (key.startsWith('od:')) {
+    const parts = key.split(':')
+    if (parts.length === 3 && parts[1] && parts[2]) {
+      return { originStationId: parts[1], destinationStationId: parts[2] }
+    }
+    return null
+  }
+  if (key.includes(ROUTE_KEY_SEPARATOR)) {
+    const parts = key.split(ROUTE_KEY_SEPARATOR).filter(Boolean)
+    if (parts.length >= 2) {
+      return { originStationId: parts[0], destinationStationId: parts[parts.length - 1] }
+    }
+  }
+  return null
+}
+
+/**
  * The travel date as a Cairo calendar day, "yyyy-mm-dd".
  *
  * Cairo rather than UTC on purpose. A trip leaving at 01:00 on the 20th Cairo

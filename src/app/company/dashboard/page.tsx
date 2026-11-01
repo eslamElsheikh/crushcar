@@ -101,7 +101,7 @@ export default function CompanyDashboard() {
           </h1>
           <p className="mt-1 text-[14.5px] text-[var(--sp-text-muted)]">{data.company?.name}</p>
         </div>
-        <Link href="/company/bookings/new" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
+        <Link href="/trips" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
           <Plus className="size-5" /> {t('company.newBooking')}
         </Link>
       </div>

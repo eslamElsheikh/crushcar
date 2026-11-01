@@ -255,7 +255,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Main Grid: Revenue Trend + Recent Bookings Feed */}
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_380px]">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_400px]">
         {/* Revenue Trend Area Chart */}
         <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="flex items-center justify-between">
@@ -286,14 +286,14 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recent Bookings Feed (Restored from V1) */}
-        <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
+        <div className="min-w-0 rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 md:p-6">
           <div className="flex items-center justify-between">
             <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('dashboard.recentBookings')}</p>
             <Link href="/admin/bookings" className="flex items-center gap-1 text-[13px] font-bold text-[#1D5BD8] hover:underline">
               {t('dashboard.viewAll')} <ArrowRight className="size-3.5 v2-flip-rtl" />
             </Link>
           </div>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 grid min-w-0 gap-2">
             {(!data?.recentBookings || data.recentBookings.length === 0) ? (
               <p className="rounded-xl bg-[var(--sp-inset)] py-8 text-center text-[13.5px] text-[var(--sp-text-muted)]">
                 {t('bookings.noBookings')}
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
                 const name = b.user?.name || b.company?.name || b.passengerName || t('common.guest');
                 const initial = name.slice(0, 1).toUpperCase();
                 return (
-                  <div key={b.id} className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-[var(--sp-inset)]">
+                  <div key={b.id} className="flex w-full min-w-0 items-center gap-3 rounded-xl p-2.5 hover:bg-[var(--sp-inset)]">
                     <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#EFF4FF] text-[13px] font-bold text-[#1D5BD8]">
                       {initial}
                     </span>
@@ -314,7 +314,7 @@ export default function AdminDashboard() {
                         {b.seatLabel ? ` · ${b.seatLabel}` : ''}
                       </p>
                     </div>
-                    <div className="text-end">
+                    <div className="shrink-0 text-end">
                       <p className="text-[13.5px] font-extrabold tabular-nums text-[#0B1B33]">
                         {Number(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                       </p>

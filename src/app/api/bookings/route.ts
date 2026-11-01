@@ -230,6 +230,9 @@ async function createBooking(req: NextRequest): Promise<NextResponse> {
       if (session.user.role === 'SUPER_ADMIN') {
         throw new Error('SUPER_ADMIN_USE_PLATFORM_BOOKING')
       }
+      if (session.user.role === 'COMPANY_ADMIN') {
+        throw new Error('COMPANY_ADMIN_USE_COMPANY_BOOKING')
+      }
 
       if (fromStationId && toStationId && trip.tripStops.length > 0) {
         const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)

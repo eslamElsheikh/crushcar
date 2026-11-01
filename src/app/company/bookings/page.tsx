@@ -12,20 +12,6 @@ import { bookingStatusLabel, bookingStatusTone } from '@/lib/booking-status';
 
 /* V2 company bookings list — same ?status&q&page API as V1. */
 
-/* A booking in a round-trip group is shown as linked to its other leg.
-   The group id is shared by both legs; the earlier departure is the
-   outbound (ذهاب) and the later one the return (عودة). */
-function roundTripLegLabel(b: any, all: any[], isRTL: boolean): string | null {
-  if (!b.roundTripGroupId) return null;
-  const group = all.filter((x) => x.roundTripGroupId === b.roundTripGroupId);
-  if (group.length < 2) return isRTL ? 'ضمن رحلة ذهاب وعودة' : 'Part of a round trip';
-  const dep = (x: any) => new Date(x.actualDeparture || x.trip?.departure || 0).getTime();
-  const sorted = [...group].sort((a, b2) => dep(a) - dep(b2));
-  return sorted[0].id === b.id
-    ? (isRTL ? 'ذهاب' : 'Outbound')
-    : (isRTL ? 'عودة' : 'Return');
-}
-
 export default function CompanyBookingsPage() {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
@@ -69,7 +55,7 @@ export default function CompanyBookingsPage() {
           <h1 className="text-balance text-[26px] font-extrabold text-[#0B1B33] md:text-[32px]">{t('company.bookings')}</h1>
           <p className="mt-1 text-[14.5px] tabular-nums text-[var(--sp-text-muted)]">{t('company.totalBookings')}</p>
         </div>
-        <Link href="/company/bookings/new" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
+        <Link href="/trips" className="v2-btn-primary inline-flex items-center gap-2 px-5 py-3 text-[14.5px]">
           <Plus className="size-5" /> {t('company.newBooking')}
         </Link>
       </div>
@@ -106,7 +92,7 @@ export default function CompanyBookingsPage() {
           <V2EmptyState
             title={t('company.noBookings')}
             actionLabel={t('company.newBooking')}
-            onAction={() => { window.location.href = '/company/bookings/new'; }}
+            onAction={() => { window.location.href = '/trips'; }}
           />
         ) : (
           <>
@@ -118,11 +104,6 @@ export default function CompanyBookingsPage() {
                       {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
                     <span className="min-w-0 max-w-full break-all font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
-                    {roundTripLegLabel(b, bookings, isRTL) && (
-                      <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
-                        {roundTripLegLabel(b, bookings, isRTL)}
-                      </span>
-                    )}
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
                       {(b.total || 0).toLocaleString(locale)} {t('common.currency')}
                     </span>

@@ -101,7 +101,7 @@ export default function AdminTripRequests() {
             aria-pressed={filter === f}
             className={`rounded-xl border px-3.5 py-2.5 text-[13.5px] font-bold transition ${filter === f ? 'border-[#0A1E3C] bg-[#0A1E3C] text-white' : 'border-slate-200 bg-[var(--sp-card)] text-[var(--sp-text-muted)]'}`}
           >
-            {f || (isRTL ? 'الكل' : 'All')}
+            {f === 'PENDING' ? t('tripRequest.pending') : f === 'APPROVED' ? t('tripRequest.approved') : f === 'REJECTED' ? t('tripRequest.rejected') : (isRTL ? 'الكل' : 'All')}
           </button>
         ))}
       </div>

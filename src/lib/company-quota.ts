@@ -1,5 +1,4 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
-import { randomUUID } from 'crypto'
 import { lockRow } from './row-lock'
 import { dbDialect } from './prisma'
 import {
@@ -9,8 +8,12 @@ import {
   effectiveTripQuota,
   type CompanyLimitFields,
 } from './booking-limits'
-import { resolveRouteIdentity } from './route-key'
-
+import {
+  getQuotaRouteKey,
+  tripEndpoints,
+  parseQuotaRouteKey,
+  travelDateOf,
+} from './route-key'
 /**
  * The seat limits that apply to one company booking, and the decision about
  * whether it fits.
@@ -37,57 +40,6 @@ export class SeatCapExceededError extends Error {
   constructor(readonly max: number) {
     super('Seat cap exceeded')
     this.name = 'SeatCapExceededError'
-  }
-}
-
-/**
- * The second leg of a round trip must cover exactly as many seats as the
- * first. A round trip is posted as two requests sharing one
- * `roundTripGroupId`; the first creates the outbound rows, so any later
- * request must match the count already in the group. The seat UI enforces
- * this too, but the rule belongs on the server: a direct API call that
- * bypasses the UI used to be able to book 10 outbound and 12 return seats.
- */
-export class RoundTripSeatMismatchError extends Error {
-  readonly code = 'ROUND_TRIP_SEAT_MISMATCH'
-  constructor(readonly expected: number, readonly requested: number) {
-    super(`ROUND_TRIP_SEAT_MISMATCH:${expected}:${requested}`)
-    this.name = 'RoundTripSeatMismatchError'
-  }
-}
-
-/**
- * The company has reached its per-route outbound seat quota for this travel date.
- * Set by super admin in Company.seatQuota.
- * A round-trip seat counts as ONE seat evaluated on the outbound date.
- */
-export class SeatQuotaExceededError extends Error {
-  readonly code = 'SEAT_QUOTA_EXCEEDED'
-  constructor(readonly limit: number, readonly used: number, readonly requested: number) {
-    const remaining = Math.max(0, limit - used)
-    super(`تم تجاوز حصة المقاعد المحددة للشركة (${limit} مقعد). المستخدم: ${used}، المتبقي: ${remaining}، المطلوب: ${requested}.`)
-    this.name = 'SeatQuotaExceededError'
-  }
-}
-
-export async function assertRoundTripSeatParity(
-  tx: Prisma.TransactionClient,
-  args: {
-    companyId: string
-    roundTripGroupId?: string | null
-    requestedSeats: number
-  },
-): Promise<void> {
-  if (!args.roundTripGroupId) return
-  const existing = await tx.companyBooking.count({
-    where: {
-      companyId: args.companyId,
-      roundTripGroupId: args.roundTripGroupId,
-      status: { in: [...SEAT_HOLDING_STATUSES] },
-    },
-  })
-  if (existing > 0 && args.requestedSeats !== existing) {
-    throw new RoundTripSeatMismatchError(existing, args.requestedSeats)
   }
 }
 
@@ -187,14 +139,15 @@ export interface BookingLimitResult {
 async function ensureAndLockQuota(
   tx: Prisma.TransactionClient,
   table: 'CompanyTripQuota' | 'CompanyRouteQuota',
-  where: { companyId: string; tripId?: string; routeKey?: string; travelDate?: string },
+  where: {
+    companyId: string
+    tripId?: string
+    routeKey?: string
+    travelDate?: string
+    originStationId?: string
+    destinationStationId?: string
+  },
 ): Promise<{ id: string; maxSeats: number | null } | null> {
-  // The upsert is expressed twice because the two dialects spell it
-  // differently. Without the SQLite branch the company booking path could not
-  // run on the scratch SQLite database at all, which is where the test suite
-  // runs; MySQL keeps its original statement byte for byte.
-  const now = new Date()
-  const id = randomUUID()
   if (table === 'CompanyTripQuota') {
     if (dbDialect() === 'mysql') {
       await tx.$executeRawUnsafe(
@@ -205,39 +158,42 @@ async function ensureAndLockQuota(
         where.tripId,
       )
     } else {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "CompanyTripQuota" ("id", "companyId", "tripId", "maxSeats", "createdAt", "updatedAt")
-         VALUES (?, ?, ?, NULL, ?, ?)
-         ON CONFLICT("companyId", "tripId") DO NOTHING`,
-        id,
-        where.companyId,
-        where.tripId,
-        now,
-        now,
-      )
+      await tx.companyTripQuota.upsert({
+        where: { companyId_tripId: { companyId: where.companyId, tripId: where.tripId! } },
+        create: { companyId: where.companyId, tripId: where.tripId! },
+        update: {},
+      })
     }
   } else {
     if (dbDialect() === 'mysql') {
       await tx.$executeRawUnsafe(
-        `INSERT INTO \`CompanyRouteQuota\` (\`id\`, \`companyId\`, \`routeKey\`, \`travelDate\`, \`maxSeats\`, \`createdAt\`, \`updatedAt\`)
-         VALUES (UUID(), ?, ?, ?, NULL, NOW(3), NOW(3))
+        `INSERT INTO \`CompanyRouteQuota\` (\`id\`, \`companyId\`, \`routeKey\`, \`travelDate\`, \`originStationId\`, \`destinationStationId\`, \`maxSeats\`, \`createdAt\`, \`updatedAt\`)
+         VALUES (UUID(), ?, ?, ?, ?, ?, NULL, NOW(3), NOW(3))
          ON DUPLICATE KEY UPDATE \`updatedAt\` = \`updatedAt\``,
         where.companyId,
         where.routeKey,
         where.travelDate,
+        where.originStationId ?? null,
+        where.destinationStationId ?? null,
       )
     } else {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "CompanyRouteQuota" ("id", "companyId", "routeKey", "travelDate", "maxSeats", "createdAt", "updatedAt")
-         VALUES (?, ?, ?, ?, NULL, ?, ?)
-         ON CONFLICT("companyId", "routeKey", "travelDate") DO NOTHING`,
-        id,
-        where.companyId,
-        where.routeKey,
-        where.travelDate,
-        now,
-        now,
-      )
+      await tx.companyRouteQuota.upsert({
+        where: {
+          companyId_routeKey_travelDate: {
+            companyId: where.companyId,
+            routeKey: where.routeKey!,
+            travelDate: where.travelDate!,
+          },
+        },
+        create: {
+          companyId: where.companyId,
+          routeKey: where.routeKey!,
+          travelDate: where.travelDate!,
+          originStationId: where.originStationId ?? null,
+          destinationStationId: where.destinationStationId ?? null,
+        },
+        update: {},
+      })
     }
   }
 
@@ -296,27 +252,54 @@ export async function resolveRouteBucket(
 ): Promise<{
   routeKey: string
   travelDate: string
-  /** Trips in this route bucket whose stored key is still missing. */
+  originStationId: string
+  destinationStationId: string
+  matchingTripIds: string[]
   legacyTripIds: string[]
-  /** Trips on this travel date whose stored date is still missing. */
   legacyTripIdsOnDate: string[]
 }> {
-  const identity = resolveRouteIdentity(trip)
-  if (identity.problem) {
-    throw new UnresolvedRouteError(identity.problem, trip.id)
+  let fullTrip = trip
+  if (!fullTrip.tripStops || fullTrip.tripStops.length < 2 || !fullTrip.departure) {
+    const dbTrip = await tx.trip.findUnique({
+      where: { id: trip.id },
+      select: {
+        id: true,
+        routeKey: true,
+        travelDate: true,
+        departure: true,
+        tripStops: { select: { stationId: true, stopOrder: true }, orderBy: { stopOrder: 'asc' } },
+      },
+    })
+    if (dbTrip) {
+      fullTrip = dbTrip
+    }
   }
 
-  const { routeKey, travelDate } = identity
+  const endpoints = tripEndpoints(fullTrip) || (fullTrip.routeKey ? parseQuotaRouteKey(fullTrip.routeKey) : null)
+  if (!endpoints) {
+    throw new UnresolvedRouteError('NO_STOPS', trip.id)
+  }
 
-  // The legacy set: trips whose stored route key or stored travel date is
-  // still missing. They are counted explicitly, because a filter on a column
-  // that is null matches nothing.
-  //
-  // One scan answers both questions. A trip with no stored key and no stored
-  // date is missing both; a trip with a stored key but no stored date is
-  // missing only the date, and it still belongs to this date's bucket.
-  const unkeyed = await tx.trip.findMany({
-    where: { OR: [{ routeKey: null }, { travelDate: null }] },
+  const travelDate = fullTrip.travelDate || travelDateOf(fullTrip.departure)
+  if (!travelDate) {
+    throw new UnresolvedRouteError('NO_STOPS', trip.id)
+  }
+
+  const { originStationId, destinationStationId } = endpoints
+  const canonicalRouteKey = getQuotaRouteKey(originStationId, destinationStationId)
+
+  // Find all trips on travelDate whose origin and destination match
+  const startUtc = new Date(`${travelDate}T00:00:00.000Z`)
+  const windowStart = new Date(startUtc.getTime() - 24 * 3600000)
+  const windowEnd = new Date(startUtc.getTime() + 48 * 3600000)
+
+  const tripsOnDate = await tx.trip.findMany({
+    where: {
+      OR: [
+        { travelDate },
+        { departure: { gte: windowStart, lte: windowEnd } },
+      ],
+    },
     select: {
       id: true,
       routeKey: true,
@@ -326,18 +309,40 @@ export async function resolveRouteBucket(
     },
   })
 
-  const legacyTripIds: string[] = []
+  const matchingTripIds: string[] = []
   const legacyTripIdsOnDate: string[] = []
-  for (const other of unkeyed) {
-    const otherIdentity = resolveRouteIdentity(other)
-    if (otherIdentity.problem) continue
-    if (otherIdentity.travelDate === travelDate) {
-      legacyTripIdsOnDate.push(other.id)
-      if (otherIdentity.routeKey === routeKey) legacyTripIds.push(other.id)
+
+  for (const other of tripsOnDate) {
+    const otherDate = other.travelDate || travelDateOf(other.departure)
+    if (otherDate !== travelDate) continue
+    legacyTripIdsOnDate.push(other.id)
+
+    const otherEp = tripEndpoints(other) || (other.routeKey ? parseQuotaRouteKey(other.routeKey) : null)
+    if (
+      otherEp &&
+      otherEp.originStationId === originStationId &&
+      otherEp.destinationStationId === destinationStationId
+    ) {
+      matchingTripIds.push(other.id)
     }
   }
 
-  return { routeKey, travelDate, legacyTripIds, legacyTripIdsOnDate }
+  if (!matchingTripIds.includes(trip.id)) {
+    matchingTripIds.push(trip.id)
+  }
+  if (!legacyTripIdsOnDate.includes(trip.id)) {
+    legacyTripIdsOnDate.push(trip.id)
+  }
+
+  return {
+    routeKey: canonicalRouteKey,
+    travelDate,
+    originStationId,
+    destinationStationId,
+    matchingTripIds,
+    legacyTripIds: matchingTripIds,
+    legacyTripIdsOnDate,
+  }
 }
 
 /**
@@ -398,6 +403,7 @@ export async function resolveBookingLimits(
       where: {
         companyId: company.id,
         roundTripGroupId: args.roundTripGroupId,
+        tripId,
         status: { in: [...SEAT_HOLDING_STATUSES] },
       },
     })
@@ -430,28 +436,36 @@ export async function resolveBookingLimits(
   // stored column — and a legacy trip, whose stored column is still null, was
   // counted as holding nothing.
   const bucket = await resolveRouteBucket(tx, { ...trip, id: trip.id ?? tripId })
-  const { routeKey, travelDate, legacyTripIds, legacyTripIdsOnDate } = bucket
+  const { routeKey, travelDate, originStationId, destinationStationId, matchingTripIds, legacyTripIdsOnDate } = bucket
 
   await ensureAndLockQuota(tx, 'CompanyRouteQuota', {
     companyId: company.id,
     routeKey,
     travelDate,
+    originStationId,
+    destinationStationId,
   })
-  const routeQuota = await tx.companyRouteQuota.findUnique({
+  let routeQuota = await tx.companyRouteQuota.findUnique({
     where: { companyId_routeKey_travelDate: { companyId: company.id, routeKey, travelDate } },
   })
+  if (!routeQuota) {
+    routeQuota = await tx.companyRouteQuota.findFirst({
+      where: {
+        companyId: company.id,
+        travelDate,
+        OR: [
+          { originStationId, destinationStationId },
+          ...(trip.routeKey ? [{ routeKey: trip.routeKey }] : []),
+        ],
+      },
+    })
+  }
   const routeLimit = effectiveTripQuota(routeQuota)
-  // Counted across every bus serving the route on that day, which is the
-  // point of the bucket. The legacy trips are included by id, because their
-  // stored route key is still null and the column filter would miss them.
   const routeUsed = await tx.companyBooking.count({
     where: {
       companyId: company.id,
       status: { in: [...SEAT_HOLDING_STATUSES] },
-      OR: [
-        { trip: { routeKey, travelDate } },
-        { tripId: { in: legacyTripIds } },
-      ],
+      tripId: { in: matchingTripIds },
     },
   })
 
@@ -617,236 +631,5 @@ export async function readBookingLimits(
     dailyLimit,
     dailyUsed,
     inBooking: 0,
-  }
-}
-
-/**
- * Task 2 — Company seat quota semantics.
- *
- * Owner's rule:
- * - A company has a quota of N seats (set per company by super admin in Company.seatQuota).
- * - null = no quota limit.
- * - A round-trip seat counts as ONE seat of the quota (outbound consumes 1, return does not consume).
- * - The quota is evaluated on the OUTBOUND date and per destination/route.
- * - If several trips of the same route exist on the same outbound date, they share the quota.
- * - Cancellations and expired bookings release the quota immediately (live count).
- */
-export async function enforceCompanySeatQuota(
-  tx: Prisma.TransactionClient,
-  args: {
-    companyId: string
-    tripId: string
-    trip: {
-      id?: string
-      routeKey?: string | null
-      travelDate?: string | null
-      tripStops?: { stationId: string; stopOrder: number }[]
-      departure?: Date | string | null
-    }
-    requestedSeats: number
-    roundTripGroupId?: string | null
-  },
-): Promise<{ quota: number | null; used: number; remaining: number | null; isReturnLeg: boolean }> {
-  const { companyId, tripId, trip, requestedSeats, roundTripGroupId } = args
-
-  const company = await tx.company.findUnique({
-    where: { id: companyId },
-    select: { seatQuota: true },
-  })
-
-  const quota = company?.seatQuota ?? null
-  if (quota === null || quota === undefined) {
-    return { quota: null, used: 0, remaining: null, isReturnLeg: false }
-  }
-
-  // 1. Is this booking a return leg of a round trip?
-  // When roundTripGroupId is present and previous seats exist in the group on a different trip,
-  // this request is the return leg. The return date/route does not consume quota.
-  if (roundTripGroupId) {
-    const priorLeg = await tx.companyBooking.findFirst({
-      where: {
-        companyId,
-        roundTripGroupId,
-        status: { in: [...SEAT_HOLDING_STATUSES] },
-      },
-      select: { tripId: true },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    if (priorLeg && priorLeg.tripId !== tripId) {
-      // Return leg: does not consume quota
-      return { quota, used: 0, remaining: quota, isReturnLeg: true }
-    }
-  }
-
-  // 2. Outbound leg or one-way booking: resolve route bucket (routeKey and travelDate)
-  const bucket = await resolveRouteBucket(tx, { ...trip, id: trip.id ?? tripId })
-  const { routeKey, travelDate, legacyTripIds } = bucket
-
-  // 3. Count seats already held on this routeKey and travelDate for this company,
-  // excluding seats that are return legs of other round-trip groups.
-  const activeBookings = await tx.companyBooking.findMany({
-    where: {
-      companyId,
-      status: { in: [...SEAT_HOLDING_STATUSES] },
-      OR: [
-        { trip: { routeKey, travelDate } },
-        { tripId: { in: legacyTripIds } },
-      ],
-    },
-    select: {
-      id: true,
-      tripId: true,
-      roundTripGroupId: true,
-      createdAt: true,
-    },
-  })
-
-  const groupIds = Array.from(new Set(activeBookings.map((b) => b.roundTripGroupId).filter(Boolean))) as string[]
-  const returnLegBookingIds = new Set<string>()
-
-  if (groupIds.length > 0) {
-    const allGroupBookings = await tx.companyBooking.findMany({
-      where: {
-        companyId,
-        roundTripGroupId: { in: groupIds },
-        status: { in: [...SEAT_HOLDING_STATUSES] },
-      },
-      select: {
-        id: true,
-        tripId: true,
-        roundTripGroupId: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    const firstTripByGroup = new Map<string, string>()
-    for (const gb of allGroupBookings) {
-      const gid = gb.roundTripGroupId!
-      if (!firstTripByGroup.has(gid)) {
-        firstTripByGroup.set(gid, gb.tripId)
-      } else if (gb.tripId !== firstTripByGroup.get(gid)) {
-        returnLegBookingIds.add(gb.id)
-      }
-    }
-  }
-
-  const used = activeBookings.filter((b) => !returnLegBookingIds.has(b.id)).length
-  const remaining = Math.max(0, quota - used)
-
-  if (requestedSeats > remaining) {
-    throw new SeatQuotaExceededError(quota, used, requestedSeats)
-  }
-
-  return {
-    quota,
-    used,
-    remaining: remaining - requestedSeats,
-    isReturnLeg: false,
-  }
-}
-
-export async function readCompanySeatQuota(
-  db: Prisma.TransactionClient | PrismaClient,
-  args: {
-    companyId: string
-    tripId: string
-    trip: {
-      id?: string
-      routeKey?: string | null
-      travelDate?: string | null
-      tripStops?: { stationId: string; stopOrder: number }[]
-      departure?: Date | string | null
-    }
-    roundTripGroupId?: string | null
-  },
-): Promise<{ quota: number | null; used: number; remaining: number | null; isReturnLeg: boolean }> {
-  const { companyId, tripId, trip, roundTripGroupId } = args
-
-  const company = await db.company.findUnique({
-    where: { id: companyId },
-    select: { seatQuota: true },
-  })
-
-  const quota = company?.seatQuota ?? null
-  if (quota === null || quota === undefined) {
-    return { quota: null, used: 0, remaining: null, isReturnLeg: false }
-  }
-
-  if (roundTripGroupId) {
-    const priorLeg = await db.companyBooking.findFirst({
-      where: {
-        companyId,
-        roundTripGroupId,
-        status: { in: [...SEAT_HOLDING_STATUSES] },
-      },
-      select: { tripId: true },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    if (priorLeg && priorLeg.tripId !== tripId) {
-      return { quota, used: 0, remaining: quota, isReturnLeg: true }
-    }
-  }
-
-  const bucket = await resolveRouteBucket(db, { ...trip, id: trip.id ?? tripId })
-  const { routeKey, travelDate, legacyTripIds } = bucket
-
-  const activeBookings = await db.companyBooking.findMany({
-    where: {
-      companyId,
-      status: { in: [...SEAT_HOLDING_STATUSES] },
-      OR: [
-        { trip: { routeKey, travelDate } },
-        { tripId: { in: legacyTripIds } },
-      ],
-    },
-    select: {
-      id: true,
-      tripId: true,
-      roundTripGroupId: true,
-      createdAt: true,
-    },
-  })
-
-  const groupIds = Array.from(new Set(activeBookings.map((b) => b.roundTripGroupId).filter(Boolean))) as string[]
-  const returnLegBookingIds = new Set<string>()
-
-  if (groupIds.length > 0) {
-    const allGroupBookings = await db.companyBooking.findMany({
-      where: {
-        companyId,
-        roundTripGroupId: { in: groupIds },
-        status: { in: [...SEAT_HOLDING_STATUSES] },
-      },
-      select: {
-        id: true,
-        tripId: true,
-        roundTripGroupId: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    const firstTripByGroup = new Map<string, string>()
-    for (const gb of allGroupBookings) {
-      const gid = gb.roundTripGroupId!
-      if (!firstTripByGroup.has(gid)) {
-        firstTripByGroup.set(gid, gb.tripId)
-      } else if (gb.tripId !== firstTripByGroup.get(gid)) {
-        returnLegBookingIds.add(gb.id)
-      }
-    }
-  }
-
-  const used = activeBookings.filter((b) => !returnLegBookingIds.has(b.id)).length
-  const remaining = Math.max(0, quota - used)
-
-  return {
-    quota,
-    used,
-    remaining,
-    isReturnLeg: false,
   }
 }

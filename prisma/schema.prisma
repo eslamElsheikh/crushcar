@@ -418,13 +418,16 @@ model CompanyRouteQuota {
   /// The trip's routeKey — the ordered station-id sequence.
   routeKey  String
   /// The travel date as a Cairo calendar day, "yyyy-mm-dd".
-  travelDate String
-  maxSeats  Int?     // null = no limit
+  travelDate           String
+  originStationId      String?
+  destinationStationId String?
+  maxSeats             Int?     // null = no limit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, routeKey, travelDate])
   @@index([routeKey, travelDate])
+  @@index([originStationId, destinationStationId])
 }
 
 /// The platform's own cash. One row, id = 'main'.

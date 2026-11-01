@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
  * - Punctuation, dashes, spaces
  * - Missing leading zero (10xxxxxxxx -> 010xxxxxxxx)
  */
-export function normalizeEgyptianPhone(input: string): string {
+function normalizeEgyptianPhone(input: string): string {
   const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
   let cleaned = input.trim()
   for (let i = 0; i < 10; i++) {
@@ -32,7 +32,7 @@ export function normalizeEgyptianPhone(input: string): string {
   return cleaned
 }
 
-export function maskPhone(phone: string): string {
+function maskPhone(phone: string): string {
   const norm = normalizeEgyptianPhone(phone)
   if (norm.length >= 7) {
     return `${norm.slice(0, 3)}****${norm.slice(-4)}`
