@@ -160,6 +160,7 @@ model Trip {
   busPrice            Float?
   companyPrice        Float?
   bookingMode         String     @default("SEAT") // SEAT | BUS | BOTH
+  reservedByCompanyId String?
   reservedByCompany   Company?   @relation("CompanyReservedTrips", fields: [reservedByCompanyId], references: [id])
   status      String     @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
   stopsJson   String     @default("[]") // JSON: [{stationId, name, order, arrivalTime?, departureTime?, price?}]
