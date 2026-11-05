@@ -36,6 +36,7 @@ interface TripStop {
   station?: { id: string; name: string; city: string };
   stopOrder: number;
   priceFromOrigin: number;
+  companyPriceFromOrigin?: number | null;
   arrivalTime?: string;
   departureTime?: string;
 }
@@ -47,6 +48,7 @@ interface Trip {
   departure: string;
   arrival: string;
   price: number;
+  companyPrice?: number | null;
   status: string;
   tripStops: TripStop[];
   bus: {
@@ -306,14 +308,24 @@ function TripDetailPageContent() {
   }
 
   // Segment price recalculation
+  const isCompanyBooking = session?.user?.role === 'COMPANY_ADMIN' || (session?.user?.role === 'SUPER_ADMIN' && fundingMode === 'COMPANY');
+
   const segmentPrice = useMemo(() => {
     if (fromStop && toStop && toStop.stopOrder > fromStop.stopOrder) {
+      if (isCompanyBooking) {
+        const toComp = toStop.companyPriceFromOrigin ?? toStop.priceFromOrigin;
+        const fromComp = fromStop.companyPriceFromOrigin ?? fromStop.priceFromOrigin;
+        const diff = (toComp ?? 0) - (fromComp ?? 0);
+        if (diff > 0) return diff;
+      }
       const diff = (toStop.priceFromOrigin ?? 0) - (fromStop.priceFromOrigin ?? 0);
       if (diff > 0) return diff;
     }
+    if (isCompanyBooking && trip?.companyPrice != null) {
+      return trip.companyPrice;
+    }
     return trip?.price ?? 0;
-  }, [fromStop, toStop, trip?.price]);
-
+  }, [fromStop, toStop, trip?.price, trip?.companyPrice, isCompanyBooking]);
   // Realtime collision eviction
   useEffect(() => {
     if (!trip) return;
@@ -892,12 +904,14 @@ function TripDetailPageContent() {
   }, [selectedSeats, layout?.seats, segmentPrice, trip?.price]);
 
   const returnTotalPrice = useMemo(() => {
+    const returnBasePrice = isCompanyBooking && returnTrip?.companyPrice != null
+      ? returnTrip.companyPrice
+      : (returnTrip?.price || 0);
     return returnSelectedSeats.reduce((sum, label) => {
       const seat = returnLayout?.seats?.find((s) => s.label === label);
-      return sum + (returnTrip?.price || 0) + (seat?.price || 0);
+      return sum + returnBasePrice + (seat?.price || 0);
     }, 0);
-  }, [returnSelectedSeats, returnLayout?.seats, returnTrip?.price]);
-
+  }, [returnSelectedSeats, returnLayout?.seats, returnTrip?.price, returnTrip?.companyPrice, isCompanyBooking]);
   const seatsLeft = useMemo(() => {
     if (!trip) return 0;
     return (trip.bus?.layout?.seats?.filter(s => s.type !== 'TOILET')?.length || 0) - reservedSeats.size;

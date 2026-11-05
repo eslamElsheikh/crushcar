@@ -240,6 +240,18 @@ $state = [
             ALTER TABLE `Booking` ADD COLUMN IF NOT EXISTS `refundProcessedBy` VARCHAR(191) NULL;
         ",
     ],
+    '20261102000000_trip_company_price' => [
+        'tables'  => [],
+        'columns' => [
+            'Trip'     => ['companyPrice'],
+            'TripStop' => ['companyPriceFromOrigin'],
+        ],
+        'indexes' => [],
+        'sql' => "
+            ALTER TABLE `Trip` ADD COLUMN IF NOT EXISTS `companyPrice` DOUBLE NULL;
+            ALTER TABLE `TripStop` ADD COLUMN IF NOT EXISTS `companyPriceFromOrigin` DOUBLE NULL;
+        ",
+    ],
 ];
 
 $failed = false;

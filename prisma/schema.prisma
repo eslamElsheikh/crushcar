@@ -157,6 +157,7 @@ model Trip {
   price       Float
   seatPrice           Float?
   busPrice            Float?
+  companyPrice        Float?
   bookingMode         String     @default("SEAT") // SEAT | BUS | BOTH
   reservedByCompanyId String?
   reservedByCompany   Company?   @relation("CompanyReservedTrips", fields: [reservedByCompanyId], references: [id])
@@ -197,6 +198,7 @@ model TripStop {
   station         Station   @relation(fields: [stationId], references: [id])
   stopOrder       Int
   priceFromOrigin Float
+  companyPriceFromOrigin Float?
   arrivalTime     DateTime?
   departureTime   DateTime?
 

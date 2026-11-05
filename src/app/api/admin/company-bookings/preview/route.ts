@@ -50,8 +50,7 @@ export async function GET(req: NextRequest) {
 
     // The price of one seat, from the same arithmetic the booking uses.
     const seatPrice =
-      trip.bus.layout?.seats.find((s: any) => s.price != null)?.price || trip.price
-
+      trip.bus.layout?.seats.find((s: any) => s.price != null)?.price || trip.companyPrice || trip.price
     return NextResponse.json({
       company: {
         id: company.id,

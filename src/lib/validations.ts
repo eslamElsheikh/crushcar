@@ -155,6 +155,7 @@ export const tripCreateSchema = z.object({
   departure: z.string().refine((val) => !isNaN(Date.parse(val)), 'تاريخ المغادرة غير صحيح'),
   arrival: z.string().refine((val) => !isNaN(Date.parse(val)), 'تاريخ الوصول غير صحيح'),
   price: z.number().positive('السعر يجب أن يكون أكبر من صفر').optional(),
+  companyPrice: z.number().nonnegative('سعر الشركات يجب أن يكون 0 أو أكثر').nullable().optional(),
   busPrice: z.number().nonnegative().optional(),
   stops: z
     .array(
@@ -162,6 +163,7 @@ export const tripCreateSchema = z.object({
         stationId: z.string().min(1),
         stopOrder: z.number().int().positive(),
         priceFromOrigin: z.number().min(0, 'السعر يجب أن يكون 0 أو أكثر'),
+        companyPriceFromOrigin: z.number().min(0, 'سعر الشركات يجب أن يكون 0 أو أكثر').nullable().optional(),
         arrivalTime: z.string().nullable().optional(),
         departureTime: z.string().nullable().optional(),
       })

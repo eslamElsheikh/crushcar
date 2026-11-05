@@ -84,6 +84,7 @@ export default function EditTripPage() {
               name: station?.name || ts.station?.name || '',
               stopOrder: ts.stopOrder,
               priceFromOrigin: ts.priceFromOrigin,
+              companyPriceFromOrigin: ts.companyPriceFromOrigin ?? null,
               arrivalTime: ts.arrivalTime ? toHM(ts.arrivalTime) : '',
               departureTime: ts.departureTime ? toHM(ts.departureTime) : '',
             });
@@ -122,12 +123,15 @@ export default function EditTripPage() {
         departure: new Date(departure).toISOString(),
         arrival: new Date(arrival).toISOString(),
         status,
+        price: stops[stops.length - 1]?.priceFromOrigin,
+        companyPrice: stops[stops.length - 1]?.companyPriceFromOrigin ?? null,
         bookingMode,
         busPrice: bookingMode === 'BUS' ? Number(busPrice) : null,
         stops: stops.map((s) => ({
           stationId: s.stationId,
           stopOrder: s.stopOrder,
           priceFromOrigin: s.priceFromOrigin,
+          companyPriceFromOrigin: s.companyPriceFromOrigin ?? null,
           arrivalTime: s.arrivalTime ? new Date(`${departure.split('T')[0]}T${s.arrivalTime}`).toISOString() : null,
           departureTime: s.departureTime ? new Date(`${departure.split('T')[0]}T${s.departureTime}`).toISOString() : null,
         })),

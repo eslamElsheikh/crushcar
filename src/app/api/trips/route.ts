@@ -258,9 +258,9 @@ export async function POST(req: NextRequest) {
         departure: new Date(departure),
         arrival: new Date(arrival),
         price: price || (stops?.[stops?.length - 1]?.priceFromOrigin || 0),
+        companyPrice: (stops?.[stops?.length - 1]?.companyPriceFromOrigin ?? null),
         bookingMode: mode,
         busPrice: charterPrice,
-        // The route identity, derived from the stops that are about to be
         // written — never from the origin/destination text, which is a
         // display snapshot and can disagree with the stop list.
         routeKey: routeKeyOfStops(stops as any),
@@ -270,8 +270,8 @@ export async function POST(req: NextRequest) {
             stationId: s.stationId,
             stopOrder: s.stopOrder,
             priceFromOrigin: s.priceFromOrigin,
+            companyPriceFromOrigin: s.companyPriceFromOrigin ?? null,
             arrivalTime: s.arrivalTime ? new Date(s.arrivalTime) : null,
-            departureTime: s.departureTime ? new Date(s.departureTime) : null,
           })),
         } : undefined,
       },

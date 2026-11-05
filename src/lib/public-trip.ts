@@ -43,6 +43,7 @@ function publicStops(trip: any) {
     stationId: s.stationId,
     stopOrder: s.stopOrder,
     priceFromOrigin: s.priceFromOrigin,
+    companyPriceFromOrigin: s.companyPriceFromOrigin ?? null,
     arrivalTime: s.arrivalTime ?? null,
     departureTime: s.departureTime ?? null,
     ...(s.station
@@ -73,6 +74,7 @@ export function toPublicTrip(trip: any) {
     departure: trip.departure,
     arrival: trip.arrival,
     price: trip.price,
+    companyPrice: trip.companyPrice ?? null,
     status: trip.status,
     calculatedPrice: trip.calculatedPrice,
     boardingTime: trip.boardingTime ?? null,

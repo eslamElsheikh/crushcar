@@ -48,6 +48,7 @@ export function useTripStopsFromBus(
             name: found.name,
             stopOrder: idx + 1,
             priceFromOrigin: idx > 0 ? matched[idx - 1].priceFromOrigin + 50 : 0,
+            companyPriceFromOrigin: idx > 0 ? (matched[idx - 1].companyPriceFromOrigin ?? matched[idx - 1].priceFromOrigin) + 40 : 0,
             arrivalTime: '',
             departureTime: '',
           });

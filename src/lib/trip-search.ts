@@ -1,4 +1,4 @@
-import { segmentPrice } from './segment-price';
+import { segmentPrice, PriceableTrip, PriceableStop } from './segment-price';
 import {
   cairoDayStartUTC,
   cairoDayEndUTC,
@@ -130,13 +130,13 @@ export function seatsLeft(trip: any): number {
   return total - booked;
 }
 
-function decorate(trip: any, fromSid: string, toSid: string) {
-  const stops = trip.tripStops || [];
-  const fromStop = stops.find((s: any) => s.stationId === fromSid) || null;
-  const toStop = stops.find((s: any) => s.stationId === toSid) || null;
+function decorate<T extends PriceableTrip>(trip: T, fromSid: string, toSid: string, isCompany: boolean = false) {
+  const stops = (Array.isArray(trip.tripStops) ? trip.tripStops : []) as PriceableStop[];
+  const fromStop = stops.find((s) => s.stationId === fromSid) || null;
+  const toStop = stops.find((s) => s.stationId === toSid) || null;
   return {
     ...trip,
-    calculatedPrice: segmentPrice(trip, fromSid, toSid),
+    calculatedPrice: segmentPrice(trip, fromSid, toSid, isCompany),
     boardingTime: fromStop?.departureTime ?? null,
     alightingTime: toStop?.arrivalTime ?? null,
     // The clients read `stops`; keep the alias the old response had.
@@ -207,8 +207,9 @@ export async function searchTripsByDate(
     );
   };
 
+  const isCompany = p.role === 'COMPANY_ADMIN';
   const outbound = (await candidatesFor(p.fromStationId, p.toStationId)).map((t) =>
-    decorate(t, p.fromStationId, p.toStationId),
+    decorate(t, p.fromStationId, p.toStationId, isCompany),
   );
 
   // --- round trip -------------------------------------------------------
@@ -244,7 +245,7 @@ export async function searchTripsByDate(
       .filter((t) => servesLeg(t, p.toStationId, p.fromStationId, nameOf(p.toStationId), nameOf(p.fromStationId)))
       // A sold-out return is not available; the outbound leg is still listed.
       .filter((t) => seatsLeft(t) > 0)
-      .map((t) => decorate(t, p.toStationId, p.fromStationId));
+      .map((t) => decorate(t, p.toStationId, p.fromStationId, isCompany));
 
     // A return that leaves before the outbound bus arrives is not usable with
     // it, so those outbounds are dropped. Reported in the change notes as a

@@ -475,9 +475,64 @@ export default function V2HomePage() {
         </div>
       </section>
       )}
+      {/* ── B2B ── */}
+      <section id="b2b" className="scroll-mt-20 bg-[var(--sp-inset)] py-16 md:py-24">
+        <div className="v2-container grid items-center gap-12 lg:grid-cols-[400px_1fr_300px]">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.b2bEyebrow')}</p>
+            <h2 className="mt-3 text-balance text-[28px] font-extrabold leading-tight text-[#0B1B33] md:text-[36px]">{t('v2.b2bTitle')}</h2>
+            <p className="mt-4 text-pretty text-[15.5px] leading-relaxed text-[var(--sp-text-muted)] md:text-[16.5px]">{t('v2.b2bSub')}</p>
+            <ul className="mt-6 grid gap-3.5">
+              {bullets.map((b) => (
+                <li key={b} className="flex items-start gap-3 text-[15px] font-semibold text-[#0B1B33]">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[#0A1E3C] text-white">
+                    <Check className="size-3.5" />
+                  </span>
+                  {b}
+                </li>
+              ))}
+            </ul>
+            <Link href="/company/charter" className="v2-btn-dark mt-7 inline-flex items-center gap-2 px-6 py-4 text-[15px]">
+              {t('v2.b2bCta')} <ArrowRight className="size-4 v2-flip-rtl" />
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.1 }}
+            className="relative hidden overflow-hidden rounded-2xl lg:block"
+          >
+            <div className="relative aspect-[16/10] w-full">
+              <Image src="/v2/bus.jpg" alt="" fill sizes="50vw" className="object-cover" />
+            </div>
+          </motion.div>
+
+          <motion.aside
+            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.15 }}
+            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-7 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
+          >
+            <span className="grid size-12 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
+              <LayoutDashboard className="size-6" />
+            </span>
+            <p className="mt-5 text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
+              {isRTL ? 'أدر أسطولك وفريقك من لوحة واحدة.' : 'Manage your fleet and team from one dashboard.'}
+            </p>
+            <p className="mt-2.5 text-pretty text-[14px] leading-relaxed text-[var(--sp-text-muted)]">
+              {isRTL ? 'تحديثات لحظية وتقارير مفصلة وتحكم كامل — مصمم للشركات.' : 'Real-time updates, detailed reports, and complete control — built for businesses.'}
+            </p>
+            <Link href="/company/charter" className="v2-btn-dark mt-6 flex items-center justify-center gap-2 px-4 py-3.5 text-[14.5px]">
+              {t('v2.requestBus')} <ArrowRight className="size-4 v2-flip-rtl" />
+            </Link>
+          </motion.aside>
+        </div>
+      </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="bg-[var(--sp-inset)] py-16 md:py-20">
+      <section className="py-16 md:py-20">
         <div className="v2-container grid gap-12 lg:grid-cols-[340px_1fr] lg:items-center">
           <div>
             <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.howEyebrow')}</p>
@@ -515,7 +570,7 @@ export default function V2HomePage() {
 
       {/* ── FEATURED TRIPS (real: /api/public/stats recentTrips, unique routes, max 8; hidden when none upcoming) ── */}
       {featuredTrips.length > 0 && (
-      <section id="featured" className="scroll-mt-20 py-16 md:py-20">
+      <section id="featured" className="scroll-mt-20 bg-[var(--sp-inset)] py-16 md:py-20">
         <div className="v2-container">
           <V2SectionHeading
             title={t('v2.featTitle')}
@@ -586,63 +641,6 @@ export default function V2HomePage() {
         </div>
       </section>
       )}
-
-      {/* ── B2B ── */}
-      <section id="b2b" className="scroll-mt-20 bg-[var(--sp-inset)] py-16 md:py-24">
-        <div className="v2-container grid items-center gap-12 lg:grid-cols-[400px_1fr_300px]">
-          <motion.div
-            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-          >
-            <p className="text-[12px] font-bold tracking-[0.2em] text-[#1D5BD8]">{t('v2.b2bEyebrow')}</p>
-            <h2 className="mt-3 text-balance text-[28px] font-extrabold leading-tight text-[#0B1B33] md:text-[36px]">{t('v2.b2bTitle')}</h2>
-            <p className="mt-4 text-pretty text-[15.5px] leading-relaxed text-[var(--sp-text-muted)] md:text-[16.5px]">{t('v2.b2bSub')}</p>
-            <ul className="mt-6 grid gap-3.5">
-              {bullets.map((b) => (
-                <li key={b} className="flex items-start gap-3 text-[15px] font-semibold text-[#0B1B33]">
-                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-[#0A1E3C] text-white">
-                    <Check className="size-3.5" />
-                  </span>
-                  {b}
-                </li>
-              ))}
-            </ul>
-            <Link href="/register/company" className="v2-btn-dark mt-7 inline-flex items-center gap-2 px-6 py-4 text-[15px]">
-              {t('v2.b2bCta')} <ArrowRight className="size-4 v2-flip-rtl" />
-            </Link>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.1 }}
-            className="relative hidden overflow-hidden rounded-2xl lg:block"
-          >
-            <div className="relative aspect-[16/10] w-full">
-              <Image src="/v2/bus.jpg" alt="" fill sizes="50vw" className="object-cover" />
-            </div>
-          </motion.div>
-
-          <motion.aside
-            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ duration: 0.2, ease: 'easeOut', delay: 0.15 }}
-            className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-7 shadow-[0_12px_32px_rgba(11,27,51,0.08)]"
-          >
-            <span className="grid size-12 place-items-center rounded-xl bg-[#EFF4FF] text-[#1D5BD8]">
-              <LayoutDashboard className="size-6" />
-            </span>
-            <p className="mt-5 text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
-              {isRTL ? 'أدر أسطولك وفريقك من لوحة واحدة.' : 'Manage your fleet and team from one dashboard.'}
-            </p>
-            <p className="mt-2.5 text-pretty text-[14px] leading-relaxed text-[var(--sp-text-muted)]">
-              {isRTL ? 'تحديثات لحظية وتقارير مفصلة وتحكم كامل — مصمم للشركات.' : 'Real-time updates, detailed reports, and complete control — built for businesses.'}
-            </p>
-            <Link href="/register/company" className="v2-btn-dark mt-6 flex items-center justify-center gap-2 px-4 py-3.5 text-[14.5px]">
-              {t('v2.requestBus')} <ArrowRight className="size-4 v2-flip-rtl" />
-            </Link>
-          </motion.aside>
-        </div>
-      </section>
-
       <V2SiteFooter />
     </div>
   );

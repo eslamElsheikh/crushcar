@@ -18,7 +18,7 @@ import { busesForMode } from '@/lib/bus-types';
 
 interface Trip {
   id: string; origin: string; destination: string;
-  departure: string; arrival: string; price: number; status: string;
+  departure: string; arrival: string; price: number; companyPrice?: number | null; status: string;
   bookingMode?: string; busPrice?: number | null;
   bus?: { name: string };
 }
@@ -48,13 +48,13 @@ export default function AdminTrips() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulk, setBulk] = useState({
     busId: '', fromStationId: '', toStationId: '',
-    departureTime: '08:00', arrivalTime: '11:30', price: '',
+    departureTime: '08:00', arrivalTime: '11:30', price: '', companyPrice: '',
     count: '7', interval: 'daily',
     bookingMode: 'SEAT' as TripBookingMode,
   });
   const EMPTY_BULK = {
     busId: '', fromStationId: '', toStationId: '',
-    departureTime: '08:00', arrivalTime: '11:30', price: '',
+    departureTime: '08:00', arrivalTime: '11:30', price: '', companyPrice: '',
     count: '7', interval: 'daily',
     bookingMode: 'SEAT' as TripBookingMode,
   };
@@ -198,6 +198,7 @@ export default function AdminTrips() {
   async function bulkCreate() {
     const count = parseInt(bulk.count);
     const priceNum = Number(bulk.price);
+    const companyPriceNum = bulk.companyPrice ? Number(bulk.companyPrice) : null;
     const fromStation = stations.find((s) => s.id === bulk.fromStationId);
     const toStation = stations.find((s) => s.id === bulk.toStationId);
     const isCharter = bulk.bookingMode === 'BUS';
@@ -245,13 +246,14 @@ export default function AdminTrips() {
             departure: dep.toISOString(),
             arrival: arr.toISOString(),
             price: priceNum,
+            companyPrice: isCharter ? null : companyPriceNum,
             bookingMode: bulk.bookingMode,
             busPrice: isCharter ? priceNum : null,
             stops: [
               // A charter trip carries the same total on every stop, matching
               // distributeCharterTotal in the single-trip form.
-              { stationId: fromStation.id, stopOrder: 1, priceFromOrigin: isCharter ? priceNum : 0 },
-              { stationId: toStation.id, stopOrder: 2, priceFromOrigin: priceNum },
+              { stationId: fromStation.id, stopOrder: 1, priceFromOrigin: isCharter ? priceNum : 0, companyPriceFromOrigin: isCharter ? null : 0 },
+              { stationId: toStation.id, stopOrder: 2, priceFromOrigin: priceNum, companyPriceFromOrigin: isCharter ? null : companyPriceNum },
             ],
           }),
         });
@@ -374,6 +376,12 @@ export default function AdminTrips() {
                   ? Number(tr.busPrice ?? 0).toLocaleString(locale)
                   : tr.price.toLocaleString(locale)}{' '}
                 {t('common.currency')}
+                {tr.bookingMode !== 'BUS' && tr.companyPrice != null && (
+                  <span className="block text-[11px] font-semibold text-[#1D5BD8]">
+                    {isRTL ? 'شركات: ' : 'Co: '}
+                    {Number(tr.companyPrice).toLocaleString(locale)} {t('common.currency')}
+                  </span>
+                )}
               </span>,
               <V2StatusBadge key="s" tone={toneFor(tr.status) as 'blue' | 'green' | 'red' | 'amber'}>{t(tr.status) || tr.status}</V2StatusBadge>,
               tr.bookingMode === 'BUS' ? (
@@ -414,6 +422,12 @@ export default function AdminTrips() {
                   ? Number(tr.busPrice ?? 0).toLocaleString(locale)
                   : tr.price.toLocaleString(locale)}{' '}
                 {t('common.currency')}
+                {tr.bookingMode !== 'BUS' && tr.companyPrice != null && (
+                  <span className="ms-1.5 font-bold text-[#1D5BD8]">
+                    ({isRTL ? 'شركات: ' : 'Co: '}
+                    {Number(tr.companyPrice).toLocaleString(locale)})
+                  </span>
+                )}
                 {tr.bookingMode === 'BUS' && (
                   <span className="ms-1.5 font-bold text-amber-600">{t('trips.charterTrips')}</span>
                 )}
@@ -483,9 +497,14 @@ export default function AdminTrips() {
           </V2Field>
           {/* One price field serves both tabs; it is the per-seat price in a
               regular trip and the whole-bus total in a charter one. */}
-          <V2Field label={bulk.bookingMode === 'BUS' ? t('trips.busPrice') : t('trips.price')}>
+          <V2Field label={bulk.bookingMode === 'BUS' ? t('trips.busPrice') : (isRTL ? 'سعر الأفراد' : 'Retail price')}>
             <V2Input type="number" min="0" value={bulk.price} onChange={(e) => setBulk({ ...bulk, price: e.target.value })} dir="ltr" className="tabular-nums" />
           </V2Field>
+          {bulk.bookingMode !== 'BUS' && (
+            <V2Field label={isRTL ? 'سعر الشركات' : 'Corporate price'}>
+              <V2Input type="number" min="0" value={bulk.companyPrice} placeholder={bulk.price} onChange={(e) => setBulk({ ...bulk, companyPrice: e.target.value })} dir="ltr" className="tabular-nums" />
+            </V2Field>
+          )}
           <V2Field label={t('v2.from')}>
             <V2Select value={bulk.fromStationId} onChange={(e) => setBulk({ ...bulk, fromStationId: e.target.value })}>
               <option value="">—</option>

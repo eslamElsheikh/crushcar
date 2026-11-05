@@ -158,15 +158,22 @@ export async function POST(req: NextRequest) {
       }
 
       // Calculate individual and total prices
+      // Calculate individual and total prices using corporate pricing
       const seatPrices = passengers.map(p => {
         if (fromStationId && toStationId && trip.tripStops.length > 0) {
           const fromStop = trip.tripStops.find(s => s.stationId === fromStationId)
           const toStop = trip.tripStops.find(s => s.stationId === toStationId)
-          const price = toStop && fromStop ? toStop.priceFromOrigin - fromStop.priceFromOrigin : trip.price
+          let price = trip.companyPrice ?? trip.price
+          if (toStop && fromStop && toStop.stopOrder > fromStop.stopOrder) {
+            const toComp = toStop.companyPriceFromOrigin ?? toStop.priceFromOrigin
+            const fromComp = fromStop.companyPriceFromOrigin ?? fromStop.priceFromOrigin
+            const diff = toComp - fromComp
+            price = diff > 0 ? diff : (trip.companyPrice ?? trip.price)
+          }
           return { ...p, price }
         }
         const seat = trip.bus.layout?.seats.find((s: any) => s.label === p.seatLabel)
-        return { ...p, price: seat?.price || trip.price }
+        return { ...p, price: seat?.price || trip.companyPrice || trip.price }
       })
 
       const grandTotal = seatPrices.reduce((sum, p) => sum + p.price, 0)

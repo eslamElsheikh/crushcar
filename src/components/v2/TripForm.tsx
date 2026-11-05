@@ -16,6 +16,7 @@ export interface StopDraft {
   name: string;
   stopOrder: number;
   priceFromOrigin: number;
+  companyPriceFromOrigin?: number | null;
   arrivalTime: string;
   departureTime: string;
 }
@@ -106,6 +107,7 @@ export function TripForm({
       name: st.name,
       stopOrder: stops.length + 1,
       priceFromOrigin: stops.length > 0 ? stops[stops.length - 1].priceFromOrigin + 50 : 0,
+      companyPriceFromOrigin: stops.length > 0 ? (stops[stops.length - 1].companyPriceFromOrigin ?? stops[stops.length - 1].priceFromOrigin) + 40 : 0,
       arrivalTime: '',
       departureTime: '',
     };
@@ -262,17 +264,29 @@ export function TripForm({
               {/* A charter trip is priced as one total, not per stop, so the
                   price column is removed rather than shown disabled — a
                   greyed-out EGP box that never changes reads as a bug. */}
-              <div className={cn('mt-3 grid gap-2.5', bookingMode === 'BUS' ? 'grid-cols-2' : 'grid-cols-3')}>
+              <div className={cn('mt-3 grid gap-2.5', bookingMode === 'BUS' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}>
                 {bookingMode !== 'BUS' && (
-                  <label className="grid gap-1">
-                    <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">EGP</span>
-                    <input
-                      type="number" min="0" value={s.priceFromOrigin}
-                      onChange={(e) => update(i, 'priceFromOrigin', Number(e.target.value))}
-                      dir="ltr"
-                      className="v2-input tabular-nums !min-h-[44px] text-[13.5px]"
-                    />
-                  </label>
+                  <>
+                    <label className="grid gap-1">
+                      <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'سعر الأفراد (ج.م)' : 'Retail EGP'}</span>
+                      <input
+                        type="number" min="0" value={s.priceFromOrigin}
+                        onChange={(e) => update(i, 'priceFromOrigin', Number(e.target.value))}
+                        dir="ltr"
+                        className="v2-input tabular-nums !min-h-[44px] text-[13.5px]"
+                      />
+                    </label>
+                    <label className="grid gap-1">
+                      <span className="text-[11.5px] font-bold text-[#1D5BD8]">{isRTL ? 'سعر الشركات (ج.م)' : 'Corporate EGP'}</span>
+                      <input
+                        type="number" min="0" value={s.companyPriceFromOrigin ?? ''}
+                        placeholder={String(s.priceFromOrigin || '')}
+                        onChange={(e) => update(i, 'companyPriceFromOrigin', e.target.value === '' ? (null as any) : Number(e.target.value))}
+                        dir="ltr"
+                        className="v2-input tabular-nums !min-h-[44px] text-[13.5px] border-blue-200 focus:border-[#1D5BD8]"
+                      />
+                    </label>
+                  </>
                 )}
                 <label className="grid gap-1">
                   <span className="text-[11.5px] font-bold text-[var(--sp-text-muted)]">{isRTL ? 'وصول' : 'Arr'}</span>

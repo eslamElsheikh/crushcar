@@ -12,10 +12,14 @@ export interface PriceableStop {
   stationId: string;
   stopOrder: number;
   priceFromOrigin: number;
+  companyPriceFromOrigin?: number | null;
+  arrivalTime?: Date | string | null;
+  departureTime?: Date | string | null;
 }
 
 export interface PriceableTrip {
   price?: number | null;
+  companyPrice?: number | null;
   tripStops?: PriceableStop[] | null;
 }
 
@@ -30,12 +34,22 @@ export function segmentPrice(
   t: PriceableTrip | null | undefined,
   fromSid: string | null,
   toSid: string | null,
+  isCompany: boolean = false,
 ): number {
   const stops = t?.tripStops || [];
   const from = stops.find((s) => s.stationId === fromSid) || stops[0];
   const to = stops.find((s) => s.stationId === toSid) || stops[stops.length - 1];
   if (from && to && to.stopOrder > from.stopOrder) {
+    if (isCompany) {
+      const toComp = to.companyPriceFromOrigin ?? to.priceFromOrigin;
+      const fromComp = from.companyPriceFromOrigin ?? from.priceFromOrigin;
+      const diff = toComp - fromComp;
+      if (diff > 0) return diff;
+    }
     return to.priceFromOrigin - from.priceFromOrigin;
+  }
+  if (isCompany && t?.companyPrice != null) {
+    return t.companyPrice;
   }
   return t?.price || 0;
 }

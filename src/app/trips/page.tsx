@@ -546,7 +546,6 @@ function TripsContent() {
                         setPickedOut(trip);
                         setSelectedReturnTrip(null);
                         setLeg('ret');
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
                       },
                     }}
                   />

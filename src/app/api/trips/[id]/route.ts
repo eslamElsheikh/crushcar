@@ -192,6 +192,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             stationId: s.stationId,
             stopOrder: s.stopOrder,
             priceFromOrigin: s.priceFromOrigin,
+            companyPriceFromOrigin: s.companyPriceFromOrigin ?? null,
             arrivalTime: s.arrivalTime ? new Date(s.arrivalTime) : null,
             departureTime: s.departureTime ? new Date(s.departureTime) : null,
           })),

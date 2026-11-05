@@ -2,7 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Globe, ChevronDown, LogOut, User } from 'lucide-react';
+import {
+  Menu,
+  X,
+  Globe,
+  ChevronDown,
+  LogOut,
+  User,
+  LayoutDashboard,
+  Bus,
+  Ticket,
+  MapPin,
+  CheckCircle2,
+  FileText,
+  BarChart3,
+  Users,
+  CreditCard,
+} from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { useLangStore } from '@/lib/lang';
@@ -18,9 +34,10 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
 
   const role = session?.user?.role;
   const isAdmin = role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN';
-  const dashHref = role === 'SUPER_ADMIN' ? '/admin' : '/company/dashboard';
   const bookingsHref = role === 'COMPANY_ADMIN' ? '/company/bookings' : '/bookings';
   const [userOpen, setUserOpen] = useState(false);
+  const [dashSubOpen, setDashSubOpen] = useState(true);
+  const [mobileDashSubOpen, setMobileDashSubOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -34,8 +51,30 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const light = overlay && !open && !scrolled;
   const fullName = session?.user?.name?.trim() || t('v2.account');
 
+  const isRTL = lang === 'ar';
   const linkCls = light ? 'text-white/85 hover:text-white' : 'text-[#0B1B33]/75 hover:text-[#0B1B33]';
 
+  const adminLinks = [
+    { href: '/admin', label: isRTL ? 'الرئيسية' : 'Overview', icon: LayoutDashboard },
+    { href: '/admin/trips', label: isRTL ? 'الرحلات' : 'Trips', icon: MapPin },
+    { href: '/admin/bookings', label: isRTL ? 'الحجوزات' : 'Bookings', icon: Ticket },
+    { href: '/admin/buses', label: isRTL ? 'الباصات' : 'Buses', icon: Bus },
+    { href: '/admin/stations', label: isRTL ? 'المحطات والوجهات' : 'Stations', icon: MapPin },
+    { href: '/admin/verify', label: isRTL ? 'التحقق من الصعود' : 'Boarding Check', icon: CheckCircle2 },
+    { href: '/admin/trip-requests', label: isRTL ? 'طلبات الرحلات' : 'Trip Requests', icon: FileText },
+    { href: '/admin/credit-report', label: isRTL ? 'التقارير المالية' : 'Financial Reports', icon: BarChart3 },
+  ];
+
+  const companyLinks = [
+    { href: '/company/dashboard', label: isRTL ? 'الرئيسية' : 'Overview', icon: LayoutDashboard },
+    { href: '/company/bookings', label: isRTL ? 'الحجوزات' : 'Bookings', icon: Ticket },
+    { href: '/company/charter', label: isRTL ? 'حجز شارتري' : 'Charter', icon: Bus },
+    { href: '/company/trip-requests', label: isRTL ? 'طلبات الرحلات' : 'Trip Requests', icon: FileText },
+    { href: '/company/customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users },
+    { href: '/company/credit', label: isRTL ? 'الحساب والكريدت' : 'Credit & Wallet', icon: CreditCard },
+  ];
+
+  const subLinks = role === 'SUPER_ADMIN' ? adminLinks : companyLinks;
   const langBtn = (
     <button
       onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
@@ -71,22 +110,50 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
       {userOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setUserOpen(false)} />
-          <div className="absolute end-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] py-1.5 shadow-xl">
+          <div className="absolute end-0 top-full z-20 mt-2 w-64 max-h-[85vh] overflow-y-auto rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] py-1.5 shadow-xl">
             <p className="truncate px-4 pb-1 pt-2.5 text-[13px] font-bold text-[var(--sp-text-muted)]">{fullName}</p>
-            <Link href="/profile" onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-[14.5px] font-medium text-[#0B1B33] hover:bg-slate-50">
+            <Link href="/profile" onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[14px] font-medium text-[#0B1B33] hover:bg-slate-50">
               <User className="size-4" /> {t('v2.profileTitle')}
             </Link>
-            <Link href={bookingsHref} onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-[14.5px] font-medium text-[#0B1B33] hover:bg-slate-50">
-              <User className="size-4" /> {t('v2.myBookings')}
+            <Link href={bookingsHref} onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[14px] font-medium text-[#0B1B33] hover:bg-slate-50">
+              <Ticket className="size-4" /> {t('v2.myBookings')}
             </Link>
             {isAdmin && (
-              <Link href={dashHref} onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-3 text-[14.5px] font-semibold text-[#1D5BD8] hover:bg-slate-50">
-                {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
-              </Link>
+              <div className="my-1 border-t border-slate-100 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setDashSubOpen(!dashSubOpen)}
+                  className="flex w-full items-center justify-between px-4 py-2 text-[13.5px] font-bold text-[#1D5BD8] hover:bg-blue-50/50"
+                >
+                  <span className="flex items-center gap-2">
+                    <LayoutDashboard className="size-4" />
+                    {isRTL ? 'لوحة التحكم' : 'Dashboard'}
+                  </span>
+                  <ChevronDown className={cn('size-4 transition-transform duration-200', dashSubOpen ? 'rotate-180' : '')} />
+                </button>
+                {dashSubOpen && (
+                  <div className="mt-1 space-y-0.5 bg-slate-50/70 px-2 py-1.5 rounded-xl mx-2">
+                    {subLinks.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setUserOpen(false)}
+                          className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-white hover:text-[#1D5BD8] hover:shadow-sm transition"
+                        >
+                          <Icon className="size-3.5 shrink-0 text-slate-400" />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
             <div className="my-1 border-t border-slate-100" />
-            <button onClick={() => { setUserOpen(false); signOut({ callbackUrl: '/' }); }} className="flex w-full items-center gap-2.5 px-4 py-3 text-[14.5px] font-medium text-red-600 hover:bg-slate-50">
-              <LogOut className="size-4" /> {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
+            <button onClick={() => { setUserOpen(false); signOut({ callbackUrl: '/' }); }} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[14px] font-medium text-red-600 hover:bg-slate-50">
+              <LogOut className="size-4" /> {isRTL ? 'تسجيل الخروج' : 'Sign Out'}
             </button>
           </div>
         </>
@@ -161,9 +228,37 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/profile" onClick={() => setOpen(false)}>{t('v2.profileTitle')}</Link>
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href={bookingsHref} onClick={() => setOpen(false)}>{t('v2.myBookings')}</Link>
                 {isAdmin && (
-                  <Link className="rounded-xl px-4 py-3.5 text-[#1D5BD8] hover:bg-slate-100" href={dashHref} onClick={() => setOpen(false)}>
-                    {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
-                  </Link>
+                  <div className="rounded-xl bg-slate-50 p-2">
+                    <button
+                      type="button"
+                      onClick={() => setMobileDashSubOpen(!mobileDashSubOpen)}
+                      className="flex w-full items-center justify-between px-2 py-2 text-start font-bold text-[#1D5BD8]"
+                    >
+                      <span className="flex items-center gap-2">
+                        <LayoutDashboard className="size-4" />
+                        {isRTL ? 'لوحة التحكم' : 'Dashboard'}
+                      </span>
+                      <ChevronDown className={cn('size-4 transition-transform', mobileDashSubOpen && 'rotate-180')} />
+                    </button>
+                    {mobileDashSubOpen && (
+                      <div className="mt-1 space-y-1 pt-1 border-t border-slate-200/60">
+                        {subLinks.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setOpen(false)}
+                              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-medium text-slate-700 hover:bg-white hover:text-[#1D5BD8]"
+                            >
+                              <Icon className="size-4 text-slate-400" />
+                              <span>{item.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
                 <button className="rounded-xl px-4 py-3.5 text-start text-red-600 hover:bg-slate-100" onClick={() => { setOpen(false); signOut({ callbackUrl: '/' }); }}>
                   {lang === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
