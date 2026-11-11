@@ -27,7 +27,6 @@ import { V2Logo } from './Logo';
 export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
-  const setLang = useLangStore((s) => s.setLang);
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
 

@@ -21,7 +21,6 @@ export function V2AuthShell({
   sideSub: string;
 }) {
   const lang = useLangStore((s) => s.lang);
-  const setLang = useLangStore((s) => s.setLang);
   const isRTL = lang === 'ar';
 
   return (
