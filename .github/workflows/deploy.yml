@@ -85,6 +85,19 @@ jobs:
             --connect-timeout 30 --max-time 900 \
             -T deploy/app.zip \
             "ftp://${FTP_HOST}${FTP_BASE_PATH}/app.zip"
+
+          echo "Syncing updated public assets directly to public_html via FTP..."
+          curl --fail --silent --show-error \
+            --config "$RUNNER_TEMP/ftp.conf" \
+            --ftp-create-dirs \
+            -T public/v2/bus-corporate.jpg \
+            "ftp://${FTP_HOST}/public_html/v2/bus-corporate.jpg"
+          curl --fail --silent --show-error \
+            --config "$RUNNER_TEMP/ftp.conf" \
+            --ftp-create-dirs \
+            -T public/v2/bus.jpg \
+            "ftp://${FTP_HOST}/public_html/v2/bus.jpg"
+
           rm -f "$RUNNER_TEMP/ftp.conf"
           echo "Uploaded deploy/app.zip" >> "$GITHUB_STEP_SUMMARY"
       - name: Apply DB migrations

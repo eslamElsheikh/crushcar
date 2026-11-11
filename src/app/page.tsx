@@ -505,9 +505,9 @@ export default function V2HomePage() {
             transition={{ duration: 0.2, ease: 'easeOut', delay: 0.1 }}
             className="relative hidden overflow-hidden rounded-2xl lg:block"
           >
-            <div className="relative aspect-[16/10] w-full">
-              <Image src="/v2/bus.jpg" alt="" fill sizes="50vw" className="object-cover" />
-            </div>
+             <div className="relative aspect-[16/10] w-full">
+              <Image src="/v2/bus-corporate.jpg" alt="" fill sizes="50vw" className="object-cover" />
+             </div>
           </motion.div>
 
           <motion.aside
