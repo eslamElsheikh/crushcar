@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Linkedin, Twitter, Instagram, Youtube, ArrowRight, Globe } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { V2Logo } from './Logo';
 
 export function V2SiteFooter() {
+  const { data: session } = useSession();
   const t = useLangStore((s) => s.t);
   const lang = useLangStore((s) => s.lang);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const bookingsHref = session?.user?.role === 'COMPANY_ADMIN' ? '/company/bookings' : '/bookings';
 
   return (
     <footer className="bg-[#0A1628] text-white">
@@ -40,7 +43,7 @@ export function V2SiteFooter() {
           <p className="text-[14.5px] font-bold text-white/90">{t('v2.support')}</p>
           <ul className="mt-4 grid gap-3 text-[14.5px] text-white/60">
             <li><Link className="hover:text-white" href="/faq">{lang === 'ar' ? 'مركز المساعدة' : 'Help Center'}</Link></li>
-            <li><Link className="hover:text-white" href="/bookings">{t('v2.myBookings')}</Link></li>
+            <li><Link className="hover:text-white" href={bookingsHref}>{t('v2.myBookings')}</Link></li>
             <li><Link className="hover:text-white" href="/profile">{t('v2.account')}</Link></li>
           </ul>
         </nav>

@@ -33,7 +33,8 @@ interface Booking {
   refundAmount?: number | null;
   cancellationFee?: number | null;
   paymentStatus?: string | null;
-  trip: { id: string; origin: string; destination: string; departure: string; arrival: string; bus: { name: string } };
+  _type?: string;
+  trip?: { id: string; origin: string; destination: string; departure: string; arrival: string; bus?: { name: string } };
 }
 
 type Tab = 'upcoming' | 'pending' | 'past' | 'cancelled';
@@ -64,7 +65,9 @@ export default function MyBookingsPage() {
     if (!session) return;
     (async () => {
       try {
-        const res = await fetch('/api/bookings', { credentials: 'include' });
+        const isCompany = session.user?.role === 'COMPANY_ADMIN';
+        const url = isCompany ? '/api/company/bookings?take=100' : '/api/bookings?take=100';
+        const res = await fetch(url, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setBookings(Array.isArray(data) ? data : data.data || []);
@@ -78,17 +81,19 @@ export default function MyBookingsPage() {
     if (!booking) return;
     setCancelInfo(null);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`);
+      const isCompanyBooking = booking._type === 'company' || session?.user?.role === 'COMPANY_ADMIN';
+      const endpoint = isCompanyBooking ? `/api/company/bookings/${bookingId}` : `/api/bookings/${bookingId}`;
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
-        const departure = new Date(data.trip.departure).getTime();
-        const created = new Date(data.createdAt).getTime();
+        const departure = data.trip?.departure ? new Date(data.trip.departure).getTime() : 0;
+        const created = data.createdAt ? new Date(data.createdAt).getTime() : Date.now();
         const now = Date.now();
         const policyRes = await fetch('/api/cancellation-policy');
         if (policyRes.ok) {
           const policy = await policyRes.json();
           const hoursSince = (now - created) / 3600000;
-          const hoursUntil = (departure - now) / 3600000;
+          const hoursUntil = departure ? (departure - now) / 3600000 : 0;
           let pct = 0;
           if (hoursSince < policy.freeWindowMinutes / 60) pct = 100;
           else if (hoursUntil > 24) pct = 100;
@@ -113,10 +118,13 @@ export default function MyBookingsPage() {
   async function confirmCancel() {
     if (!cancelId) return;
     const id = cancelId;
+    const booking = bookings.find((b) => b.id === id);
+    const isCompanyBooking = booking?._type === 'company' || session?.user?.role === 'COMPANY_ADMIN';
+    const endpoint = isCompanyBooking ? `/api/company/bookings/${id}` : `/api/bookings/${id}`;
     setCancelId(null);
     setCancelling(id);
     try {
-      const res = await fetch(`/api/bookings/${id}`, {
+      const res = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'CANCELLED', reason: cancelReason }),
@@ -129,7 +137,6 @@ export default function MyBookingsPage() {
       }
     } catch { /* keep list */ } finally { setCancelling(null); }
   }
-
   function copyRef(ref: string) {
     navigator.clipboard.writeText(ref).catch(() => {});
     setCopied(ref);
@@ -138,13 +145,37 @@ export default function MyBookingsPage() {
 
   const groups = useMemo(() => {
     const now = Date.now();
-    const paid = bookings.filter((b) => b.status === 'PAID');
+    const isPaid = (s: string) => s === 'PAID' || s === 'CONFIRMED';
+    const isPending = (s: string) => s === 'PENDING' || s === 'REQUESTED';
+    const isBoarded = (s: string) => s === 'BOARDED';
+    const isCancelled = (s: string) => s === 'CANCELLED' || s === 'CANCEL_REQUESTED';
+
+    const getDepTime = (b: Booking) => {
+      const d = b.actualDeparture || b.trip?.departure;
+      if (!d) return 0;
+      const t = new Date(d).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
     return {
-      upcoming: paid.filter((b) => new Date(b.actualDeparture || b.trip.departure).getTime() > now),
-      pending: bookings.filter((b) => b.status === 'PENDING'),
-      past: [...paid.filter((b) => new Date(b.actualDeparture || b.trip.departure).getTime() <= now),
-        ...bookings.filter((b) => b.status === 'BOARDED')],
-      cancelled: bookings.filter((b) => b.status === 'CANCELLED'),
+      upcoming: bookings.filter((b) => {
+        const s = (b.status || '').toUpperCase().trim();
+        const t = getDepTime(b);
+        return isPaid(s) ? (t > now || t === 0) : false;
+      }),
+      pending: bookings.filter((b) => {
+        const s = (b.status || '').toUpperCase().trim();
+        return isPending(s);
+      }),
+      past: bookings.filter((b) => {
+        const s = (b.status || '').toUpperCase().trim();
+        const t = getDepTime(b);
+        return (isPaid(s) && t <= now && t > 0) || isBoarded(s);
+      }),
+      cancelled: bookings.filter((b) => {
+        const s = (b.status || '').toUpperCase().trim();
+        return isCancelled(s);
+      }),
     } satisfies Record<Tab, Booking[]>;
   }, [bookings]);
 
@@ -186,7 +217,12 @@ export default function MyBookingsPage() {
               <p className="text-[12px] font-semibold text-[var(--sp-text-muted)]">{t('v2.tabUpcoming')}</p>
             </div>
             <div className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] px-5 py-2.5 text-center shadow-[0_12px_32px_rgba(11,27,51,0.08)]">
-              <p className="text-[20px] font-extrabold tabular-nums text-emerald-600">{bookings.filter((b) => b.status === 'PAID').length}</p>
+              <p className="text-[20px] font-extrabold tabular-nums text-emerald-600">
+                {bookings.filter((b) => {
+                  const s = (b.status || '').toUpperCase().trim();
+                  return s === 'PAID' || s === 'CONFIRMED';
+                }).length}
+              </p>
               <p className="text-[12px] font-semibold text-[var(--sp-text-muted)]">{t('common.confirmed')}</p>
             </div>
           </div>
@@ -244,45 +280,68 @@ export default function MyBookingsPage() {
                   </div>
 
                   <p className="mt-3 text-balance text-[17px] font-extrabold text-[#0B1B33]">
-                    {routeLabel(b.actualOrigin || b.trip.origin, b.actualDestination || b.trip.destination, isRTL)}
+                    {routeLabel(b.actualOrigin || b.trip?.origin || '', b.actualDestination || b.trip?.destination || '', isRTL)}
                   </p>
-                  <p className="mt-1.5 text-[14px] tabular-nums text-[var(--sp-text-muted)]">
-                    {new Date(b.actualDeparture || b.trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
-                    {' · '}
-                    {new Date(b.actualDeparture || b.trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-                    {' · '}{isRTL ? 'مقعد' : 'Seat'} {b.seatLabel} · {b.trip.bus?.name}
-                  </p>
+                  {(() => {
+                    const dep = b.actualDeparture || b.trip?.departure;
+                    const busName = b.trip?.bus?.name;
+                    return (
+                      <p className="mt-1.5 text-[14px] tabular-nums text-[var(--sp-text-muted)]">
+                        {dep ? (
+                          <>
+                            {new Date(dep).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                            {' · '}
+                            {new Date(dep).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                            {' · '}
+                          </>
+                        ) : null}
+                        {isRTL ? 'مقعد' : 'Seat'} {b.seatLabel} {busName ? `· ${busName}` : ''}
+                      </p>
+                    );
+                  })()}
                   <p className="mt-1 break-words text-[13px] text-[var(--sp-text-muted)]">{b.passengerName}</p>
 
                   <div className="mt-4 flex flex-wrap gap-2.5 border-t border-slate-100 pt-4">
-                    <Link href={`/bookings/${b.id}`} className="v2-btn-ghost px-5 py-2.5 text-[14px]">
-                      {t('v2.viewTicket')}
-                    </Link>
-                    {b.status === 'PENDING' && (
-                      <Link
-                        href={`/bookings/${b.id}/pay`}
-                        className="v2-btn-primary px-5 py-2.5 text-[14px]"
-                      >
-                        {b.paymentStatus === 'PENDING'
-                          ? t('pay.pending')
-                          : b.paymentStatus === 'REJECTED'
-                            ? t('pay.rejected')
-                            : (isRTL ? 'ادفع الآن' : 'Pay now')}
-                      </Link>
-                    )}
-                    <Link href={`/bookings/${b.id}/print`} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">
-                      <Printer className="size-4" /> {t('v2.printTicket')}
-                    </Link>
-                    {(b.status === 'PAID' || b.status === 'PENDING') && (
-                      <button
-                        onClick={() => openCancel(b.id)}
-                        disabled={cancelling === b.id}
-                        className="ms-auto inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {cancelling === b.id && <Loader2 className="size-4 animate-spin" />}
-                        {t('v2.cancelBooking')}
-                      </button>
-                    )}
+                    {(() => {
+                      const isCompany = b._type === 'company' || session?.user?.role === 'COMPANY_ADMIN';
+                      const ticketHref = isCompany ? `/company/bookings/${b.id}` : `/bookings/${b.id}`;
+                      const printHref = isCompany ? `/company/bookings/${b.id}/print` : `/bookings/${b.id}/print`;
+                      const s = (b.status || '').toUpperCase().trim();
+                      const isPending = s === 'PENDING' || s === 'REQUESTED';
+                      const isPaid = s === 'PAID' || s === 'CONFIRMED';
+                      return (
+                        <>
+                          <Link href={ticketHref} className="v2-btn-ghost px-5 py-2.5 text-[14px]">
+                            {t('v2.viewTicket')}
+                          </Link>
+                          {isPending && !isCompany && (
+                            <Link
+                              href={`/bookings/${b.id}/pay`}
+                              className="v2-btn-primary px-5 py-2.5 text-[14px]"
+                            >
+                              {b.paymentStatus === 'PENDING'
+                                ? t('pay.pending')
+                                : b.paymentStatus === 'REJECTED'
+                                  ? t('pay.rejected')
+                                  : (isRTL ? 'ادفع الآن' : 'Pay now')}
+                            </Link>
+                          )}
+                          <Link href={printHref} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-[var(--sp-text-muted)] hover:bg-slate-100">
+                            <Printer className="size-4" /> {t('v2.printTicket')}
+                          </Link>
+                          {(isPaid || isPending) && (
+                            <button
+                              onClick={() => openCancel(b.id)}
+                              disabled={cancelling === b.id}
+                              className="ms-auto inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[14px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {cancelling === b.id && <Loader2 className="size-4 animate-spin" />}
+                              {t('v2.cancelBooking')}
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </motion.article>
               ))}

@@ -164,7 +164,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
       <Link href="/login" className={cn('px-2 py-2.5 text-[14.5px] font-semibold', light ? 'text-white' : 'text-[#0B1B33]')}>
         {t('v2.login')}
       </Link>
-      <Link href="/register" className={cn('px-2 py-2.5 text-[14.5px] font-semibold', light ? 'text-white' : 'text-[#0B1B33]')}>
+      <Link href="/register/company" className={cn('px-2 py-2.5 text-[14.5px] font-semibold', light ? 'text-white' : 'text-[#0B1B33]')}>
         {t('auth.createAccount')}
       </Link>
     </>
@@ -267,7 +267,7 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
             ) : (
               <>
                 <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/login" onClick={() => setOpen(false)}>{t('v2.login')}</Link>
-                <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/register" onClick={() => setOpen(false)}>{t('auth.createAccount')}</Link>
+                <Link className="rounded-xl px-4 py-3.5 hover:bg-slate-100" href="/register/company" onClick={() => setOpen(false)}>{t('auth.createAccount')}</Link>
               </>
             )}
           </nav>

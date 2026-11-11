@@ -139,7 +139,7 @@ function LoginForm() {
 
       <p className="mt-6 text-center text-[14.5px] text-[var(--sp-text-muted)]">
         {t('auth.noAccount')}{' '}
-        <Link href="/register" className="font-bold text-[#1D5BD8] hover:underline">
+        <Link href="/register/company" className="font-bold text-[#1D5BD8] hover:underline">
           {t('auth.createOne')}
         </Link>
       </p>

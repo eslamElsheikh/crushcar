@@ -36,9 +36,8 @@ async function lookupBookings(req: NextRequest): Promise<NextResponse> {
     const ref = searchParams.get('ref') || searchParams.get('reference')
     const q = searchParams.get('q')
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-    const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
+    const take = Math.min(200, parseInt(searchParams.get('take') || '20'))
     const skip = (page - 1) * take
-
     const type = searchParams.get('type')
     const groupId = searchParams.get('groupId')
     const where: Record<string, unknown> = {}
@@ -53,12 +52,62 @@ async function lookupBookings(req: NextRequest): Promise<NextResponse> {
         { seatLabel: { contains: q.toUpperCase() } },
       ]
     }
+
+    if (session.user.role === 'COMPANY_ADMIN' && (session.user as any).companyId && type !== 'customer') {
+      const cbCompanyId = (session.user as any).companyId
+      const cbWhere: Record<string, unknown> = { companyId: cbCompanyId }
+      if (tripId) cbWhere.tripId = tripId
+      if (ref) cbWhere.reference = { contains: ref.toUpperCase() }
+      if (q) {
+        cbWhere.OR = [
+          { reference: { contains: q.toUpperCase() } },
+          { passengerName: { contains: q } },
+          { seatLabel: { contains: q.toUpperCase() } },
+        ]
+      }
+      const [cbList, cbTotal] = await Promise.all([
+        prisma.companyBooking.findMany({
+          where: cbWhere,
+          include: {
+            trip: { include: { bus: true, tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } } } },
+            company: { select: { id: true, name: true } },
+            customer: true,
+            createdBy: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take,
+        }),
+        prisma.companyBooking.count({ where: cbWhere }),
+      ])
+      return NextResponse.json({
+        data: cbList.map(b => {
+          const fromStop = b.trip?.tripStops?.find((s: any) => s.stopOrder === b.fromStopOrder)
+          const toStop = b.trip?.tripStops?.find((s: any) => s.stopOrder === b.toStopOrder)
+          const actualDeparture = fromStop?.departureTime || fromStop?.arrivalTime || b.trip?.departure
+          return {
+            ...b,
+            _type: 'company',
+            createdAt: b.createdAt.toISOString(),
+            paidAt: b.paidAt?.toISOString() || null,
+            cancelledAt: b.cancelledAt?.toISOString() || null,
+            boardedAt: b.boardedAt?.toISOString() || null,
+            actualOrigin: fromStop?.station?.name || b.trip?.origin,
+            actualDestination: toStop?.station?.name || b.trip?.destination,
+            actualDeparture: actualDeparture ? new Date(actualDeparture).toISOString() : undefined,
+            user: { name: b.company?.name || 'Company', email: '' },
+            stops: b.trip?.tripStops,
+          }
+        }),
+        pagination: { page, take, total: cbTotal, pages: Math.ceil(cbTotal / take) },
+      })
+    }
+
     if (session.user.role === 'CUSTOMER') {
       where.userId = session.user.id
     } else if (companyId) {
       where.trip = { bus: { companyId } }
     }
-
     if (type === 'company') {
       if (session.user.role !== 'SUPER_ADMIN') {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
