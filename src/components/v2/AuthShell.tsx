@@ -3,7 +3,6 @@
 import { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Globe } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { V2Logo } from './Logo';
 
@@ -33,12 +32,6 @@ export function V2AuthShell({
             <Link href="/" aria-label="Safro">
               <V2Logo height={40} />
             </Link>
-            <button
-              onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
-              className="flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-[14px] font-semibold text-[#0B1B33]/75 hover:bg-slate-100"
-            >
-              <Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'EN'}
-            </button>
           </div>
 
           <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-10">

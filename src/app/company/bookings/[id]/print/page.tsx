@@ -34,6 +34,7 @@ interface TicketData {
   fromStopOrder?: number
   toStopOrder?: number
   roundTripGroupId?: string | null
+  roundTripLeg?: 'outbound' | 'return' | null
   pairedBooking?: PairedBooking | null
   passengerName: string
   passengerPhone: string
@@ -118,7 +119,15 @@ export default function CompanyPrintTicketPage() {
   const statusPill = ticketStatusPill(ticket.status)
   const statusText = bookingStatusLabel(t, ticket.status)
   const isRoundTrip = !!ticket.roundTripGroupId
-
+  const leg = ticket.roundTripLeg || (
+    ticket.reference.includes('-O-') || ticket.reference.endsWith('-O')
+      ? 'outbound'
+      : (ticket.reference.includes('-R-') || ticket.reference.endsWith('-R')
+        ? 'return'
+        : (ticket.pairedBooking
+          ? (new Date(ticket.actualDeparture || ticket.trip.departure).getTime() <= new Date(ticket.pairedBooking.trip.departure).getTime() ? 'outbound' : 'return')
+          : null))
+  );
   return (
     <div className={cn('min-h-screen bg-zinc-100', isRTL && 'font-[Cairo]')} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Controls - hidden when printing */}
@@ -172,10 +181,11 @@ export default function CompanyPrintTicketPage() {
               <div className="text-right space-y-2">
                 {isRoundTrip && (
                   <div className={cn(
-                    'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold bg-amber-400/20 text-amber-200 border border-amber-400/30',
+                    'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border shadow-sm',
+                    leg === 'return' ? 'bg-amber-400 text-amber-950 border-amber-300' : 'bg-white text-blue-900 border-white',
                     isRTL ? 'ml-2' : 'mr-2'
                   )}>
-                    {isRTL ? 'ذهاب وعودة' : 'ROUND TRIP'}
+                    {leg === 'return' ? (isRTL ? 'تذكرة رحلة العودة' : 'RETURN TICKET') : (isRTL ? 'تذكرة رحلة الذهاب' : 'OUTBOUND TICKET')}
                   </div>
                 )}
                 <div className={cn(
@@ -204,8 +214,14 @@ export default function CompanyPrintTicketPage() {
                     <span className="text-xl font-bold text-blue-600">{(ticket.actualDestination || ticket.trip.destination)}</span>
                     <span className="text-gray-400">{isRTL ? '←' : '→'}</span>
                     <span className="text-xl font-bold text-amber-600">{ticket.pairedBooking.trip.destination}</span>
-                  </div>
-                  <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
+                    {leg && (
+                      <span className={cn(
+                        'text-xs font-bold px-2.5 py-0.5 rounded-full border',
+                        leg === 'return' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-100 text-blue-800 border-blue-300'
+                      )}>
+                        {leg === 'return' ? (isRTL ? 'رحلة العودة' : 'Return') : (isRTL ? 'رحلة الذهاب' : 'Outbound')}
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg font-medium text-xs">
                       {formatDate(ticket.actualDeparture || ticket.trip.departure)} {formatTime(ticket.actualDeparture || ticket.trip.departure)}
                       <span className="font-bold ml-1">{ticket.seatLabel}</span>

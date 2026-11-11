@@ -21,8 +21,35 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    let pairedBooking = null
+    let roundTripLeg: 'outbound' | 'return' | null = null
+    if (booking.roundTripGroupId) {
+      pairedBooking = await prisma.booking.findFirst({
+        where: { roundTripGroupId: booking.roundTripGroupId, id: { not: booking.id } },
+        include: {
+          trip: {
+            include: {
+              bus: true,
+              tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } },
+            },
+          },
+        },
+      })
+      if (booking.reference.includes('-O-') || booking.reference.endsWith('-O')) {
+        roundTripLeg = 'outbound'
+      } else if (booking.reference.includes('-R-') || booking.reference.endsWith('-R')) {
+        roundTripLeg = 'return'
+      } else if (pairedBooking) {
+        const depThis = new Date(booking.trip.departure).getTime()
+        const depPaired = new Date(pairedBooking.trip.departure).getTime()
+        roundTripLeg = depThis <= depPaired ? 'outbound' : 'return'
+      }
+    }
+
     return NextResponse.json({
       ...booking,
+      roundTripLeg,
+      pairedBooking,
       paidAt: booking.paidAt?.toISOString() || null,
       boardedAt: booking.boardedAt?.toISOString() || null,
       cancelledAt: booking.cancelledAt?.toISOString() || null,

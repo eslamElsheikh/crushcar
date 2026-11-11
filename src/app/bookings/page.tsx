@@ -34,7 +34,23 @@ interface Booking {
   cancellationFee?: number | null;
   paymentStatus?: string | null;
   _type?: string;
+  roundTripGroupId?: string | null;
+  roundTripLeg?: 'outbound' | 'return' | null;
   trip?: { id: string; origin: string; destination: string; departure: string; arrival: string; bus?: { name: string } };
+}
+
+function getRoundTripLeg(booking: Booking, allBookings: Booking[]): 'outbound' | 'return' | null {
+  if (booking.roundTripLeg) return booking.roundTripLeg;
+  if (booking.reference.includes('-O-') || booking.reference.endsWith('-O')) return 'outbound';
+  if (booking.reference.includes('-R-') || booking.reference.endsWith('-R')) return 'return';
+  if (!booking.roundTripGroupId) return null;
+  const group = allBookings.filter((x) => x.roundTripGroupId === booking.roundTripGroupId);
+  if (group.length >= 2) {
+    const dep = (x: Booking) => new Date(x.actualDeparture || x.trip?.departure || 0).getTime();
+    const sorted = [...group].sort((a, b) => dep(a) - dep(b));
+    return sorted[0]?.id === booking.id ? 'outbound' : 'return';
+  }
+  return null;
 }
 
 type Tab = 'upcoming' | 'pending' | 'past' | 'cancelled';
@@ -263,6 +279,21 @@ export default function MyBookingsPage() {
                     <V2StatusBadge tone={bookingStatusTone(b.status)}>
                       {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
+                    {(() => {
+                      const leg = getRoundTripLeg(b, bookings);
+                      if (!leg) return null;
+                      const isOutbound = leg === 'outbound';
+                      return (
+                        <span className={cn(
+                          'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-bold border',
+                          isOutbound
+                            ? 'bg-blue-50 text-[#1D5BD8] border-blue-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        )}>
+                          {isOutbound ? (isRTL ? 'رحلة ذهاب' : 'Outbound Leg') : (isRTL ? 'رحلة عودة' : 'Return Leg')}
+                        </span>
+                      );
+                    })()}
                     <button
                       onClick={() => copyRef(b.reference)}
                       className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 font-mono text-[12px] tabular-nums text-[#0B1B33] hover:bg-slate-200"

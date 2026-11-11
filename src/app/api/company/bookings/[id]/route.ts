@@ -26,6 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!booking) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     let pairedBooking = null
+    let roundTripLeg: 'outbound' | 'return' | null = null
     if (booking.roundTripGroupId) {
       pairedBooking = await prisma.companyBooking.findFirst({
         where: { roundTripGroupId: booking.roundTripGroupId, id: { not: booking.id }, companyId },
@@ -33,10 +34,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           trip: { select: { id: true, origin: true, destination: true, departure: true } },
         },
       })
+      if (booking.reference.includes('-O-') || booking.reference.endsWith('-O')) {
+        roundTripLeg = 'outbound'
+      } else if (booking.reference.includes('-R-') || booking.reference.endsWith('-R')) {
+        roundTripLeg = 'return'
+      } else if (pairedBooking) {
+        const depThis = new Date(booking.trip.departure).getTime()
+        const depPaired = new Date(pairedBooking.trip.departure).getTime()
+        roundTripLeg = depThis <= depPaired ? 'outbound' : 'return'
+      }
     }
 
     return NextResponse.json({
       ...booking,
+      roundTripLeg,
       createdAt: booking.createdAt.toISOString(),
       paidAt: booking.paidAt?.toISOString() || null,
       cancelledAt: booking.cancelledAt?.toISOString() || null,

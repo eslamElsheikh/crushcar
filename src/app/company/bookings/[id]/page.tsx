@@ -193,11 +193,34 @@ export default function CompanyBookingDetail() {
               {booking.bookingType === 'FOR_CLIENT' ? t('company.forClient') : t('company.forEmployee')}
             </p>
           </div>
-          <V2StatusBadge tone={bookingStatusTone(booking.status)}>
-            {bookingStatusLabel(t, booking.status)}
-          </V2StatusBadge>
+          <div className="flex items-center gap-2 flex-wrap">
+            {booking.roundTripGroupId && (() => {
+              const leg = booking.roundTripLeg || (
+                booking.reference.includes('-O-') || booking.reference.endsWith('-O')
+                  ? 'outbound'
+                  : (booking.reference.includes('-R-') || booking.reference.endsWith('-R')
+                    ? 'return'
+                    : (booking.pairedBooking
+                      ? (new Date(booking.actualDeparture || booking.trip?.departure || 0).getTime() <= new Date(booking.pairedBooking.trip?.departure || 0).getTime() ? 'outbound' : 'return')
+                      : null))
+              );
+              const isRet = leg === 'return';
+              return (
+                <span className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold border',
+                  isRet
+                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                    : 'bg-blue-50 text-[#1D5BD8] border-blue-300'
+                )}>
+                  {isRet ? (isRTL ? 'تذكرة رحلة العودة' : 'Return Trip Ticket') : (isRTL ? 'تذكرة رحلة الذهاب' : 'Outbound Trip Ticket')}
+                </span>
+              );
+            })()}
+            <V2StatusBadge tone={bookingStatusTone(booking.status)}>
+              {bookingStatusLabel(t, booking.status)}
+            </V2StatusBadge>
+          </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-[#0B1B33]">

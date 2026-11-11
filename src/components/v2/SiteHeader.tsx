@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   Menu,
   X,
-  Globe,
   ChevronDown,
   LogOut,
   User,
@@ -75,18 +74,6 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
   ];
 
   const subLinks = role === 'SUPER_ADMIN' ? adminLinks : companyLinks;
-  const langBtn = (
-    <button
-      onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
-      aria-label={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
-      className={cn(
-        'flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-[14px] font-semibold',
-        light ? 'text-white/90 hover:bg-white/10' : 'text-[#0B1B33]/75 hover:bg-slate-100'
-      )}
-    >
-      <Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'EN'}
-    </button>
-  );
 
   const accountControl = session ? (
     <div className="relative">
@@ -194,7 +181,6 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
 
         {/* Utility group: language + account */}
         <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
-          {langBtn}
           {accountControl}
         </div>
 
@@ -271,11 +257,6 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
               </>
             )}
           </nav>
-          <div className="mt-2 border-t border-slate-100 pt-3">
-            <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} aria-label={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-3 text-[15px] font-bold text-[#0B1B33]">
-              <Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'EN'}
-            </button>
-          </div>
         </div>
       </div>
     </header>

@@ -103,6 +103,21 @@ export default function CompanyBookingsPage() {
                     <V2StatusBadge tone={bookingStatusTone(b.status)}>
                       {bookingStatusLabel(t, b.status)}
                     </V2StatusBadge>
+                    {(() => {
+                      const isOut = b.reference?.includes('-O-') || b.reference?.endsWith('-O');
+                      const isRet = b.reference?.includes('-R-') || b.reference?.endsWith('-R');
+                      if (!isOut && !isRet && !b.roundTripGroupId) return null;
+                      return (
+                        <span className={cn(
+                          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold border',
+                          isRet
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-blue-50 text-[#1D5BD8] border-blue-200'
+                        )}>
+                          {isRet ? (isRTL ? 'رحلة عودة' : 'Return') : (isRTL ? 'رحلة ذهاب' : 'Outbound')}
+                        </span>
+                      );
+                    })()}
                     <span className="min-w-0 max-w-full break-all font-mono text-[12px] tabular-nums text-[var(--sp-text-muted)]" dir="ltr">{b.reference}</span>
                     <span className="ms-auto text-[16px] font-extrabold tabular-nums text-[#0B1B33]">
                       {(b.total || 0).toLocaleString(locale)} {t('common.currency')}

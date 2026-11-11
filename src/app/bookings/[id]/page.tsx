@@ -35,6 +35,8 @@ interface BookingData {
   fromStopOrder?: number;
   toStopOrder?: number;
   roundTripGroupId?: string | null;
+  roundTripLeg?: 'outbound' | 'return' | null;
+  pairedBooking?: any;
   cancelledAt?: string | null;
   cancellationReason?: string | null;
   refundAmount?: number | null;
@@ -222,11 +224,33 @@ export default function BookingDetailPage() {
                 {copied && <span className="text-[10px] text-emerald-600 font-bold ms-1">{isRTL ? 'تم النسخ' : 'Copied'}</span>}
               </button>
 
-              {booking.roundTripGroupId && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-[#1D5BD8] border border-blue-200 px-3 py-1 text-xs font-bold">
-                  {isRTL ? 'ذهاب وعودة' : 'Round Trip'}
-                </span>
-              )}
+              {booking.roundTripGroupId && (() => {
+                const leg = booking.roundTripLeg || (
+                  booking.reference.includes('-O-') || booking.reference.endsWith('-O')
+                    ? 'outbound'
+                    : (booking.reference.includes('-R-') || booking.reference.endsWith('-R')
+                      ? 'return'
+                      : (booking.pairedBooking
+                        ? (new Date(booking.actualDeparture || booking.trip.departure).getTime() <= new Date(booking.pairedBooking.actualDeparture || booking.pairedBooking.trip.departure).getTime() ? 'outbound' : 'return')
+                        : null))
+                );
+                const isRet = leg === 'return';
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold border',
+                      isRet
+                        ? 'bg-amber-50 text-amber-700 border-amber-300'
+                        : 'bg-blue-50 text-[#1D5BD8] border-blue-300'
+                    )}>
+                      {isRet ? (isRTL ? 'تذكرة رحلة العودة' : 'Return Trip Ticket') : (isRTL ? 'تذكرة رحلة الذهاب' : 'Outbound Trip Ticket')}
+                    </span>
+                    <span className="text-xs text-[var(--sp-text-muted)] font-medium">
+                      ({isRTL ? 'ضمن حجز ذهاب وعودة' : 'Round Trip'})
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* The route heading is one line on desktop, but a long station

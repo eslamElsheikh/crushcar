@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Linkedin, Twitter, Instagram, Youtube, ArrowRight, Globe } from 'lucide-react';
+import { Linkedin, Twitter, Instagram, Youtube, ArrowRight } from 'lucide-react';
 import { useLangStore } from '@/lib/lang';
 import { V2Logo } from './Logo';
 
@@ -74,7 +74,6 @@ export function V2SiteFooter() {
           <span>{t('v2.rights')}</span>
           <span className="flex items-center gap-4">
             <Link href="/credits" className="hover:text-white">{t('v2.credits')}</Link>
-            <span className="flex items-center gap-1.5"><Globe className="size-4" /> {lang === 'ar' ? 'العربية' : 'English'}</span>
           </span>
         </div>
       </div>
