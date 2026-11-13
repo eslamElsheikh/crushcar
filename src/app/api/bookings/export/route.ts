@@ -24,14 +24,32 @@ export async function GET(req: NextRequest) {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
 
-    const tripWhere: any = { departure: { gte: startDate, lt: endDate } };
-    if (session.user.role === 'COMPANY_ADMIN' && session.user.companyId) {
-      tripWhere.bus = { companyId: session.user.companyId };
+    if (session.user.role === 'COMPANY_ADMIN' && !session.user.companyId) {
+      return NextResponse.json({ error: 'No company linked' }, { status: 400 });
     }
+
+    const customerWhere: any = {
+      trip: {
+        departure: { gte: startDate, lt: endDate },
+        ...(session.user.role === 'COMPANY_ADMIN' ? { bus: { companyId: session.user.companyId } } : {}),
+      },
+    };
+
+    const companyWhere: any = {
+      trip: { departure: { gte: startDate, lt: endDate } },
+      ...(session.user.role === 'COMPANY_ADMIN'
+        ? {
+            OR: [
+              { companyId: session.user.companyId },
+              { trip: { bus: { companyId: session.user.companyId } } },
+            ],
+          }
+        : {}),
+    };
 
     const [customerBookings, companyBookings] = await Promise.all([
       prisma.booking.findMany({
-        where: { trip: tripWhere },
+        where: customerWhere,
         include: {
           trip: { include: { bus: true } },
           user: { select: { name: true, email: true } },
@@ -39,7 +57,7 @@ export async function GET(req: NextRequest) {
         orderBy: [{ trip: { departure: 'asc' } }, { seatLabel: 'asc' }],
       }),
       prisma.companyBooking.findMany({
-        where: { trip: tripWhere },
+        where: companyWhere,
         include: {
           trip: { include: { bus: true } },
           customer: true,
@@ -47,7 +65,6 @@ export async function GET(req: NextRequest) {
         orderBy: [{ trip: { departure: 'asc' } }, { seatLabel: 'asc' }],
       }),
     ]);
-
     const isRTL = req.headers.get('accept-language')?.startsWith('ar');
 
     const headers = isRTL

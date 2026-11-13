@@ -93,6 +93,8 @@ export default function CompanyPrintTicketPage() {
       if (res.ok) {
         const data = await res.json()
         setTicket(data)
+      } else if (res.status === 401) {
+        router.push('/login')
       } else {
         router.push('/company/bookings')
       }

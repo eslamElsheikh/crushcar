@@ -59,6 +59,48 @@ export interface SeatCheckArgs {
   /** The leg being booked, so a seat held on another leg does not conflict. */
   fromStopOrder: number
   toStopOrder: number
+  /**
+   * A hold this request is allowed to consume — its own, verified above.
+   * Every other active hold blocks the seat: a hold is a two-minute
+   * reservation and honouring it everywhere is what stops a company booking
+   * from walking through a seat a customer is in the middle of selecting.
+   */
+  excludeHoldId?: string
+}
+
+/**
+ * The "rows that overlap this leg" predicate.
+ *
+ * Two things a plain overlap test gets wrong:
+ *
+ *   - A booking made on a trip with no TripStop rows stores the degenerate
+ *     segment (1, 1): the defaults every booking path falls back to when
+ *     there are no stops to read. `from < to` is false for (1, 1), so the
+ *     conflict query matched nothing and the same seat could be sold again
+ *     and again on such a trip. A degenerate row therefore stands for the
+ *     whole route and overlaps everything, including its own shape.
+ *
+ *   - The caller's own leg. Overlap is symmetric and is expressed against
+ *     the rows already stored, so a normal leg keeps the usual test and a
+ *     degenerate leg ("this whole trip") is answered by the whole-route
+ *     branch alone.
+ */
+function segmentOverlap(fromStopOrder: number, toStopOrder: number) {
+  const wholeRoute = fromStopOrder >= toStopOrder
+  return {
+    OR: [
+      ...(wholeRoute
+        ? []
+        : [
+            {
+              fromStopOrder: { lt: toStopOrder },
+              toStopOrder: { gt: fromStopOrder },
+            },
+          ]),
+      // The degenerate segment: whole-route by definition.
+      { fromStopOrder: 1, toStopOrder: 1 },
+    ],
+  }
 }
 
 /**
@@ -86,7 +128,7 @@ export async function assertSeatsBookable(
   tx: Prisma.TransactionClient,
   args: SeatCheckArgs,
 ): Promise<void> {
-  const { tripId, seatLabels, layoutSeatLabels, fromStopOrder, toStopOrder } = args
+  const { tripId, seatLabels, layoutSeatLabels, fromStopOrder, toStopOrder, excludeHoldId } = args
 
   // The layout is the list of seats that exist. A label that is not in it is
   // not a seat, and a booking of one would be a booking of nothing.
@@ -102,14 +144,15 @@ export async function assertSeatsBookable(
   })
   for (const b of blocked) throw new BlockedSeatError(b.seatLabel)
 
+  const overlap = segmentOverlap(fromStopOrder, toStopOrder)
+
   // The seats somebody is already holding, on either kind of booking.
   const held = await tx.booking.findMany({
     where: {
       tripId,
       seatLabel: { in: seatLabels },
       status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-      fromStopOrder: { lt: toStopOrder },
-      toStopOrder: { gt: fromStopOrder },
+      ...overlap,
     },
     select: { seatLabel: true },
   })
@@ -120,10 +163,25 @@ export async function assertSeatsBookable(
       tripId,
       seatLabel: { in: seatLabels },
       status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-      fromStopOrder: { lt: toStopOrder },
-      toStopOrder: { gt: fromStopOrder },
+      ...overlap,
     },
     select: { seatLabel: true },
   })
   for (const h of companyHeld) throw new SeatConflictError(h.seatLabel)
+
+  // And the seats somebody is *about* to book: an unexpired hold. Before
+  // this check the company, platform and admin paths booked straight through
+  // a customer's two-minute reservation, so the seat the page had just
+  // handed to one person could be sold to another before they finished.
+  const reservations = await tx.seatHold.findMany({
+    where: {
+      tripId,
+      seatLabel: { in: seatLabels },
+      expiresAt: { gt: new Date() },
+      ...overlap,
+      ...(excludeHoldId ? { id: { not: excludeHoldId } } : {}),
+    },
+    select: { seatLabel: true },
+  })
+  for (const r of reservations) throw new SeatConflictError(r.seatLabel)
 }

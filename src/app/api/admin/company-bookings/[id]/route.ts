@@ -46,7 +46,8 @@ export async function GET(
 
     return NextResponse.json({ booking })
   } catch (err: any) {
-    return NextResponse.json({ error: 'Server error', message: err?.message }, { status: 500 })
+    console.error('[admin company-bookings]', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
 
@@ -80,19 +81,30 @@ export async function PATCH(
     }
 
     if (isBoardAction) {
-      const updated = await prisma.companyBooking.update({
-        where: { id },
+      // Conditional: boarding a cancelled (already refunded) booking would
+      // put a released seat back in use. The claim also doubles as the
+      // not-found check, so a missing id answers 409 instead of a Prisma
+      // throw.
+      const claimed = await prisma.companyBooking.updateMany({
+        where: { id, status: { in: ['PENDING', 'PAID', 'BOARDED'] } },
         data: { status: 'BOARDED', boardedAt: new Date() },
       })
+      if (claimed.count === 0) {
+        return NextResponse.json(
+          { error: 'BOOKING_NOT_BOARDABLE', message: 'لا يمكن الصعود على حجز ملغي' },
+          { status: 409 }
+        )
+      }
+      const updated = await prisma.companyBooking.findUnique({ where: { id } })
       await audit({
         action: 'BOARD',
         entity: 'CompanyBooking',
         entityId: id,
-        companyId: updated.companyId,
+        companyId: updated!.companyId,
         session,
         metadata: { action: 'BOARD' },
       })
-      return NextResponse.json({ booking: updated, boardedAt: updated.boardedAt?.toISOString() || null })
+      return NextResponse.json({ booking: updated, boardedAt: updated?.boardedAt?.toISOString() || null })
     }
     // ─────────────────────────────────────────────────────────────────────────
     // 1. CONFIRM_WITHOUT_PROOF
@@ -198,6 +210,17 @@ export async function PATCH(
           { status: 400 }
         )
       }
+      // The URL has to be one this application could have served: a filename
+      // we generated, under our own upload route. Without this the admin
+      // endpoint wrote any string it was handed into the proof column, and
+      // every page that renders the proof would then fetch an attacker's
+      // chosen URL from an attacker's chosen origin while the reviewer looks
+      // at it. Kept in sync with PROOF_RE in bookings/[id] and
+      // company/deposit-requests.
+      const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
+      if (typeof paymentProofUrl !== 'string' || !PROOF_RE.test(paymentProofUrl)) {
+        return NextResponse.json({ error: 'Invalid payment proof URL' }, { status: 400 })
+      }
 
       return await prisma.$transaction(async (tx) => {
         const booking = await tx.companyBooking.findUnique({ where: { id } })
@@ -274,57 +297,18 @@ export async function PATCH(
           priceDiff = nextSeatPrice - oldSeatPrice
           newTotal = booking.total + priceDiff
           newSeatLabel = seatLabel
-
-          // If booking was already PAID and price changed, adjust balances
-          if (booking.status === 'PAID' && priceDiff !== 0) {
-            if (priceDiff > 0) {
-              // Charge the difference
-              const { paidFromWallet, paidOnCredit } = await chargeCompany(tx, {
-                companyId: booking.companyId,
-                total: priceDiff,
-                reference: booking.id,
-                description: `Price difference for seat change (${booking.seatLabel} -> ${seatLabel}) on ${booking.reference}`,
-              })
-              await tx.companyBooking.update({
-                where: { id },
-                data: {
-                  paidFromWallet: { increment: paidFromWallet },
-                  paidOnCredit: { increment: paidOnCredit },
-                },
-              })
-            } else {
-              // Refund difference to wallet
-              const refund = Math.abs(priceDiff)
-              await tx.company.update({
-                where: { id: booking.companyId },
-                data: { walletBalance: { increment: refund } },
-              })
-              await tx.walletTransaction.create({
-                data: {
-                  companyId: booking.companyId,
-                  type: 'REFUND',
-                  amount: refund,
-                  description: `Price difference refund for seat change on ${booking.reference}`,
-                  reference: booking.id,
-                  idempotencyKey: `edit-refund:${id}:${Date.now()}`,
-                },
-              })
-              // Reduce paid amount on booking
-              const refundWallet = Math.min(refund, booking.paidFromWallet)
-              const refundCredit = refund - refundWallet
-              await tx.companyBooking.update({
-                where: { id },
-                data: {
-                  paidFromWallet: { decrement: refundWallet },
-                  paidOnCredit: { decrement: refundCredit },
-                },
-              })
-            }
-          }
         }
 
-        const updated = await tx.companyBooking.update({
-          where: { id },
+        // The claim comes before any money moves. Two concurrent EDITs that
+        // both read the same old seat would each compute the same price
+        // difference and each charge or refund it — and the old
+        // `edit-refund:${id}:${Date.now()}` key was unique per call, so it
+        // could never dedupe anything. The WHERE clause pins the row to the
+        // state this transaction read (seat, total and status), so the
+        // database lets exactly one writer through; the loser is told 409
+        // instead of moving the ledger twice.
+        const claimed = await tx.companyBooking.updateMany({
+          where: { id, seatLabel: booking.seatLabel, total: booking.total, status: booking.status },
           data: {
             passengerName: passengerName !== undefined ? String(passengerName).trim() : booking.passengerName,
             passengerPhone: passengerPhone !== undefined ? String(passengerPhone).trim() : booking.passengerPhone,
@@ -334,6 +318,69 @@ export async function PATCH(
             total: newTotal,
           },
         })
+        if (claimed.count === 0) {
+          return NextResponse.json(
+            { error: 'BOOKING_CHANGED', message: 'تم تعديل هذا الحجز من مستخدم آخر، أعد المحاولة' },
+            { status: 409 }
+          )
+        }
+
+        // If booking was already PAID and price changed, adjust balances —
+        // now only reachable by the single writer that won the claim.
+        if (booking.status === 'PAID' && priceDiff !== 0) {
+          if (priceDiff > 0) {
+            // Charge the difference
+            const { paidFromWallet, paidOnCredit } = await chargeCompany(tx, {
+              companyId: booking.companyId,
+              total: priceDiff,
+              reference: booking.id,
+              description: `Price difference for seat change (${booking.seatLabel} -> ${newSeatLabel}) on ${booking.reference}`,
+            })
+            await tx.companyBooking.update({
+              where: { id },
+              data: {
+                paidFromWallet: { increment: paidFromWallet },
+                paidOnCredit: { increment: paidOnCredit },
+              },
+            })
+          } else {
+            // Refund difference to wallet
+            const refund = Math.abs(priceDiff)
+            await tx.company.update({
+              where: { id: booking.companyId },
+              data: { walletBalance: { increment: refund } },
+            })
+            await tx.walletTransaction.create({
+              data: {
+                companyId: booking.companyId,
+                type: 'REFUND',
+                amount: refund,
+                description: `Price difference refund for seat change on ${booking.reference}`,
+                reference: booking.id,
+                // The claim above already guarantees a single winner, so the
+                // key no longer needs a timestamp to be unique per attempt.
+                idempotencyKey: `edit-refund:${id}:${booking.seatLabel}->${newSeatLabel}`,
+              },
+            })
+            // Reduce paid amount on booking
+            const refundWallet = Math.min(refund, booking.paidFromWallet)
+            const refundCredit = refund - refundWallet
+            await tx.companyBooking.update({
+              where: { id },
+              data: {
+                paidFromWallet: { decrement: refundWallet },
+                paidOnCredit: { decrement: refundCredit },
+              },
+            })
+          }
+        }
+
+        const updated = await tx.companyBooking.findUnique({ where: { id } })
+        if (!updated) {
+          // The claim above just wrote this row, so it exists; treat its
+          // disappearance as a conflict rather than dereferencing null.
+          return NextResponse.json({ error: 'BOOKING_CHANGED' }, { status: 409 })
+        }
 
         await audit({
           action: 'UPDATE',
@@ -379,7 +426,10 @@ export async function PATCH(
     if (err?.code === 'SEAT_CONFLICT' || err?.code === 'SEAT_TAKEN') {
       return NextResponse.json({ error: 'SEAT_TAKEN', message: 'المقعد محجوز بالفعل' }, { status: 409 })
     }
-    return NextResponse.json({ error: 'Server error', message: err?.message }, { status: 500 })
+    // No message echoed: the raw text of an internal failure used to ride
+    // along in the body.
+    console.error('[admin company-bookings]', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
 
@@ -542,6 +592,7 @@ export async function DELETE(
       })
     }, BOOKING_ISOLATION)
   } catch (err: any) {
-    return NextResponse.json({ error: 'Server error', message: err?.message }, { status: 500 })
+    console.error('[admin company-bookings]', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

@@ -36,11 +36,14 @@ export async function GET(req: NextRequest) {
     const startDate = rangeStart(days)
     const now = new Date()
 
+    if (session.user.role === 'COMPANY_ADMIN' && !session.user.companyId) {
+      return applyRateLimitHeaders(NextResponse.json({ error: 'No company linked' }, { status: 400 }), rl.headers)
+    }
+
     const companyId =
       session.user.role === 'SUPER_ADMIN'
         ? searchParams.get('companyId') || undefined
         : session.user.companyId ?? undefined
-
     const baseWhere = tripCompanyScope(companyId)
     const companyFilter = companyId ? { companyId } : {}
 

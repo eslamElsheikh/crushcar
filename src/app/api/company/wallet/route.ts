@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { parseMoneyAmount } from '@/lib/validations'
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,8 +52,12 @@ export async function POST(req: NextRequest) {
     const { targetCompanyId, amount, description } = await req.json()
     const toCompany = targetCompanyId || companyId
     if (!toCompany) return NextResponse.json({ error: 'No company specified' }, { status: 400 })
-    if (!amount || amount <= 0) {
-      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+    // Crediting a company wallet by hand: the same money rule as a deposit,
+    // so a string, Infinity or a figure with four decimals is refused here
+    // rather than written to the ledger.
+    const parsedAmount = parseMoneyAmount(amount)
+    if (!parsedAmount.ok) {
+      return NextResponse.json({ error: 'Invalid amount', message: parsedAmount.reason }, { status: 400 })
     }
 
     return await prisma.$transaction(async (tx) => {
@@ -61,15 +66,15 @@ export async function POST(req: NextRequest) {
 
       const updatedCompany = await tx.company.update({
         where: { id: toCompany },
-        data: { walletBalance: { increment: amount } },
+        data: { walletBalance: { increment: parsedAmount.value } },
       })
 
       const transaction = await tx.walletTransaction.create({
         data: {
           companyId: toCompany,
           type: 'DEPOSIT',
-          amount,
-          description: description || 'Wallet deposit',
+          amount: parsedAmount.value,
+          description: typeof description === 'string' ? description.slice(0, 200) : 'Wallet deposit',
         },
       })
 
@@ -81,7 +86,7 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
           userEmail: session.user.email ?? '',
           companyId: toCompany,
-          metadata: JSON.stringify({ amount, description: description || '' }),
+          metadata: JSON.stringify({ amount: parsedAmount.value, description: description || '' }),
         },
       })
 

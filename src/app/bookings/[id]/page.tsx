@@ -91,6 +91,8 @@ export default function BookingDetailPage() {
         const data = await res.json();
         setBooking(data);
         setQrCode(data.qrCode || '');
+      } else if (res.status === 401) {
+        router.push('/login');
       } else {
         router.push('/bookings');
       }

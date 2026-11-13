@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { adjustPlatform, fromPiastres, toPiastres } from '@/lib/platform-wallet'
+import { parseMoneyAmount } from '@/lib/validations'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,10 +29,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A reason is required' }, { status: 400 })
     }
 
-    const amountPiastres = toPiastres(Number(amount))
-    if (!Number.isFinite(amountPiastres) || amountPiastres === 0) {
-      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+    // An adjustment is signed — money the ledger is short of as well as
+    // long of — but it is still money: `Number(amount)` accepted "100" and
+    // Infinity, and this endpoint had no magnitude cap at all, so one
+    // super-admin request could have written an unbounded row. The same
+    // money rule as everywhere else, with the sign allowed.
+    const parsed = parseMoneyAmount(amount, { allowNegative: true })
+    if (!parsed.ok) {
+      return NextResponse.json({ error: 'Invalid amount', message: parsed.reason }, { status: 400 })
     }
+    const amountPiastres = toPiastres(parsed.value)
 
     const result = await prisma.$transaction(async (tx) =>
       adjustPlatform(tx, {

@@ -96,13 +96,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (booking.refundProcessedAt) return NextResponse.json({ error: 'Already processed' }, { status: 400 })
 
-    const updated = await prisma.booking.update({
-      where: { id },
+    // Claim the row conditionally, exactly like the company branch above:
+    // the read above is only a read, so two administrators processing the
+    // same refund at the same time could both see "not processed yet" and
+    // both stamp it. The status and the unprocessed stamp live in the WHERE
+    // clause, so the database picks one winner and the loser is told 409.
+    const claimed = await prisma.booking.updateMany({
+      where: { id, status: 'CANCELLED', refundProcessedAt: null },
       data: {
         refundProcessedAt: new Date(),
         refundProcessedBy: session.user.id,
       },
     })
+    if (claimed.count === 0) {
+      return NextResponse.json({ error: 'Already processed' }, { status: 409 })
+    }
+
+    const updated = await prisma.booking.findUnique({ where: { id } })
+    if (!updated) {
+      // The conditional claim above just stamped this row, so it existed a
+      // moment ago; treat its disappearance as the conflict it now is rather
+      // than dereferencing null.
+      return NextResponse.json({ error: 'Already processed' }, { status: 409 })
+    }
 
     return NextResponse.json({
       ...updated,

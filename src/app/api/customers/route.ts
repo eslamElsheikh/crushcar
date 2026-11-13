@@ -17,7 +17,10 @@ export async function GET(req: NextRequest) {
     const take = Math.min(50, parseInt(searchParams.get('take') || '20'))
     const skip = (page - 1) * take
 
-    const companyId = session.user.role === 'COMPANY_ADMIN' ? session.user.companyId ?? undefined : undefined
+    if (session.user.role === 'COMPANY_ADMIN' && !session.user.companyId) {
+      return NextResponse.json({ error: 'No company linked' }, { status: 400 })
+    }
+    const companyId = session.user.role === 'COMPANY_ADMIN' ? session.user.companyId : undefined
 
     const where = {
       role: 'CUSTOMER',

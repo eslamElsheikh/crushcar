@@ -51,6 +51,70 @@ export const profileUpdateSchema = z.object({
 export const COLLECT_AMOUNT_MAX = 1_000_000;
 
 /**
+ * The ceiling already enforced, elsewhere in this codebase, on a single
+ * movement of money: the platform funding endpoint refuses anything above
+ * 100,000,000 piastres, which is this figure in pounds. It is applied here
+ * so a deposit or a wallet credit cannot be a different order of magnitude
+ * from a platform top-up for no reason anyone wrote down.
+ *
+ * This is *not* a business policy decision — it is the existing one,
+ * restated. If the operator wants a larger ceiling for deposits or credits,
+ * change this one number; nothing else needs to move.
+ */
+export const MONEY_AMOUNT_MAX = 1_000_000;
+
+export type MoneyParse =
+  | { ok: true; value: number }
+  | { ok: false; reason: string };
+
+/**
+ * The rule for one amount of money arriving from a request body.
+ *
+ * The checks that matter, in order:
+ *
+ *   - it has to be a *number*. `!amount || amount <= 0` accepted the string
+ *     `"100"` (a non-empty string is truthy, and `"100" <= 0` is false) and
+ *     handed it to the database as a number; `"abc"` sailed through the same
+ *     test and was only caught by the driver throwing.
+ *   - it has to be finite: JSON `1e309` parses to `Infinity`, which is
+ *     greater than zero and is not an amount.
+ *   - it has to be positive, above a floor that survives rounding — an
+ *     amount of `0.001` rounds to nothing and would record a movement of
+ *     zero.
+ *   - it has to be within the ceiling above.
+ *   - it has to be an amount of money: two decimal places, no more. A value
+ *     that is not exactly representable as cents is refused rather than
+ *     silently rounded, because quietly changing what someone typed is how
+ *     a ledger starts disagreeing with a bank statement.
+ */
+export function parseMoneyAmount(
+  raw: unknown,
+  opts: { min?: number; max?: number; allowNegative?: boolean } = {}
+): MoneyParse {
+  const min = opts.min ?? 0.01;
+  const max = opts.max ?? MONEY_AMOUNT_MAX;
+
+  if (typeof raw !== 'number') return { ok: false, reason: 'Amount must be a number' };
+  if (!Number.isFinite(raw)) return { ok: false, reason: 'Amount must be a finite number' };
+
+  const rounded = Math.round(raw * 100) / 100;
+  if (rounded !== raw) {
+    return { ok: false, reason: 'Amount may have at most two decimal places' };
+  }
+
+  const magnitude = Math.abs(rounded);
+  if (opts.allowNegative) {
+    if (magnitude === 0) return { ok: false, reason: 'Amount must not be zero' };
+  } else if (rounded < min) {
+    return { ok: false, reason: `Amount must be at least ${min}` };
+  }
+
+  if (magnitude > max) return { ok: false, reason: `Amount must not exceed ${max}` };
+
+  return { ok: true, value: rounded };
+}
+
+/**
  * Coerces whatever the booking form sent into a stored collectAmount.
  *
  * Both the single-seat path (trips/[id]) and the bulk path
@@ -172,12 +236,19 @@ export const tripCreateSchema = z.object({
 });
 
 export const walletDepositSchema = z.object({
-  amount: z.number().positive('المبلغ يجب أن يكون أكبر من صفر'),
+  amount: z.number().finite().positive('المبلغ يجب أن يكون أكبر من صفر'),
   description: z.string().optional().default(''),
 });
 
 export const creditLimitSchema = z.object({
-  creditLimit: z.number().min(0, 'الحد الائتماني يجب أن يكون 0 أو أكثر'),
+  // `.finite()` is validation, not policy: JSON `1e309` arrives as Infinity,
+  // which passes `.min(0)` and is not a number a ledger can hold. What a
+  // limit may *be* is a business decision and is deliberately not capped
+  // here — see SECURITY_VERIFICATION_REPORT.md for the options.
+  creditLimit: z
+    .number()
+    .finite('الحد الائتماني يجب أن يكون رقماً')
+    .min(0, 'الحد الائتماني يجب أن يكون 0 أو أكثر'),
   reason: z.string().optional().default(''),
 });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { parseMoneyAmount } from '@/lib/validations'
 
 export async function GET(_req: NextRequest) {
   try {
@@ -33,8 +34,13 @@ export async function POST(req: NextRequest) {
     }
 
     const { amount, method, paymentMethodId, attachmentUrl, attachmentName, notes } = await req.json()
-    if (!amount || amount <= 0) {
-      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+    // A deposit is money a company says it has sent. It has to be a number,
+    // finite, positive, in pounds with at most two decimals, and inside the
+    // same ceiling a platform top-up gets: `!amount || amount <= 0` accepted
+    // the string `"100"` and let `Infinity` through to the database.
+    const parsedAmount = parseMoneyAmount(amount)
+    if (!parsedAmount.ok) {
+      return NextResponse.json({ error: 'Invalid amount', message: parsedAmount.reason }, { status: 400 })
     }
 
     const METHODS = ['VODAFONE_CASH', 'INSTAPAY']
@@ -64,12 +70,12 @@ export async function POST(req: NextRequest) {
     const depositRequest = await prisma.depositRequest.create({
       data: {
         companyId: session.user.companyId,
-        amount,
+        amount: parsedAmount.value,
         method: validatedMethod,
         paymentMethodId: validatedMethodId,
-        notes: notes || '',
+        notes: typeof notes === 'string' ? notes.slice(0, 500) : '',
         attachmentUrl: attachmentUrl || '',
-        attachmentName: attachmentName || '',
+        attachmentName: typeof attachmentName === 'string' ? attachmentName.slice(0, 200) : '',
       },
     })
 

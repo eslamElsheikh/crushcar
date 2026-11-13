@@ -17,7 +17,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     if (!booking) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (booking.userId !== session.user.id && session.user.role !== 'COMPANY_ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const isOwner = booking.userId === session.user.id
+    const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
+    const isBusOperator = session.user.role === 'COMPANY_ADMIN' && Boolean(session.user.companyId) && booking.trip.bus?.companyId === session.user.companyId
+
+    if (!isOwner && !isSuperAdmin && !isBusOperator) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -72,13 +76,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { trip: true, user: true },
+      include: { trip: { include: { bus: true } }, user: true },
     })
     if (!booking) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    if (booking.userId !== session.user.id && session.user.role !== 'COMPANY_ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const isOwner = booking.userId === session.user.id
+    const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
+    const isBusOperator = session.user.role === 'COMPANY_ADMIN' && Boolean(session.user.companyId) && booking.trip.bus?.companyId === session.user.companyId
+    const isStaff = isSuperAdmin || isBusOperator
+
+    if (!isOwner && !isStaff) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Authorized: either owner or staff
 
     const PAYMENT_METHODS = ['VODAFONE_CASH', 'INSTAPAY']
     const PROOF_RE = /^\/api\/uploads\/[a-f0-9-]+\.(jpg|jpeg|png|webp)$/i
@@ -153,7 +164,7 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
 
     // Admin asks for a new proof instead of cancelling.
     if (action === 'REQUEST_PROOF') {
-      if (session.user.role === 'CUSTOMER') {
+      if (!isStaff) {
         return NextResponse.json({ error: 'Only admins can request a new proof' }, { status: 403 })
       }
       if (booking.status !== 'PENDING') {
@@ -170,7 +181,7 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
     }
 
     if (action === 'REACTIVATE') {
-      if (session.user.role === 'CUSTOMER') {
+      if (!isStaff) {
         return NextResponse.json({ error: 'Only admins can reactivate a booking' }, { status: 403 })
       }
       if (booking.status !== 'CANCELLED' || !booking.expiredAt) {
@@ -229,7 +240,7 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
     }
 
     if (status === 'PAID') {
-      if (session.user.role === 'CUSTOMER') {
+      if (!isStaff) {
         return NextResponse.json({ error: 'Only admins can confirm payment' }, { status: 403 })
       }
       if (booking.status !== 'PENDING') {
@@ -276,7 +287,7 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
         return NextResponse.json({ error: 'Cannot cancel after boarding' }, { status: 400 })
       }
 
-      const isAdmin = session.user.role === 'COMPANY_ADMIN' || session.user.role === 'SUPER_ADMIN'
+      const isAdmin = isStaff
       const departureTime = new Date(booking.trip.departure)
       const bookingTime = booking.createdAt
 
@@ -358,8 +369,14 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
         return NextResponse.json({ error: 'Cancellation not allowed' }, { status: 400 })
       }
 
-      const updated = await prisma.booking.update({
-        where: { id },
+      // Conditional on the status read above. Between that read and this
+      // write an administrator can confirm the payment, or the expiry sweep
+      // can cancel the row; an unconditional update would then overwrite a
+      // freshly PAID booking with status CANCELLED and refundAmount 0 — the
+      // one booking that must be refunded. If the status moved, the caller
+      // retries against what is actually there now.
+      const updatedCount = await prisma.booking.updateMany({
+        where: { id, status: booking.status },
         data: {
           status: 'CANCELLED',
           cancelledAt: new Date(),
@@ -369,11 +386,18 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
           cancellationFee: booking.status === 'PAID' ? cancellationFee : 0,
         },
       })
+      if (updatedCount.count === 0) {
+        return NextResponse.json(
+          { error: 'BOOKING_CHANGED', message: 'تغيرت حالة هذا الحجز، حاول مرة أخرى' },
+          { status: 409 }
+        )
+      }
+      const row = await prisma.booking.findUnique({ where: { id } })
 
       return NextResponse.json({
-        ...updated,
-        paidAt: updated.paidAt?.toISOString() || null,
-        cancelledAt: updated.cancelledAt?.toISOString() || null,
+        ...row,
+        paidAt: row?.paidAt?.toISOString() || null,
+        cancelledAt: row?.cancelledAt?.toISOString() || null,
         refundAmount: booking.status === 'PAID' ? refundAmount : 0,
         cancellationFee: booking.status === 'PAID' ? cancellationFee : 0,
         refundPercent,
@@ -381,14 +405,25 @@ const PROOF_REQUIRED_FROM = process.env.PROOF_REQUIRED_FROM
     }
 
     if (status === 'BOARDED') {
-      if (session.user.role === 'CUSTOMER') {
+      if (!isStaff) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
-      const updated = await prisma.booking.update({
-        where: { id },
+      // Boarding is only a transition out of PENDING or PAID. Without the
+      // status in the WHERE clause a cancelled (or refunded) booking could be
+      // boarded by a stale request, which would put a seat back in use after
+      // the seat was released and the money returned.
+      const claimed = await prisma.booking.updateMany({
+        where: { id, status: { in: ['PENDING', 'PAID', 'BOARDED'] } },
         data: { status: 'BOARDED', boarded: true, boardedAt: new Date() },
       })
-      return NextResponse.json({ ...updated, paidAt: updated.paidAt?.toISOString() || null, boardedAt: updated.boardedAt?.toISOString() || null })
+      if (claimed.count === 0) {
+        return NextResponse.json(
+          { error: 'BOOKING_NOT_BOARDABLE', message: 'لا يمكن الصعود على حجز ملغي' },
+          { status: 409 }
+        )
+      }
+      const updated = await prisma.booking.findUnique({ where: { id } })
+      return NextResponse.json({ ...updated, paidAt: updated?.paidAt?.toISOString() || null, boardedAt: updated?.boardedAt?.toISOString() || null })
     }
 
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })

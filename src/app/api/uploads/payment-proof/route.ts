@@ -4,14 +4,10 @@ import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import sharp from 'sharp';
 import { auth } from '@/lib/auth';
+import { markUploadPrivate, uploadDir } from '@/lib/upload-access';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EXT = new Set(['jpg', 'jpeg', 'png', 'webp']);
-
-function uploadDir(): string {
-  const dir = process.env.UPLOAD_DIR || './data/uploads';
-  return path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
-}
 
 function sniffKind(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
   if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
@@ -33,8 +29,10 @@ function sniffKind(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
 }
 
 // Shared transfer-proof upload (customers + company managers). Any signed-in
-// user. Ownership is enforced when the proof is ATTACHED (booking/deposit),
-// not here. Returns a public /api/uploads URL.
+// user. Ownership is enforced when the proof is ATTACHED (booking/deposit)
+// and, from the moment the bytes land, by the owner marker this route
+// writes — so an unattached proof is nobody else's to read either. Returns
+// an /api/uploads URL that is private to the uploader until it is attached.
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -65,6 +63,14 @@ export async function POST(req: NextRequest) {
     const dir = uploadDir();
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, name), out);
+
+    // Private from this instant, to this uploader (and their company, when
+    // the uploader is a company admin): no request for the URL is answered
+    // for anybody else until — and unless — it becomes a public image.
+    await markUploadPrivate(name, {
+      userId: session.user.id,
+      companyId: session.user.companyId || undefined,
+    });
 
     return NextResponse.json({ url: `/api/uploads/${name}` }, { status: 201 });
   } catch (err) {

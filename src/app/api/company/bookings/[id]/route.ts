@@ -11,12 +11,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
     const companyId = session.user.companyId
-    if (!companyId) return NextResponse.json({ error: 'No company linked' }, { status: 400 })
+    if (!isSuperAdmin && !companyId) {
+      return NextResponse.json({ error: 'No company linked' }, { status: 400 })
+    }
 
     const { id } = await params
+    const where: any = { id }
+    if (!isSuperAdmin) where.companyId = companyId
+
     const booking = await prisma.companyBooking.findFirst({
-      where: { id, companyId },
+      where,
       include: {
         trip: { include: { bus: true, tripStops: { include: { station: true }, orderBy: { stopOrder: 'asc' } } } },
         customer: true,
@@ -29,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     let roundTripLeg: 'outbound' | 'return' | null = null
     if (booking.roundTripGroupId) {
       pairedBooking = await prisma.companyBooking.findFirst({
-        where: { roundTripGroupId: booking.roundTripGroupId, id: { not: booking.id }, companyId },
+        where: { roundTripGroupId: booking.roundTripGroupId, id: { not: booking.id }, ...(isSuperAdmin ? {} : { companyId }) },
         include: {
           trip: { select: { id: true, origin: true, destination: true, departure: true } },
         },
@@ -262,11 +268,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     if (status === 'BOARDED') {
-      const updated = await prisma.companyBooking.update({
-        where: { id },
+      // Only a live booking can be boarded: a cancelled (and refunded) seat
+      // must not be put back into use by a stale request.
+      const claimed = await prisma.companyBooking.updateMany({
+        where: { id, status: { in: ['PENDING', 'PAID', 'BOARDED'] } },
         data: { status: 'BOARDED', boardedAt: new Date() },
       })
-      return NextResponse.json({ ...updated, boardedAt: updated.boardedAt?.toISOString() || null })
+      if (claimed.count === 0) {
+        return NextResponse.json(
+          { error: 'BOOKING_NOT_BOARDABLE', message: 'لا يمكن الصعود على حجز ملغي' },
+          { status: 409 }
+        )
+      }
+      const updated = await prisma.companyBooking.findUnique({ where: { id } })
+      return NextResponse.json({ ...updated, boardedAt: updated?.boardedAt?.toISOString() || null })
     }
 
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
@@ -278,6 +293,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (err.message === 'CREDIT_LIMIT_EXCEEDED') {
       return NextResponse.json({ error: 'CREDIT_LIMIT_EXCEEDED', message: 'تم تجاوز حد الكريدت، يرجى السداد أولاً' }, { status: 400 })
     }
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 })
+    // Everything else stays in the log: the raw message used to be the
+    // response body, so an internal failure answered with its own detail.
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

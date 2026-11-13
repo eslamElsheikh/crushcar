@@ -78,6 +78,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // The role column is free text, so an arbitrary string sent here would
+    // produce an account that passes every guard written as
+    // `role === 'CUSTOMER' → 403` — a company-wide account created outside
+    // the admin branch above. Only the roles this endpoint is meant to mint
+    // are accepted.
+    const ALLOWED_ROLES = ['CUSTOMER', 'COMPANY_ADMIN', 'SUPER_ADMIN']
+    if (role !== undefined && role !== null && role !== '' && !ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+    }
+
     const hashed = await bcrypt.hash(password, 12)
     const user = await prisma.user.create({
       data: {

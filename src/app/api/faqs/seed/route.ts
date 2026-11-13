@@ -56,7 +56,7 @@ const defaultFaqs = [
 export async function POST(_req: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user || session.user.role === 'CUSTOMER') {
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

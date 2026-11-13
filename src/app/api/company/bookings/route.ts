@@ -111,6 +111,18 @@ export async function POST(req: NextRequest) {
       if (!company) throw new Error('Company not found')
       if (!company.isActive) throw new Error('COMPANY_INACTIVE')
 
+      // The linked customer must belong to the calling company. `customerId`
+      // arrives in the request body, and without this check a company admin
+      // could attach another company's customer record to a booking and read
+      // that customer's name, phone and notes straight back off it.
+      if (customerId) {
+        const owned = await tx.companyCustomer.findFirst({
+          where: { id: customerId, companyId },
+          select: { id: true },
+        })
+        if (!owned) throw new Error('INVALID_CUSTOMER')
+      }
+
       // The trip row is locked before anything is counted or created, so two
       // requests cannot both read the same seat or the same allowance and both
       // decide they fit. The company row is locked too, in the canonical order
@@ -403,6 +415,25 @@ export async function POST(req: NextRequest) {
     if (err.message === 'CHARTER_TRIP') {
       return NextResponse.json({ error: 'CHARTER_TRIP', message: 'هذه رحلة شارتر، الحجز متاح عبر طلب الشارتر فقط' }, { status: 409 })
     }
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 })
+    if (err.message === 'INVALID_CUSTOMER') {
+      return NextResponse.json({ error: 'INVALID_CUSTOMER', message: 'العميل غير تابع لهذه الشركة' }, { status: 400 })
+    }
+    // Messages that describe something the caller got wrong, mapped to the
+    // status they deserve, and nothing else echoed: `err.message` used to
+    // become the response body, so any unexpected failure answered with its
+    // own internal text.
+    if (err.message === 'Trip not found') {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
+    }
+    if (err.message === 'Company not found') {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+    }
+    if (
+      err.message === 'Invalid stations' ||
+      err.message === 'fromStation must be before toStation'
+    ) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

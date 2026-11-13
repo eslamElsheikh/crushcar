@@ -27,8 +27,10 @@ export async function PUT(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // COMPANY_ADMIN can only edit users in their own company
-    if (session.user.role === 'COMPANY_ADMIN' && user.companyId !== session.user.companyId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (session.user.role === 'COMPANY_ADMIN') {
+      if (!session.user.companyId || user.companyId !== session.user.companyId || user.role === 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const data: Record<string, unknown> = {};

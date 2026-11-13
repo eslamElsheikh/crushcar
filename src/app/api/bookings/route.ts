@@ -5,7 +5,7 @@ import { nextBookingRef, withRefRetry } from '@/lib/booking-reference'
 import { paymentDeadline } from '@/lib/payments'
 import { isBookableByCustomer, BOOKING_CLOSED_MESSAGE_AR } from '@/lib/booking-rules'
 import { segmentPrice } from '@/lib/segment-price'
-import { UnknownSeatError, assertSeatBookable } from '@/lib/seat-availability'
+import { UnknownSeatError, assertSeatsBookable } from '@/lib/seat-availability'
 import { lockRow } from '@/lib/row-lock'
 import { BOOKING_ISOLATION } from '@/lib/transaction-isolation'
 import { applyRateLimitHeaders, checkRateLimit } from '@/lib/rateLimitHttp'
@@ -105,7 +105,11 @@ async function lookupBookings(req: NextRequest): Promise<NextResponse> {
 
     if (session.user.role === 'CUSTOMER') {
       where.userId = session.user.id
-    } else if (companyId) {
+    } else if (session.user.role === 'COMPANY_ADMIN') {
+      const cId = (session.user as any).companyId
+      if (!cId) return NextResponse.json({ error: 'No company linked' }, { status: 400 })
+      where.trip = { bus: { companyId: cId } }
+    } else if (companyId && session.user.role === 'SUPER_ADMIN') {
       where.trip = { bus: { companyId } }
     }
     if (type === 'company') {
@@ -312,20 +316,8 @@ async function createBooking(req: NextRequest): Promise<NextResponse> {
         }
       }
 
-      // The seat has to be a seat. A label that is not in the bus layout is
-      // not a seat, and a booking of one would be a booking of nothing. It
-      // must also not be one an administrator has blocked.
-      assertSeatBookable({
-        layoutSeatLabels: (trip.bus.layout?.seats ?? []).map((s: any) => s.label),
-        seatLabel,
-      })
-      const blocked = await tx.seatBlock.findFirst({
-        where: { tripId, seatLabel },
-        select: { id: true },
-      })
-      if (blocked) throw new Error('SEAT_BLOCKED')
-
-      // Validate hold if provided
+      // Validate hold if provided: the caller may only consume a hold they
+      // own, on this trip and this seat, that has not expired.
       if (holdId) {
         const hold = await tx.seatHold.findFirst({
           where: {
@@ -339,30 +331,23 @@ async function createBooking(req: NextRequest): Promise<NextResponse> {
         if (!hold) throw new Error('HOLD_EXPIRED_OR_INVALID')
       }
 
-      // Validate segment availability against confirmed bookings
-      const conflict = await tx.booking.findFirst({
-        where: {
-          tripId,
-          seatLabel,
-          status: { in: ['PENDING', 'PAID', 'BOARDED'] },
-          fromStopOrder: { lt: toStopOrder },
-          toStopOrder: { gt: fromStopOrder },
-        },
+      // Everything that can take the seat away, in one place: it must exist
+      // in the layout, it must not be blocked, it must be free against BOTH
+      // kinds of booking, and no *other* active hold may be on it.
+      //
+      // The customer path used to answer only the first half of that: it
+      // looked at its own `booking` table, so a seat a company booking
+      // already held could be sold to a customer as well, and it never heard
+      // of `seatHold` — which is also why the caller's own hold has to be
+      // named here rather than silently ignored.
+      await assertSeatsBookable(tx, {
+        tripId,
+        seatLabels: [seatLabel],
+        layoutSeatLabels: (trip.bus.layout?.seats ?? []).map((s: any) => s.label),
+        fromStopOrder,
+        toStopOrder,
+        excludeHoldId: holdId,
       })
-      if (conflict) throw new Error('SEAT_CONFLICT')
-
-      // Validate against active holds (excluding our hold)
-      const holdConflict = await tx.seatHold.findFirst({
-        where: {
-          tripId,
-          seatLabel,
-          expiresAt: { gt: new Date() },
-          fromStopOrder: { lt: toStopOrder },
-          toStopOrder: { gt: fromStopOrder },
-          ...(holdId ? { id: { not: holdId } } : {}),
-        },
-      })
-      if (holdConflict) throw new Error('SEAT_CONFLICT')
 
       const booking = await tx.booking.create({
         data: {
@@ -411,10 +396,10 @@ async function createBooking(req: NextRequest): Promise<NextResponse> {
     if (err.message === 'HOLD_EXPIRED_OR_INVALID') {
       return NextResponse.json({ error: 'HOLD_EXPIRED', message: 'انتهت صلاحية الحجز المؤقت، حاول مرة أخرى' }, { status: 409 })
     }
-    if (err.message === 'SEAT_CONFLICT') {
+    if (err.message === 'SEAT_CONFLICT' || err?.code === 'SEAT_CONFLICT') {
       return NextResponse.json({ error: 'SEAT_TAKEN', message: 'الكـرس محجوز من شخص آخر' }, { status: 409 })
     }
-    if (err.message === 'SEAT_BLOCKED') {
+    if (err.message === 'SEAT_BLOCKED' || err?.code === 'SEAT_BLOCKED') {
       return NextResponse.json({ error: 'SEAT_BLOCKED', message: 'الكرسي معطَّل من الإدارة' }, { status: 409 })
     }
     if (err instanceof UnknownSeatError) {

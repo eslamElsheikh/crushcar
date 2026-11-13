@@ -9,7 +9,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!station) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const tripStops = await prisma.tripStop.findMany({
-      where: { stationId: id },
+      where: {
+        stationId: id,
+        trip: {
+          status: 'SCHEDULED',
+          departure: { gte: new Date() },
+          bookingMode: 'SEAT',
+          reservedByCompanyId: null,
+        },
+      },
       include: {
         trip: {
           include: {

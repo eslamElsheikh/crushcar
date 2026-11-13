@@ -106,6 +106,12 @@ export async function POST(
     });
   } catch (err: any) {
     logger.error('[CreditLog POST]', err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    // A bad company id is the caller's problem; anything else stays in the
+    // log. The message used to be echoed back, which hands internal details
+    // (Prisma hints, driver text) to whoever sent the request.
+    if (err?.message === 'Company not found') {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

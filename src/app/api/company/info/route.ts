@@ -9,6 +9,9 @@ export async function GET(_req: NextRequest) {
     if (!session?.user || !session.user.companyId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (session.user.role === 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const company = await prisma.company.findUnique({
       where: { id: session.user.companyId },

@@ -7,6 +7,15 @@ import { evaluateTurnstile } from '@/lib/turnstile'
 /** How stale a session may get before isActive is re-read from the database. */
 const ACTIVE_RECHECK_MS = 5 * 60 * 1000
 
+/**
+ * A real bcrypt-12 digest that nothing compares equal to, used to spend the
+ * same work on an unknown email as on a wrong password. Its plaintext is a
+ * constant that is not a credential; the hash exists only so the comparison
+ * takes as long as a genuine one.
+ */
+const DUMMY_PASSWORD_HASH =
+  '$2a$12$YTPHf/4cU/qXYU3ZlBJaAeT7qbpz7W/aCWe8wOj/h1mRJeAs0JkyC'
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -39,7 +48,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           include: { company: true },
         })
 
-        if (!user) return null
+        // An address that does not exist still pays the price of a password
+        // check. Skipping it made "no such user" answer measurably faster
+        // than "wrong password", which is the whole signal an attacker needs
+        // to turn a login form into an account-existence oracle. The hash
+        // below is a fixed, valid bcrypt-12 digest of a string that is not a
+        // password anywhere; nothing compares equal to it.
+        if (!user) {
+          await bcrypt.compare(
+            credentials.password as string,
+            DUMMY_PASSWORD_HASH
+          )
+          return null
+        }
 
         const valid = await bcrypt.compare(
           credentials.password as string,

@@ -8,6 +8,7 @@ import {
   fromPiastres,
   toPiastres,
 } from '@/lib/platform-wallet'
+import { parseMoneyAmount } from '@/lib/validations'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,12 +83,17 @@ export async function POST(req: NextRequest) {
     }
 
     const { amount, method, reference, description, attachmentUrl } = await req.json()
-    const amountPiastres = toPiastres(Number(amount))
+    // Number() would still accept a numeric string and `Infinity` would
+    // survive toPiastres()'s finite check only by becoming 0; the money
+    // rule decides, and it also applies the ceiling this endpoint already
+    // had in piastres.
+    const parsed = parseMoneyAmount(amount)
+    if (!parsed.ok) {
+      return NextResponse.json({ error: 'Invalid amount', message: parsed.reason }, { status: 400 })
+    }
+    const amountPiastres = toPiastres(parsed.value)
     if (!(amountPiastres > 0)) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
-    }
-    if (amountPiastres > 100_000_000) {
-      return NextResponse.json({ error: 'Amount is out of range' }, { status: 400 })
     }
 
     const result = await prisma.$transaction(async (tx) =>

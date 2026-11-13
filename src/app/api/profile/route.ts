@@ -62,6 +62,9 @@ export async function PUT(req: NextRequest) {
 
     // If changing password, verify current password
     if (newPassword) {
+      if (typeof newPassword !== 'string' || newPassword.length < 6) {
+        return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 })
+      }
       if (!currentPassword) {
         return NextResponse.json({ error: 'Current password required' }, { status: 400 })
       }
@@ -71,7 +74,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const hashedPassword = newPassword ? await bcrypt.hash(newPassword, 10) : undefined
+    const hashedPassword = newPassword ? await bcrypt.hash(newPassword, 12) : undefined
 
     const updated = await prisma.user.update({
       where: { id: session.user.id },

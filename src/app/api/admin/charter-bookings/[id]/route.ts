@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { lockRow } from '@/lib/row-lock';
 
 const actionSchema = z.object({
   action: z.enum(['confirm', 'cancel', 'approve_cancel', 'reject_cancel']),
@@ -47,6 +48,11 @@ export async function PATCH(
       }
 
       const result = await prisma.$transaction(async (tx) => {
+        // Company row first, in the canonical lock order: without it two
+        // concurrent confirms both read the same balance, both pass the
+        // affordability check, and the wallet is charged twice.
+        await lockRow(tx, 'Company', existing.companyId)
+
         const company = await tx.company.findUnique({ where: { id: existing.companyId } });
         if (!company) throw new Error('Company not found');
 
@@ -66,6 +72,17 @@ export async function PATCH(
           }
         }
 
+        // Claim before charging. The status check at the top of this handler
+        // is a read from before the transaction, so a second confirm that
+        // started at the same time would also pass it; this update puts the
+        // status in the WHERE clause, so exactly one request can move the row
+        // out of `requested`, and the loser throws before any money moves.
+        const claimed = await tx.charterBooking.updateMany({
+          where: { id, status: 'requested' },
+          data: { status: 'confirmed', paidFromWallet, paidOnCredit },
+        });
+        if (claimed.count === 0) throw new Error('ALREADY_PROCESSED');
+
         if (paidFromWallet > 0) {
           await tx.company.update({
             where: { id: existing.companyId },
@@ -78,6 +95,9 @@ export async function PATCH(
               amount: -paidFromWallet,
               description: `Charter booking charge for trip ${existing.tripId}`,
               reference: existing.id,
+              // One charge per charter booking: the ledger's unique index is
+              // the backstop if the status claim above were ever removed.
+              idempotencyKey: `charter-charge:${id}`,
             },
           });
         }
@@ -89,10 +109,7 @@ export async function PATCH(
           });
         }
 
-        const updated = await tx.charterBooking.update({
-          where: { id },
-          data: { status: 'confirmed', paidFromWallet, paidOnCredit },
-        });
+        const updated = await tx.charterBooking.findUnique({ where: { id } });
 
         await tx.trip.update({
           where: { id: existing.tripId },
@@ -126,10 +143,24 @@ export async function PATCH(
         );
       }
 
-      const result = await prisma.charterBooking.update({
-        where: { id },
+      // Conditional: the status check above was read before this write, so a
+      // request that raced a confirmation must not cancel a booking that is
+      // no longer `requested`.
+      const claimed = await prisma.charterBooking.updateMany({
+        where: { id, status: 'requested' },
         data: { status: 'cancelled' },
       });
+      if (claimed.count === 0) {
+        return NextResponse.json(
+          {
+            error: 'Booking is not in requested status',
+            message: 'تمت معالجة هذا الحجز بالفعل أو تغيرت حالته، سيتم تحديث القائمة',
+            currentStatus: null,
+          },
+          { status: 400 }
+        );
+      }
+      const result = await prisma.charterBooking.findUnique({ where: { id } });
 
       return NextResponse.json(result);
     }
@@ -140,11 +171,30 @@ export async function PATCH(
       }
 
       const result = await prisma.$transaction(async (tx) => {
+        // Same canonical order as the confirm path: the company row is
+        // locked first so two concurrent approvals cannot both read the same
+        // balance and both credit the refund.
+        await lockRow(tx, 'Company', existing.companyId)
+
         const company = await tx.company.findUnique({ where: { id: existing.companyId } });
         if (!company) throw new Error('Company not found');
 
-        const refundWallet = existing.paidFromWallet;
-        const refundCredit = existing.paidOnCredit;
+        // Re-read inside the transaction: `existing` was read before it
+        // started, and the refund amounts must come from the row as it is
+        // now, not as it was when the request arrived.
+        const current = await tx.charterBooking.findUnique({ where: { id } });
+        if (!current) throw new Error('ALREADY_PROCESSED');
+
+        const refundWallet = current.paidFromWallet;
+        const refundCredit = current.paidOnCredit;
+
+        // Claim first: exactly one approval can move the booking out of
+        // `cancel_requested`. The loser throws before the wallet is credited.
+        const claimed = await tx.charterBooking.updateMany({
+          where: { id, status: 'cancel_requested' },
+          data: { status: 'cancelled' },
+        });
+        if (claimed.count === 0) throw new Error('ALREADY_PROCESSED');
 
         if (refundWallet > 0) {
           await tx.company.update({
@@ -158,6 +208,9 @@ export async function PATCH(
               amount: refundWallet,
               description: `Charter booking refund for trip ${existing.tripId}`,
               reference: existing.id,
+              // Unique per booking: a refund can be recorded only once even
+              // if the status claim above were bypassed.
+              idempotencyKey: `charter-refund:${id}`,
             },
           });
         }
@@ -169,10 +222,7 @@ export async function PATCH(
           });
         }
 
-        const updated = await tx.charterBooking.update({
-          where: { id },
-          data: { status: 'cancelled' },
-        });
+        const updated = await tx.charterBooking.findUnique({ where: { id } });
 
         await tx.trip.update({
           where: { id: existing.tripId },
@@ -190,10 +240,14 @@ export async function PATCH(
         return NextResponse.json({ error: 'Booking has no pending cancellation request' }, { status: 400 });
       }
 
-      const result = await prisma.charterBooking.update({
-        where: { id },
+      const claimed = await prisma.charterBooking.updateMany({
+        where: { id, status: 'cancel_requested' },
         data: { status: 'confirmed' },
       });
+      if (claimed.count === 0) {
+        return NextResponse.json({ error: 'Booking has no pending cancellation request' }, { status: 400 });
+      }
+      const result = await prisma.charterBooking.findUnique({ where: { id } });
 
       return NextResponse.json(result);
     }
@@ -206,6 +260,16 @@ export async function PATCH(
     }
     if (err?.message === 'CREDIT_LIMIT_EXCEEDED') {
       return NextResponse.json({ error: 'Credit limit exceeded', message: 'تم تجاوز حد الكريدت' }, { status: 400 });
+    }
+    if (err?.message === 'ALREADY_PROCESSED') {
+      return NextResponse.json(
+        {
+          error: 'Booking is not in requested status',
+          message: 'تمت معالجة هذا الحجز بالفعل أو تغيرت حالته، سيتم تحديث القائمة',
+          currentStatus: null,
+        },
+        { status: 400 }
+      );
     }
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

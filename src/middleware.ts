@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { decode } from 'next-auth/jwt'
 import {
   applyRateLimitHeaders,
   rateLimitRequest,
@@ -126,12 +127,82 @@ function applyTransportHeaders(
   return response
 }
 
-export function middleware(request: NextRequest) {
+/**
+ * Page trees that are private to a signed-in user: bookings, company and
+ * admin.
+ *
+ * The layouts under those trees already call `redirect('/login')`, but during
+ * a streamed render Next answers an already-started response with HTTP 200
+ * plus a `<meta http-equiv="refresh">` — a client-side redirect. A crawler,
+ * a link preview or a script that never runs JavaScript sees 200 OK, and the
+ * protection then rests entirely on the fetch calls inside the page.
+ *
+ * Middleware runs before rendering, so the same decision can be made while
+ * the status line is still unwritten: an anonymous request for a private page
+ * gets a real 307 with a Location header, and no page shell is produced at
+ * all. The layout guards below remain in place as the authoritative check —
+ * they run `auth()`, which also re-reads the database — because middleware
+ * only verifies the signature and expiry of the session cookie.
+ */
+const PRIVATE_PAGE_TREES = ['/bookings', '/company', '/admin']
+
+function isPrivatePageRequest(request: NextRequest): boolean {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return false
+  const pathname = request.nextUrl.pathname
+  return PRIVATE_PAGE_TREES.some(
+    (tree) => pathname === tree || pathname.startsWith(`${tree}/`)
+  )
+}
+
+/**
+ * True only for a cookie that is present, correctly signed with this
+ * deployment's AUTH_SECRET, and not expired.
+ *
+ * A missing or garbage cookie is what an incognito window and a scripted
+ * probe both present, so both are answered with the redirect below rather
+ * than being allowed to start a render.
+ *
+ * If AUTH_SECRET is unavailable the answer depends on where this is running.
+ * In production the check fails *closed*: a cookie we cannot verify is not a
+ * verified cookie, and a deployment without AUTH_SECRET is broken anyway
+ * (Auth.js refuses to sign anything), so letting unverifiable sessions
+ * through would only widen the damage of that misconfiguration. In
+ * development it fails open, because a developer without the variable in
+ * their environment would otherwise be locked out of every private tree and
+ * the authoritative `auth()` check in the layout still guards the data.
+ */
+async function hasValidSessionCookie(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get('next-auth.session-token')?.value
+  if (!token) return false
+  const secret = process.env.AUTH_SECRET
+  if (!secret) return process.env.NODE_ENV !== 'production'
+  try {
+    const payload = await decode({
+      token,
+      secret,
+      salt: 'next-auth.session-token',
+    })
+    return Boolean(payload)
+  } catch {
+    return false
+  }
+}
+
+export async function middleware(request: NextRequest) {
   // Charged before anything else sees the attempt, so a flood cannot borrow
   // time from the handler it is trying to reach.
   const login = loginAttempt(request)
   if (login && !login.allowed) {
     return applyTransportHeaders(rateLimitResponse(login), request)
+  }
+
+  // Private page trees: anonymous and invalid-session requests are answered
+  // here with a real server-side redirect, before any page HTML exists.
+  if (isPrivatePageRequest(request) && !(await hasValidSessionCookie(request))) {
+    return applyTransportHeaders(
+      NextResponse.redirect(new URL('/login', request.url), 307),
+      request
+    )
   }
 
   const isDev = process.env.NODE_ENV !== 'production'

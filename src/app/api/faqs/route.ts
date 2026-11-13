@@ -5,7 +5,18 @@ import { auth } from '@/lib/auth'
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url)
-    const showAll = url.searchParams.get('all') === '1'
+    const wantsAll = url.searchParams.get('all') === '1'
+
+    // `?all=1` means "include the drafts" — the administrative view the
+    // /admin/faqs page toggles. It used to be an unauthenticated switch, so
+    // an unpublished FAQ (an answer still being reviewed, a correction not
+    // yet public) was readable by anyone who guessed the parameter. The
+    // public site has never asked for it: it reads the default view.
+    let showAll = false
+    if (wantsAll) {
+      const session = await auth()
+      showAll = session?.user?.role === 'SUPER_ADMIN'
+    }
 
     const faqs = await prisma.faq.findMany({
       where: showAll ? {} : { isActive: true },
@@ -21,7 +32,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user || session.user.role === 'CUSTOMER') {
+    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
