@@ -1,6 +1,6 @@
 # SAFROTRAVEL — Independent Security Verification Report (Run #5)
 
-**Date:** 2026-11-13 · **Branch:** `fix/seatmap-mobile` (working tree, all changes left **uncommitted**) · **Verifier:** independent re-verification; prior reports treated as claims, not facts.
+**Date:** 2026-11-13 · **Branch:** `fix/seatmap-mobile` — **committed (`b4e62ac`) and deployed** via the push-to-deploy workflow (run `43351249283` green) · **Verifier:** independent re-verification; prior reports treated as claims, not facts.
 
 ---
 
@@ -16,14 +16,18 @@
   → **compiled successfully** (90 s, middleware included), artifact removed and
   `tsconfig.json`/`next-env.d.ts` restored byte-identical afterwards.
 - ESLint clean on every file modified in this run (23 API/lib files + the suite script).
-- **But nothing verified in this run is deployed.** The deployment workflow builds and
-  ships only on **push** to `fix/seatmap-mobile`. The working tree is uncommitted, so
-  production runs none of the Run #5 fixes, and production behaviour was not probed from
-  outside.
-- "100% secure" is never claimed. Residual risks remain (§6), including one **new
-  HIGH finding that is deliberately not fixed here** (a hardcoded key in the deployment
-  workflow), and the login/Turnstile flow still cannot be probed without real
+- **The fixes are now deployed** (commit `b4e62ac`, workflow run `43351249283` green:
+  build → FTP → migrations → deploy → verify live site, no rollback), and a
+  **read-only production probe passes 15/15** (health, middleware 307s, CSP nonce,
+  FAQ drafts, denial matrix, registration validation — no writes to production data).
+- **But full production verification was not performed:** the 136-assertion suite
+  creates fixtures *in the database it runs against* — running it against production
+  would write test rows into the production database, which is out of scope without
+  explicit approval — and the login/Turnstile flow still cannot be probed without real
   credentials and Turnstile keys.
+- "100% secure" is never claimed. Residual risks remain (§6), including one **HIGH
+  finding that is deliberately not fixed here** (FINDING-026, a hardcoded key in the
+  deployment workflow).
 
 ---
 
@@ -38,6 +42,8 @@
 | Production build | `NEXT_DIST_DIR=.next-build-verify npx next build` | **Success** (90 s; middleware 46.7 kB; only pre-existing `jose`/Edge-Runtime warning; artifact dir removed, `tsconfig.json`/`next-env.d.ts` restored — byte-identical diff 0) |
 | Lint | `npx eslint <all files modified in Run #5>` | **0 errors** on every modified file (`npm run lint` still reports ~67k pre-existing errors in untouched files) |
 | Session forging | signed next-auth JWTs via `encode(AUTH_SECRET, salt 'next-auth.session-token')` | exercises real signature/expiry verification; bypasses login form + Turnstile (documented limitation, §5) |
+| Deploy | `git push origin fix/seatmap-mobile` → GitHub Actions run `43351249283` (build → FTP → migrations → deploy → verify live site) | **Success, no rollback** (commit `b4e62ac`, 55 files) |
+| Production probe (read-only) | `npx tsx .scratch/verify-run5/prod-probe.ts` against `https://www.safrotravel.com` | **15/15 PASSED** — health 200, anon `/bookings/*` `/admin` `/company` → 307 `/login`, CSP nonce + nosniff, FAQ `?all=1` exposes 0 inactive, denial matrix 401/404 (uploads return JSON without image bytes), unknown station → 404, malformed register → 400; **no writes to production data** |
 
 Areas added in Run #5 (suite): A18 refund claim race · A19 seat holds + cross-table +
 degenerate segments + hold cap · A20 registration validation/flood · A21 upload authz +
@@ -161,18 +167,27 @@ Integrity observations:
   build → FTP `app.zip` → run migrations (the endpoint carrying FINDING-026) → agent
   deploy → health/build-id check → automatic rollback on failure. `DEPLOY.md` manual steps
   are fallback only.
-- **Current working tree: uncommitted ⇒ production is unchanged by this run.**
-  Production runs whatever was last pushed; none of Run #4's or Run #5's fixes exist there.
-- Nothing was pushed, committed, or deployed, per the engagement rules. No production data
-  was modified; all tests ran against the local scratch DB.
+- **Deployed.** Commit `b4e62ac` (55 files, Run #4 + Run #5 fixes, suite, matrix, docs)
+  was pushed and workflow run **`43351249283` completed green** on 2026-11-13 — build,
+  FTP upload, DB migrations, server-side deploy and live-site verification all passed;
+  rollback was not triggered.
+- **Post-deploy production probe: 15/15 passed, read-only** (`.scratch/verify-run5/prod-probe.ts`).
+  It touches only public/read endpoints and denial paths that write nothing.
+- **No production data was modified** by this engagement. All 136 suite assertions ran
+  against the local scratch DB (`.scratch/fix-feedback/.scratch-feedback.db`).
+- **What production verification still lacks:** (a) the full 136-assertion suite against
+  the deployed URL — it creates fixtures in whatever DB it targets, so running it against
+  production needs explicit approval; (b) login/Turnstile flow (needs real credentials
+  and `TURNSTILE_*` keys); (c) FINDING-026 (HIGH) remains open by design — see §6.
 
 **To reach `PRODUCTION SECURITY VERIFICATION PASSED`, the next operator must:**
-1. Review and commit the working tree (Run #4 + Run #5 fixes, suite, matrix, docs);
-2. Rotate/close FINDING-026 before or with that deploy;
-3. Push to `fix/seatmap-mobile` and let the workflow deploy green (build-id + health);
-4. Re-run `npx tsx scripts/verify-security-suite.ts` **against the deployed URL**
-   (`BASE_URL` env) — the suite is environment-agnostic;
-5. Probe login/Turnstile once with real credentials and keys.
+1. Rotate/close FINDING-026 (hardcoded key in the deploy workflow);
+2. Re-run `npx tsx scripts/verify-security-suite.ts` **against the deployed URL**
+   (`BASE_URL` env) **with explicit approval** — the suite is environment-agnostic but
+   writes fixtures into the target DB;
+3. Probe login/Turnstile once with real credentials and keys;
+4. Optionally close residual #6 by racing the EDIT-claim path on a MySQL instance
+   identical to production.
 
 ---
 
@@ -190,6 +205,8 @@ npx tsx .scratch/verify-run5/probe.ts        # expect 39/39 — the process keep
 npx tsc --noEmit                             # expect exit 0
 npx eslint <modified files>                  # expect 0 errors
 npx tsx scripts/route-matrix.ts              # 90 routes → SECURITY_ROUTE_MATRIX.md
+npx tsx .scratch/verify-run5/prod-probe.ts    # read-only vs https://www.safrotravel.com
+                                             # expect 15/15 (writes nothing)
 NEXT_DIST_DIR=.next-build-verify npx next build   # expect success; then remove
                                              # .next-build-verify and restore
                                              # tsconfig.json / next-env.d.ts

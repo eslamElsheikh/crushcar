@@ -1,6 +1,6 @@
 # SAFROTRAVEL — API Route Security Matrix (Independent Verification, Run #5)
 
-Date: 2026-11-13 · Branch: `fix/seatmap-mobile` (uncommitted) · Suite: `scripts/verify-security-suite.ts` (136/136 assertions, two consecutive runs) · Probe: `.scratch/verify-run5/probe.ts` (39/39)
+Date: 2026-11-13 · Branch: `fix/seatmap-mobile` — committed (`b4e62ac`) and deployed (run `43351249283` green) · Suite: `scripts/verify-security-suite.ts` (136/136 assertions, two consecutive runs) · Probe: `.scratch/verify-run5/probe.ts` (39/39) · Production probe: `.scratch/verify-run5/prod-probe.ts` (15/15, read-only)
 
 ## How to read this matrix
 

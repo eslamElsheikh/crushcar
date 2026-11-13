@@ -180,7 +180,8 @@
 
 All verified with live HTTP against the running dev server (suite areas A18–A26) and/or
 the independent probe `.scratch/verify-run5/probe.ts` (39/39). Suite: **136/136 PASSED ×2
-consecutive runs.** All changes uncommitted on `fix/seatmap-mobile`.
+consecutive runs.** Committed as `b4e62ac` and deployed to production via workflow run
+`43351249283` (green, no rollback); post-deploy read-only production probe: **15/15**.
 
 ### Fix 16: Conditional Claim on Concurrent Company-Booking EDIT (money movement)
 - **Files Changed:** `src/app/api/admin/company-bookings/[id]/route.ts`
