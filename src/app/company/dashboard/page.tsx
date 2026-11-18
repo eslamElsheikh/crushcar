@@ -4,7 +4,7 @@ import { routeLabel } from '@/lib/route-label';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { CreditCard, Wallet, TrendingUp, Ticket, ArrowRight, Plus, Bus, Armchair, CalendarClock, AlertTriangle } from 'lucide-react';
+import { CreditCard, Wallet, TrendingUp, Ticket, ArrowRight, Plus, Bus, Armchair, AlertTriangle } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';

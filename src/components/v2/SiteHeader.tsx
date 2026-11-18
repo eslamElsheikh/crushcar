@@ -13,7 +13,6 @@ import {
   Ticket,
   MapPin,
   CheckCircle2,
-  FileText,
   BarChart3,
   Users,
   CreditCard,
