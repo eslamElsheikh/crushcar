@@ -23,7 +23,16 @@ name: Deploy to cPanel (SafroTravel production)
 on:
   push:
     branches: [fix/seatmap-mobile]
-  workflow_dispatch: # manual deploy of any branch from the Actions tab
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform (deploy or reset_production_database)'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - reset_production_database
 
 concurrency:
   group: production-deploy
@@ -31,6 +40,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.action != 'reset_production_database' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -205,3 +215,82 @@ jobs:
           echo "::error::rollback did not restore health — MANUAL INTERVENTION REQUIRED" \
             "see docs/deploy/ROLLBACK.md"
           exit 1
+
+  reset_database:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'reset_production_database' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint reset script
+        run: php -l scripts/reset-production-data.php
+
+      - name: Backup Production Database
+        env:
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+          AGENT_KEY: ${{ secrets.AGENT_KEY }}
+        run: |
+          set -euo pipefail
+          echo "Triggering database dump via deploy-agent..."
+          resp=$(curl --fail --silent --show-error --max-time 300 \
+            --data-urlencode "key=$AGENT_KEY" --data-urlencode "step=dbdump" \
+            "$AGENT_URL")
+          echo "$resp"
+          echo "### Database Dump Backup" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "$resp" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Execute Database Reset
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+          AGENT_URL: ${{ secrets.AGENT_URL }}
+        run: |
+          set -euo pipefail
+          esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+          {
+            printf 'user = "%s:%s"\n' "$(esc "$FTP_USER")" "$(esc "$FTP_PASS")"
+          } > "$RUNNER_TEMP/ftp-reset.conf"
+
+          echo "Uploading reset-production-data.php to public_html..."
+          curl --fail --silent --show-error \
+            --config "$RUNNER_TEMP/ftp-reset.conf" \
+            -T scripts/reset-production-data.php \
+            "ftp://${FTP_HOST}/public_html/reset-production-data.php"
+
+          echo "Executing reset..."
+          BASE_URL=$(echo "$AGENT_URL" | sed 's|/deploy-agent\.php$||')
+          reset_resp=$(curl --fail --silent --show-error --max-time 180 \
+            "${BASE_URL}/reset-production-data.php?key=safro_extract_2026&confirm=CONFIRM_RESET_PRODUCTION")
+          echo "$reset_resp"
+          echo "### Database Reset Output" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "$reset_resp" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          # Remove reset-production-data.php from public_html
+          curl --silent --config "$RUNNER_TEMP/ftp-reset.conf" -Q "DELE /public_html/reset-production-data.php" "ftp://${FTP_HOST}/" || true
+          rm -f "$RUNNER_TEMP/ftp-reset.conf"
+
+      - name: Verify live site
+        run: |
+          set -euo pipefail
+          ok=""
+          for i in $(seq 1 15); do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' \
+              --max-time 20 https://www.safrotravel.com/api/health || echo 000)
+            if [ "$code" = "200" ] && grep -q '"status":"healthy"' /tmp/health.json; then
+              ok=1; break
+            fi
+            echo "health attempt $i: http=$code $(cat /tmp/health.json 2>/dev/null || true)"
+            sleep 5
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::production did not report healthy after reset"
+            cat /tmp/health.json 2>/dev/null || true
+            exit 1
+          fi
+          echo "Site is healthy and responsive!"
