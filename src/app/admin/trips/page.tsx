@@ -233,6 +233,9 @@ export default function AdminTrips() {
         }
         const dep = new Date(day); dep.setHours(dh, dm, 0, 0);
         const arr = new Date(day); arr.setHours(ah, am, 0, 0);
+        if (arr <= dep) {
+          arr.setDate(arr.getDate() + 1);
+        }
         // Each request is checked: a rejected POST used to fall through to a
         // success toast, so a run that created nothing still looked complete.
         const res = await fetch('/api/trips', {
@@ -520,7 +523,7 @@ export default function AdminTrips() {
           <V2Field label={isRTL ? 'وقت المغادرة' : 'Departure time'}>
             <V2Input type="time" value={bulk.departureTime} onChange={(e) => setBulk({ ...bulk, departureTime: e.target.value })} dir="ltr" className="tabular-nums" />
           </V2Field>
-          <V2Field label={isRTL ? 'وقت الوصول' : 'Arrival time'}>
+          <V2Field label={`${isRTL ? 'وقت الوصول' : 'Arrival time'}${bulk.departureTime && bulk.arrivalTime && bulk.arrivalTime <= bulk.departureTime ? (isRTL ? ' (اليوم التالي)' : ' (Next day)') : ''}`}>
             <V2Input type="time" value={bulk.arrivalTime} onChange={(e) => setBulk({ ...bulk, arrivalTime: e.target.value })} dir="ltr" className="tabular-nums" />
           </V2Field>
           <V2Field label={isRTL ? 'العدد' : 'Count'}>
