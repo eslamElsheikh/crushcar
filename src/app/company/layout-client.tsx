@@ -16,7 +16,6 @@ const navItems = [
   { href: '/company/dashboard', icon: LayoutDashboard, labelKey: 'company.dashboard' },
   { href: '/company/bookings', icon: Ticket, labelKey: 'company.bookings' },
   { href: '/company/charter', icon: Bus, labelKey: 'company.charter' },
-  { href: '/company/trip-requests', icon: Calendar, labelKey: 'company.tripRequests' },
   { href: '/company/customers', icon: Users, labelKey: 'company.customers' },
   { href: '/company/credit', icon: CreditCard, labelKey: 'company.credit' },
   { href: '/company/settings', icon: Settings, labelKey: 'company.settings' },

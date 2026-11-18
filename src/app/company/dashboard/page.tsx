@@ -173,9 +173,9 @@ export default function CompanyDashboard() {
         </div>
       </div>
 
-      {/* Charter vs seats + pending requests */}
-      <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
-        <Link href="/company/charter" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
+      {/* Charter / Request Bus summary */}
+      <div className="mt-5">
+        <Link href="/company/charter" className="block rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
           <div className="flex items-center justify-between">
             <span className="grid size-11 place-items-center rounded-xl bg-purple-50 text-purple-600">
               <Bus className="size-5" />
@@ -192,18 +192,6 @@ export default function CompanyDashboard() {
               {data.charter.requested.toLocaleString(locale)} · {t('company.pendingRequests')}
             </p>
           )}
-        </Link>
-        <Link href="/company/trip-requests" className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-5 transition hover:border-[#1D5BD8]/40">
-          <div className="flex items-center justify-between">
-            <span className="grid size-11 place-items-center rounded-xl bg-amber-50 text-amber-600">
-              <CalendarClock className="size-5" />
-            </span>
-            <ArrowRight className="size-4 text-slate-300 v2-flip-rtl" />
-          </div>
-          <p className="mt-3.5 text-[15px] font-extrabold text-[#0B1B33]">{t('company.pendingRequests')}</p>
-          <p className="mt-1.5 text-[21px] font-extrabold tabular-nums text-[#0B1B33]">
-            {(data.pendingTripRequests ?? 0).toLocaleString(locale)}
-          </p>
         </Link>
       </div>
 

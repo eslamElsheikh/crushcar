@@ -297,7 +297,47 @@ export default function BookingPayPage() {
               </p>
             </div>
 
-            {/* Payment Method Details / Wallets */}
+            {/* 1. Payment Method (طريقة الدفع أولاً) */}
+            <div className="v2-card p-6">
+              <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('pay.method')}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2.5" role="radiogroup" aria-label={t('pay.method')}>
+                {availableMethods.length > 0
+                  ? availableMethods.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selectedMethodId === m.id}
+                        onClick={() => { setSelectedMethodId(m.id); setMethod(m.displayName || m.type); }}
+                        className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
+                          selectedMethodId === m.id
+                            ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                            : 'border-slate-200 bg-white text-[#5B6B84]'
+                        }`}
+                      >
+                        {m.displayName}
+                      </button>
+                    ))
+                  : METHODS.map((m) => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={method === m.key}
+                        onClick={() => setMethod(m.key)}
+                        className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
+                          method === m.key
+                            ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                            : 'border-slate-200 bg-white text-[#5B6B84]'
+                        }`}
+                      >
+                        {t(m.labelKey)}
+                      </button>
+                    ))}
+              </div>
+            </div>
+
+            {/* 2. Payment Method Details / Wallets (معلومات الدفع والتحويل تحتها مباشرة) */}
             {availableMethods.length > 0 ? (
               (() => {
                 const activePm = availableMethods.find((m) => m.id === selectedMethodId) || availableMethods[0];
@@ -351,46 +391,6 @@ export default function BookingPayPage() {
                 )}
               </div>
             ) : null}
-
-            {/* Method */}
-            <div className="v2-card p-6">
-              <p className="text-[16px] font-extrabold text-[#0B1B33]">{t('pay.method')}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2.5" role="radiogroup" aria-label={t('pay.method')}>
-                {availableMethods.length > 0
-                  ? availableMethods.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={selectedMethodId === m.id}
-                        onClick={() => { setSelectedMethodId(m.id); setMethod(m.displayName || m.type); }}
-                        className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
-                          selectedMethodId === m.id
-                            ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
-                            : 'border-slate-200 bg-white text-[#5B6B84]'
-                        }`}
-                      >
-                        {m.displayName}
-                      </button>
-                    ))
-                  : METHODS.map((m) => (
-                      <button
-                        key={m.key}
-                        type="button"
-                        role="radio"
-                        aria-checked={method === m.key}
-                        onClick={() => setMethod(m.key)}
-                        className={`rounded-xl border px-4 py-3.5 text-[14px] font-bold transition ${
-                          method === m.key
-                            ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
-                            : 'border-slate-200 bg-white text-[#5B6B84]'
-                        }`}
-                      >
-                        {t(m.labelKey)}
-                      </button>
-                    ))}
-              </div>
-            </div>
 
             {/* Proof */}
             <div className="v2-card p-6">

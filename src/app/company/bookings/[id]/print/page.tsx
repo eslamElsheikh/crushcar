@@ -302,6 +302,11 @@ export default function CompanyPrintTicketPage() {
                       <div>
                         <p className="text-xs text-gray-400">{isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}</p>
                         <p className="font-semibold text-gray-800">{ticket.collectAmount.toFixed(2)} {isRTL ? 'ج.م' : 'EGP'}</p>
+                        {ticket.passengerNotes?.includes('إجمالي تحصيل') && (
+                          <p className="text-[10px] text-gray-500 mt-0.5">
+                            {ticket.passengerNotes.match(/\(جزء من إجمالي تحصيل [^)]+\)/)?.[0]}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

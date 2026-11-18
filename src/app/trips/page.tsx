@@ -94,9 +94,9 @@ function TripCard({
             {routeLabel(trip.origin, trip.destination, lang === 'ar')}
           </p>
 
-          <p className="mt-2 text-[15px] font-bold tabular-nums text-[#0B1B33]" dir="ltr" style={{ textAlign: 'start' }}>
+          <p className="mt-2 text-[15px] font-bold tabular-nums text-[#0B1B33]" style={{ textAlign: 'start' }}>
             {new Date(trip.departure).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-            {' → '}
+            <span className="mx-1 text-slate-400">{lang === 'ar' ? '←' : '→'}</span>
             {new Date(trip.arrival).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
             <span className="ms-2.5 text-[13px] font-medium text-[var(--sp-text-muted)]">
               {new Date(trip.departure).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}

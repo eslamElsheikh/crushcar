@@ -166,15 +166,48 @@ export default function CompanyCreditPage() {
           <p className="flex items-center gap-2 text-[16px] font-extrabold text-[#0B1B33]">
             <Plus className="size-5 text-[#1D5BD8]" /> {t('depositRequest.newRequest')}
           </p>
+
+          {/* 1. Payment Method Selection (طريقة الدفع أولاً) */}
           <div className="mt-4">
-            <V2Field label={t('depositRequest.amount')}>
-              <V2Input
-                type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
-                placeholder="1000" dir="ltr" className="tabular-nums"
-              />
-            </V2Field>
+            <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.method')}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('pay.method')}>
+              {availableMethods.length > 0
+                ? availableMethods.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedMethodId === m.id}
+                      onClick={() => { setSelectedMethodId(m.id); setMethod(m.displayName || m.type); }}
+                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
+                        selectedMethodId === m.id
+                          ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                          : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
+                      }`}
+                    >
+                      {m.displayName}
+                    </button>
+                  ))
+                : METHODS.map((m) => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={method === m.key}
+                      onClick={() => setMethod(m.key)}
+                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
+                        method === m.key
+                          ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
+                          : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
+                      }`}
+                    >
+                      {t(m.labelKey)}
+                    </button>
+                  ))}
+            </div>
           </div>
-          {/* Payment Method Details / Wallets */}
+
+          {/* 2. Payment Method Details / Wallets (معلومات الشحن والدفع تحتها مباشرة) */}
           {availableMethods.length > 0 ? (
             (() => {
               const activePm = availableMethods.find((m) => m.id === selectedMethodId) || availableMethods[0];
@@ -213,43 +246,15 @@ export default function CompanyCreditPage() {
               )}
             </div>
           ) : null}
+
+          {/* 3. Deposit Amount (مبلغ الشحن) */}
           <div className="mt-4">
-            <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.method')}</p>
-            <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('pay.method')}>
-              {availableMethods.length > 0
-                ? availableMethods.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={selectedMethodId === m.id}
-                      onClick={() => { setSelectedMethodId(m.id); setMethod(m.displayName || m.type); }}
-                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
-                        selectedMethodId === m.id
-                          ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
-                          : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
-                      }`}
-                    >
-                      {m.displayName}
-                    </button>
-                  ))
-                : METHODS.map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={method === m.key}
-                      onClick={() => setMethod(m.key)}
-                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-bold transition ${
-                        method === m.key
-                          ? 'border-[#1D5BD8] bg-[#EFF4FF] text-[#1D5BD8]'
-                          : 'border-slate-200 bg-white text-[var(--sp-text-muted)]'
-                      }`}
-                    >
-                      {t(m.labelKey)}
-                    </button>
-                  ))}
-            </div>
+            <V2Field label={t('depositRequest.amount')}>
+              <V2Input
+                type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
+                placeholder="1000" dir="ltr" className="tabular-nums"
+              />
+            </V2Field>
           </div>
           <div className="mt-4">
             <p className="px-1 text-[13px] font-bold text-[#0B1B33]">{t('pay.proof')}</p>

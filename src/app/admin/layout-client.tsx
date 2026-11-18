@@ -26,7 +26,6 @@ const navItems = [
   { href: '/admin/users', icon: ShieldPlus, labelKey: 'nav.users' },
   { href: '/admin/companies/pending', icon: Clock, labelKey: 'admin.pendingCompanies' },
   { href: '/admin/verify', icon: ScanEye, labelKey: 'nav.verify' },
-  { href: '/admin/trip-requests', icon: Calendar, labelKey: 'admin.tripRequests' },
   { href: '/admin/charter-bookings', icon: Bus, labelKey: 'admin.charterBookings' },
   { href: '/admin/deposit-requests', icon: Wallet, labelKey: 'admin.depositRequests' },
   { href: '/admin/cancellations', icon: XCircle, labelKey: 'admin.cancellations' },

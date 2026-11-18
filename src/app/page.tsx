@@ -602,9 +602,9 @@ export default function V2HomePage() {
                     <p className="text-balance text-[17px] font-extrabold leading-snug text-[#0B1B33]">
                       {routeLabel(trip.origin, trip.destination, isRTL)}
                     </p>
-                    <p className="mt-2 text-[14.5px] font-bold tabular-nums text-[#0B1B33]" dir="ltr" style={{ textAlign: 'start' }}>
+                    <p className="mt-2 text-[14.5px] font-bold tabular-nums text-[#0B1B33]" style={{ textAlign: 'start' }}>
                       {new Date(trip.departure).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                      {' → '}
+                      <span className="mx-1 text-slate-400">{isRTL ? '←' : '→'}</span>
                       {new Date(trip.arrival).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                     <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-[var(--sp-text-muted)]">

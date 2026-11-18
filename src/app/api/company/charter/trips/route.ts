@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const fromStationId = searchParams.get('fromStationId');
     const toStationId = searchParams.get('toStationId');
     const tripId = searchParams.get('tripId');
+    const date = searchParams.get('date');
 
     const where: Record<string, unknown> = {
       bookingMode: 'BUS',
@@ -37,6 +38,16 @@ export async function GET(req: NextRequest) {
     if (tripId) AND.push({ id: tripId });
     if (fromStationId) AND.push({ tripStops: { some: { stationId: fromStationId } } });
     if (toStationId) AND.push({ tripStops: { some: { stationId: toStationId } } });
+    if (date) {
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) {
+        const start = new Date(date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(date);
+        end.setHours(23, 59, 59, 999);
+        AND.push({ departure: { gte: start, lte: end } });
+      }
+    }
     if (AND.length > 0) where.AND = AND;
 
     const [trips, total] = await Promise.all([

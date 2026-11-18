@@ -539,12 +539,16 @@ function TripDetailPageContent() {
       return share;
     };
 
+    const splitNote = totalSeatCount > 1 && resolvedCollect
+      ? `${resolvedNotes ? resolvedNotes + ' — ' : ''}(جزء من إجمالي تحصيل ${resolvedCollect.toLocaleString()} ج.م)`
+      : resolvedNotes;
+
     const seats = selectedSeats.map((seatLabel) => ({
       seatLabel,
       passengerName: resolvedName,
       passengerPhone: resolvedPhone,
       passengerHotel: resolvedHotel,
-      passengerNotes: resolvedNotes,
+      passengerNotes: splitNote,
       collectAmount: nextShare(),
       fromStationId: isDirectTrip ? null : outboundFromId,
       toStationId: isDirectTrip ? null : outboundToId,
@@ -558,7 +562,7 @@ function TripDetailPageContent() {
       passengerName: resolvedName,
       passengerPhone: resolvedPhone,
       passengerHotel: resolvedHotel,
-      passengerNotes: resolvedNotes,
+      passengerNotes: splitNote,
       collectAmount: nextShare(),
       fromStationId: returnFromId,
       toStationId: returnToId,
@@ -928,9 +932,10 @@ function TripDetailPageContent() {
   const collectShown = collectShares.filter((s): s is number => s !== null);
   const collectLow = collectShown.length ? Math.min(...collectShown) : null;
   const collectHigh = collectShown.length ? Math.max(...collectShown) : null;
+  const parsedCollectTotal = parseCollectAmount(passenger.collectAmount) || 0;
   const collectSplitHint =
     collectSeatTotal > 1 && collectLow !== null
-      ? collectLow === collectHigh
+      ? (collectLow === collectHigh
         ? t('booking.collectSplitEven')
             .replace('{count}', String(collectSeatTotal))
             .replace('{amount}', collectLow.toLocaleString())
@@ -938,6 +943,7 @@ function TripDetailPageContent() {
             .replace('{count}', String(collectSeatTotal))
             .replace('{low}', collectLow.toLocaleString())
             .replace('{high}', collectHigh!.toLocaleString())
+        ).replace('{total}', parsedCollectTotal.toLocaleString())
       : null;
 
   if (loading) {

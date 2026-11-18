@@ -324,7 +324,12 @@ export default function CompanyBookingDetail() {
                     <CreditCard size={18} className="text-pink-600" />
                     <div>
                       <p className="text-xs text-[var(--sp-text-muted)]">{isRTL ? 'مبلغ التحصيل' : 'Collect Amount'}</p>
-                      <p>{booking.collectAmount.toFixed(2)} EGP</p>
+                      <p className="font-bold">{booking.collectAmount.toFixed(2)} EGP</p>
+                      {booking.passengerNotes?.includes('إجمالي تحصيل') && (
+                        <p className="text-[11.5px] font-semibold text-amber-700 mt-0.5">
+                          {booking.passengerNotes.match(/\(جزء من إجمالي تحصيل [^)]+\)/)?.[0]}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

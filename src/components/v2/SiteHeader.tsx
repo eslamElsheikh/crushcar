@@ -59,15 +59,13 @@ export function V2SiteHeader({ overlay = false }: { overlay?: boolean }) {
     { href: '/admin/buses', label: isRTL ? 'الباصات' : 'Buses', icon: Bus },
     { href: '/admin/stations', label: isRTL ? 'المحطات والوجهات' : 'Stations', icon: MapPin },
     { href: '/admin/verify', label: isRTL ? 'التحقق من الصعود' : 'Boarding Check', icon: CheckCircle2 },
-    { href: '/admin/trip-requests', label: isRTL ? 'طلبات الرحلات' : 'Trip Requests', icon: FileText },
     { href: '/admin/credit-report', label: isRTL ? 'التقارير المالية' : 'Financial Reports', icon: BarChart3 },
   ];
 
   const companyLinks = [
     { href: '/company/dashboard', label: isRTL ? 'الرئيسية' : 'Overview', icon: LayoutDashboard },
     { href: '/company/bookings', label: isRTL ? 'الحجوزات' : 'Bookings', icon: Ticket },
-    { href: '/company/charter', label: isRTL ? 'حجز شارتري' : 'Charter', icon: Bus },
-    { href: '/company/trip-requests', label: isRTL ? 'طلبات الرحلات' : 'Trip Requests', icon: FileText },
+    { href: '/company/charter', label: isRTL ? 'اطلب باص' : 'Request Bus', icon: Bus },
     { href: '/company/customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users },
     { href: '/company/credit', label: isRTL ? 'الحساب والكريدت' : 'Credit & Wallet', icon: CreditCard },
   ];

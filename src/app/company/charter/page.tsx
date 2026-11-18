@@ -32,6 +32,7 @@ export default function CharterTripsPage() {
   const [loading, setLoading] = useState(true);
   const [fromStationId, setFromStationId] = useState('');
   const [toStationId, setToStationId] = useState('');
+  const [date, setDate] = useState('');
 
   // StationPicker loads and searches the station list itself, so this page no
   // longer keeps its own copy.
@@ -39,11 +40,12 @@ export default function CharterTripsPage() {
     loadTrips();
   }, []);
 
-  async function loadTrips(fId?: string, tId?: string) {
+  async function loadTrips(fId?: string, tId?: string, d?: string) {
     setLoading(true);
     const params = new URLSearchParams();
     if (fId) params.set('fromStationId', fId);
     if (tId) params.set('toStationId', tId);
+    if (d) params.set('date', d);
     try {
       const res = await fetch(`/api/company/charter/trips?${params}`, { credentials: 'include' });
       const data = await res.json();
@@ -57,7 +59,7 @@ export default function CharterTripsPage() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    loadTrips(fromStationId, toStationId);
+    loadTrips(fromStationId, toStationId, date);
   }
 
   return (
@@ -66,7 +68,7 @@ export default function CharterTripsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[#0B1B33]">
-            {isRTL ? 'رحلات الشارتر (حجز الباص بالكامل)' : 'Charter Trips (Full Bus)'}
+            {isRTL ? 'اطلب باص (حجز الباص بالكامل)' : 'Request Bus (Full Bus Charter)'}
           </h1>
           <p className="text-sm text-[var(--sp-text-muted)] mt-1">
             {isRTL
@@ -80,13 +82,13 @@ export default function CharterTripsPage() {
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--sp-card)] border border-[var(--sp-line)] text-xs font-bold text-[#0B1B33] hover:bg-slate-50 transition shadow-sm self-start sm:self-auto"
         >
           <History size={16} className="text-[#1D5BD8]" />
-          <span>{isRTL ? 'سجل طلبات الشارتر' : 'Charter Requests History'}</span>
+          <span>{isRTL ? 'سجل طلبات حجز باص' : 'Bus Requests History'}</span>
         </Link>
       </div>
 
       {/* Filter / Search Bar */}
       <form onSubmit={handleSearch} className="rounded-2xl border border-[var(--sp-line)] bg-[var(--sp-card)] p-4 md:p-5 shadow-sm">
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
           <V2Field label={isRTL ? 'محطة الانطلاق' : 'Origin Station'}>
             <StationPicker
               id="charter-from"
@@ -107,6 +109,15 @@ export default function CharterTripsPage() {
               emptyLabel={isRTL ? 'كل المحطات' : 'All Stations'}
               ariaLabel={isRTL ? 'محطة الوصول' : 'Destination Station'}
               excludeId={fromStationId || undefined}
+            />
+          </V2Field>
+
+          <V2Field label={isRTL ? 'تاريخ السفر' : 'Travel Date'}>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--sp-inset)] border border-[var(--sp-line)] text-[#0B1B33] text-sm focus:outline-none focus:border-[#1D5BD8] focus:bg-[var(--sp-card)] transition"
             />
           </V2Field>
 
